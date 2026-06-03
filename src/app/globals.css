@@ -1,13 +1,18 @@
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #f6f8fb;
+  --foreground: #16202a;
+  --ink: #16202a;
+  --muted: #627080;
+  --surface: #ffffff;
+  --surface-raised: #eef3f7;
+  --border: #dce4eb;
+  --accent: #2f7d5c;
+  --accent-strong: #1f5d44;
+  --accent-soft: #8bb7a2;
+  --accent-wash: #e8f2ed;
+  --accent-ring: rgba(47, 125, 92, 0.18);
+  --danger: #b82d2d;
+  --shadow-soft: 0 12px 34px rgba(24, 36, 48, 0.08);
 }
 
 html {
@@ -26,9 +31,11 @@ body {
   flex-direction: column;
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  position: relative;
+  isolation: isolate;
 }
 
 * {
@@ -42,8 +49,9 @@ a {
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
-  }
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
