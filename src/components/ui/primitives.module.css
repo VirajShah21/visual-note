@@ -1,0 +1,183 @@
+.box {
+  min-width: 0;
+}
+
+.stack {
+  display: flex;
+  min-width: 0;
+}
+
+.stackVertical {
+  flex-direction: column;
+}
+
+.stackHorizontal {
+  flex-direction: row;
+  align-items: center;
+}
+
+.gapNone {
+  gap: 0;
+}
+
+.gapXs {
+  gap: 4px;
+}
+
+.gapSm {
+  gap: 8px;
+}
+
+.gapMd {
+  gap: 12px;
+}
+
+.gapLg {
+  gap: 18px;
+}
+
+.gapXl {
+  gap: 28px;
+}
+
+.grid {
+  display: grid;
+  min-width: 0;
+}
+
+.gridTwo {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gridThree {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gridAuto {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.cardPadded {
+  padding: 18px;
+}
+
+.cardCompact {
+  padding: 12px;
+}
+
+.heading {
+  color: var(--ink);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.headingHero {
+  font-size: 34px;
+  line-height: 1.05;
+}
+
+.headingLg {
+  font-size: 24px;
+  line-height: 1.15;
+}
+
+.headingMd {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.headingSm {
+  font-size: 14px;
+  line-height: 1.25;
+}
+
+.text {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.textStrong {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.textSmall {
+  font-size: 12px;
+}
+
+.textCode {
+  color: var(--ink);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 12px;
+}
+
+.pill {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: var(--surface-raised);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.divider {
+  height: 1px;
+  border: 0;
+  background: var(--border);
+}
+
+.scrollArea {
+  min-height: 0;
+  overflow: auto;
+}
+
+.externalLink {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-decoration: none;
+}
+
+.externalLink:hover {
+  text-decoration: underline;
+}
+
+.mediaImage {
+  display: block;
+  max-width: 100%;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+@media (max-width: 860px) {
+  .stackHorizontal {
+    align-items: stretch;
+  }
+
+  .gridTwo,
+  .gridThree {
+    grid-template-columns: 1fr;
+  }
+
+  .headingHero {
+    font-size: 28px;
+  }
+}

@@ -1,0 +1,83 @@
+.button {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    transform 140ms ease;
+}
+
+.buttonHost {
+  display: inline-flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.buttonHostFull {
+  width: 100%;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.primary {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.primary:hover {
+  background: var(--accent-strong);
+}
+
+.secondary {
+  border-color: var(--border);
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
+.secondary:hover {
+  border-color: var(--accent-soft);
+  background: var(--accent-wash);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--muted);
+}
+
+.ghost:hover {
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
+.danger {
+  background: var(--danger);
+  color: #ffffff;
+}
+
+.fullWidth {
+  width: 100%;
+}
+
+.iconOnly {
+  width: 34px;
+  padding: 8px;
+}
