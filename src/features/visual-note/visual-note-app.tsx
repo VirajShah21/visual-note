@@ -476,9 +476,7 @@ export function VisualNoteApp() {
         views: current.views.filter(item => item.id !== viewId),
       }
 
-      setSelection(currentSelection =>
-        deriveSelection(nextWorkspace, currentSelection.viewId === viewId ? { ...currentSelection, viewId: "" } : currentSelection),
-      )
+      setSelection(currentSelection => deriveSelection(nextWorkspace, currentSelection.viewId === viewId ? { ...currentSelection, viewId: "" } : currentSelection))
 
       return nextWorkspace
     })
@@ -933,18 +931,7 @@ type ViewWorkspaceProps = {
   onRemoveDisplay: (displayId: string) => void
 }
 
-function ViewWorkspace({
-  view,
-  views,
-  onSelectView,
-  onCreateView,
-  onDeleteView,
-  onUpdateView,
-  onAddDisplay,
-  onUpdateDisplay,
-  onMoveDisplay,
-  onRemoveDisplay,
-}: ViewWorkspaceProps) {
+function ViewWorkspace({ view, views, onSelectView, onCreateView, onDeleteView, onUpdateView, onAddDisplay, onUpdateDisplay, onMoveDisplay, onRemoveDisplay }: ViewWorkspaceProps) {
   const [title, setTitle] = useState("New view")
   const [mode, setMode] = useState<ViewMode>("structured")
   const [displayKind, setDisplayKind] = useState<ComponentKind>("data-card")
@@ -1095,12 +1082,7 @@ function ViewWorkspace({
         )}
       </Stack>
       {createViewDialog}
-      <ModalDialog
-        open={Boolean(editingViewId)}
-        title="Rename view"
-        description="Update the selected view title."
-        onOpenChange={open => !open && setEditingViewId("")}
-      >
+      <ModalDialog open={Boolean(editingViewId)} title="Rename view" description="Update the selected view title." onOpenChange={open => !open && setEditingViewId("")}>
         <Stack gap="md">
           <TextField label="View title" value={editingViewTitle} onChange={event => setEditingViewTitle(event.target.value)} />
           <Button icon={<Pencil size={15} />} variant="primary" onClick={renameView} fullWidth>
@@ -1108,12 +1090,7 @@ function ViewWorkspace({
           </Button>
         </Stack>
       </ModalDialog>
-      <ModalDialog
-        open={Boolean(changingModeViewId)}
-        title="Change view mode"
-        description="Choose how this view should render its content."
-        onOpenChange={closeChangeMode}
-      >
+      <ModalDialog open={Boolean(changingModeViewId)} title="Change view mode" description="Choose how this view should render its content." onOpenChange={closeChangeMode}>
         <Stack gap="md">
           <SelectField label="Mode" value={changingModeValue} options={viewModeOptions} onValueChange={value => setChangingModeValue(value as ViewMode)} />
           <Button icon={<Layers3 size={15} />} variant="primary" onClick={changeMode} fullWidth>
@@ -1235,7 +1212,7 @@ function DisplayDataEditor({ display, onDataChange }: DisplayDataEditorProps) {
       <Stack gap="md">
         <Heading size="sm">Events</Heading>
         <AnimatePresence mode="popLayout">
-          {objectArrayFrom(data.events).map((eventItem, index) => (
+          {timelineEventsFromData(data.events).map((eventItem, index) => (
             <MotionCard
               key={`${index}-${eventItem.label}-${eventItem.date}`}
               padding="compact"
@@ -1480,7 +1457,7 @@ function RenderedDisplay({ display, onUpdate, isReadOnly = false }: RenderedDisp
       <DisplayDataEditor display={display} onDataChange={updateData} />
     </Stack>
   )
-  const timelineEvents = objectArrayFrom(data.events)
+  const timelineEvents = timelineEventsFromData(data.events)
   const addTimelineEvent = () => {
     const nextEvents = [...timelineEvents, { label: "New event", date: "", time: "" }]
     updateData({ ...data, events: nextEvents })
@@ -1529,7 +1506,7 @@ function RenderedDisplay({ display, onUpdate, isReadOnly = false }: RenderedDisp
     </Stack>
   )
 
-  if (display.kind === "data-card")
+  if (display.kind === "data-card") {
     if (isReadOnly)
       return (
         <Stack className={styles.heroPanel} gap="md">
@@ -1538,28 +1515,29 @@ function RenderedDisplay({ display, onUpdate, isReadOnly = false }: RenderedDisp
         </Stack>
       )
 
-  return (
-    <Stack gap="md">
-      {editingDataCard ? (
-        <Stack gap="md">
-          <DisplayDataEditor display={display} onDataChange={updateData} />
-          <Stack className={styles.wrapRow} direction="horizontal" gap="sm">
-            <Button variant="ghost" onClick={() => setEditingDataCard(false)}>
-              Done
+    return (
+      <Stack gap="md">
+        {editingDataCard ? (
+          <Stack gap="md">
+            <DisplayDataEditor display={display} onDataChange={updateData} />
+            <Stack className={styles.wrapRow} direction="horizontal" gap="sm">
+              <Button variant="ghost" onClick={() => setEditingDataCard(false)}>
+                Done
+              </Button>
+            </Stack>
+          </Stack>
+        ) : (
+          <Stack className={styles.heroPanel} gap="md">
+            <Text tone="strong">{stringFrom(data.label, "Label")}</Text>
+            <Heading size="md">{stringFrom(data.value, "Value")}</Heading>
+            <Button icon={<Pencil size={14} />} variant="ghost" onClick={() => setEditingDataCard(true)}>
+              Edit
             </Button>
           </Stack>
-        </Stack>
-      ) : (
-        <Stack className={styles.heroPanel} gap="md">
-          <Text tone="strong">{stringFrom(data.label, "Label")}</Text>
-          <Heading size="md">{stringFrom(data.value, "Value")}</Heading>
-          <Button icon={<Pencil size={14} />} variant="ghost" onClick={() => setEditingDataCard(true)}>
-            Edit
-          </Button>
-        </Stack>
-      )}
-    </Stack>
-  )
+        )}
+      </Stack>
+    )
+  }
 
   if (display.kind === "work-logs")
     return (
@@ -1960,6 +1938,21 @@ const arrayFrom = (value: unknown) => {
 
 const objectArrayFrom = (value: unknown) => {
   if (Array.isArray(value)) return value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+
+  return []
+}
+
+const timelineEventsFromData = (value: unknown) => {
+  const asArray = objectArrayFrom(value)
+  if (asArray.length > 0) return asArray
+
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    const eventRecord = value as Record<string, unknown>
+    const candidates = Object.values(eventRecord).filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
+    if (candidates.length > 0) return candidates
+
+    if ("label" in eventRecord || "date" in eventRecord || "time" in eventRecord) return [eventRecord]
+  }
 
   return []
 }
