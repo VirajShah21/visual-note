@@ -463,6 +463,29 @@ export function VisualNoteApp() {
     }))
   }
 
+  const deleteView = (viewId: string) => {
+    const view = views.find(item => item.id === viewId)
+    if (!view) {
+      pushToast("View not found", "Choose an existing view before deleting.", "error")
+      return false
+    }
+
+    updateWorkspace(current => {
+      const nextWorkspace = {
+        ...current,
+        views: current.views.filter(item => item.id !== viewId),
+      }
+
+      setSelection(currentSelection =>
+        deriveSelection(nextWorkspace, currentSelection.viewId === viewId ? { ...currentSelection, viewId: "" } : currentSelection),
+      )
+
+      return nextWorkspace
+    })
+    pushToast("View deleted", `${view.title} was removed.`, "info")
+    return true
+  }
+
   return (
     <Stack className={styles.app}>
       <Grid className={styles.workspace}>
@@ -500,6 +523,7 @@ export function VisualNoteApp() {
                 views={views}
                 onSelectView={viewId => setSelection(current => ({ ...current, viewId }))}
                 onCreateView={addView}
+                onDeleteView={deleteView}
                 onUpdateView={updateView}
                 onAddDisplay={addDisplay}
                 onUpdateDisplay={updateDisplay}
@@ -901,6 +925,7 @@ type ViewWorkspaceProps = {
   views: NotebookView[]
   onSelectView: (viewId: string) => void
   onCreateView: (title: string, mode: ViewMode) => boolean
+  onDeleteView: (viewId: string) => boolean
   onUpdateView: (view: NotebookView) => void
   onAddDisplay: (kind: ComponentKind) => boolean
   onUpdateDisplay: (display: DisplayInstance) => void
@@ -908,13 +933,27 @@ type ViewWorkspaceProps = {
   onRemoveDisplay: (displayId: string) => void
 }
 
-function ViewWorkspace({ view, views, onSelectView, onCreateView, onUpdateView, onAddDisplay, onUpdateDisplay, onMoveDisplay, onRemoveDisplay }: ViewWorkspaceProps) {
+function ViewWorkspace({
+  view,
+  views,
+  onSelectView,
+  onCreateView,
+  onDeleteView,
+  onUpdateView,
+  onAddDisplay,
+  onUpdateDisplay,
+  onMoveDisplay,
+  onRemoveDisplay,
+}: ViewWorkspaceProps) {
   const [title, setTitle] = useState("New view")
   const [mode, setMode] = useState<ViewMode>("structured")
   const [displayKind, setDisplayKind] = useState<ComponentKind>("data-card")
   const [selectedDisplayForArticle, setSelectedDisplayForArticle] = useState("1")
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [isEditOpen, setIsEditOpen] = useState(false)
+  const [editingViewId, setEditingViewId] = useState("")
+  const [editingViewTitle, setEditingViewTitle] = useState("")
+  const [changingModeViewId, setChangingModeViewId] = useState("")
+  const [changingModeValue, setChangingModeValue] = useState<ViewMode>("structured")
   const [isDisplaysOpen, setIsDisplaysOpen] = useState(false)
 
   const create = () => {
@@ -928,6 +967,39 @@ function ViewWorkspace({ view, views, onSelectView, onCreateView, onUpdateView, 
     if (!onAddDisplay(displayKind)) return
 
     setDisplayKind("data-card")
+  }
+  const openRenameView = (viewId: string) => {
+    const targetView = views.find(item => item.id === viewId)
+    if (!targetView) return
+
+    setEditingViewId(targetView.id)
+    setEditingViewTitle(targetView.title)
+  }
+  const renameView = () => {
+    const targetView = views.find(item => item.id === editingViewId)
+    const trimmedTitle = editingViewTitle.trim()
+    if (!targetView || !trimmedTitle) return
+
+    onUpdateView({ ...targetView, title: trimmedTitle })
+    setEditingViewId("")
+    setEditingViewTitle("")
+  }
+  const openChangeMode = (viewId: string) => {
+    const targetView = views.find(item => item.id === viewId)
+    if (!targetView) return
+
+    setChangingModeViewId(targetView.id)
+    setChangingModeValue(targetView.mode)
+  }
+  const changeMode = () => {
+    const targetView = views.find(item => item.id === changingModeViewId)
+    if (!targetView) return
+
+    onUpdateView({ ...targetView, mode: changingModeValue })
+    setChangingModeViewId("")
+  }
+  const closeChangeMode = () => {
+    setChangingModeViewId("")
   }
   const createViewDialog = (
     <ModalDialog open={isCreateOpen} title="Create view" description="Add another view to this topic and choose how it should present content." onOpenChange={setIsCreateOpen}>
@@ -962,25 +1034,31 @@ function ViewWorkspace({ view, views, onSelectView, onCreateView, onUpdateView, 
       <Stack className={styles.viewHeader} direction="horizontal" gap="md">
         <Stack direction="horizontal" role="tablist" aria-label="Views" className={styles.viewTabs} gap="none">
           {views.map(viewOption => (
-            <Button
+            <ContextActions
               key={viewOption.id}
-              variant="ghost"
-              className={viewOption.id === view.id ? styles.viewTabActive : styles.viewTab}
-              role="tab"
-              aria-selected={viewOption.id === view.id}
-              onClick={() => onSelectView(viewOption.id)}
-              fullWidth={false}
+              items={[
+                { label: "Rename", icon: <Pencil size={14} />, onSelect: () => openRenameView(viewOption.id) },
+                { label: "Change mode", icon: <Layers3 size={14} />, onSelect: () => openChangeMode(viewOption.id) },
+                { label: "Delete", icon: <Trash2 size={14} />, onSelect: () => onDeleteView(viewOption.id) },
+              ]}
             >
-              {viewOption.title}
-            </Button>
+              <Button
+                key={viewOption.id}
+                variant="ghost"
+                className={viewOption.id === view.id ? styles.viewTabActive : styles.viewTab}
+                role="tab"
+                aria-selected={viewOption.id === view.id}
+                onClick={() => onSelectView(viewOption.id)}
+                fullWidth={false}
+              >
+                {viewOption.title}
+              </Button>
+            </ContextActions>
           ))}
         </Stack>
         <Stack className={styles.viewActions} direction="horizontal" gap="sm">
           <Button icon={<Plus size={15} />} onClick={() => setIsCreateOpen(true)}>
             New view
-          </Button>
-          <Button icon={<Pencil size={15} />} onClick={() => setIsEditOpen(true)}>
-            Edit
           </Button>
           <Button icon={<Layers3 size={15} />} onClick={() => setIsDisplaysOpen(true)}>
             Displays
@@ -1017,13 +1095,32 @@ function ViewWorkspace({ view, views, onSelectView, onCreateView, onUpdateView, 
         )}
       </Stack>
       {createViewDialog}
-      <SideDrawer open={isEditOpen} title="Edit view" description="Update the selected view without crowding the reading canvas." onOpenChange={setIsEditOpen}>
+      <ModalDialog
+        open={Boolean(editingViewId)}
+        title="Rename view"
+        description="Update the selected view title."
+        onOpenChange={open => !open && setEditingViewId("")}
+      >
         <Stack gap="md">
-          <TextField label="View title" value={view.title} onChange={event => onUpdateView({ ...view, title: event.target.value })} />
-          <SelectField label="Mode" value={view.mode} options={viewModeOptions} onValueChange={value => onUpdateView({ ...view, mode: value as ViewMode })} />
-          <TextAreaField label="Content" value={view.content} onChange={event => onUpdateView({ ...view, content: event.target.value })} />
+          <TextField label="View title" value={editingViewTitle} onChange={event => setEditingViewTitle(event.target.value)} />
+          <Button icon={<Pencil size={15} />} variant="primary" onClick={renameView} fullWidth>
+            Rename view
+          </Button>
         </Stack>
-      </SideDrawer>
+      </ModalDialog>
+      <ModalDialog
+        open={Boolean(changingModeViewId)}
+        title="Change view mode"
+        description="Choose how this view should render its content."
+        onOpenChange={closeChangeMode}
+      >
+        <Stack gap="md">
+          <SelectField label="Mode" value={changingModeValue} options={viewModeOptions} onValueChange={value => setChangingModeValue(value as ViewMode)} />
+          <Button icon={<Layers3 size={15} />} variant="primary" onClick={changeMode} fullWidth>
+            Save mode
+          </Button>
+        </Stack>
+      </ModalDialog>
       <SideDrawer
         open={isDisplaysOpen}
         title="Manage displays"

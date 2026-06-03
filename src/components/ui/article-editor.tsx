@@ -1,12 +1,19 @@
 "use client"
 
 import { AnimatePresence, motion } from "motion/react"
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ComponentProps, type KeyboardEvent, type ReactNode } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, type ChangeEvent, type ComponentProps, type KeyboardEvent, type ReactNode } from "react"
 import { Button } from "./button"
 import { SelectField } from "./form-controls"
 import { Card, Divider, Pill, Stack, Text } from "./primitives"
 import { cx } from "./class-name"
-import { parseArticleContent, serializeArticleContent, type ArticleBlock } from "@/lib/visual-note/article-content"
+import {
+  articleBlockCanReceiveTextFocus,
+  cryptoId,
+  isListBlock,
+  parseArticleContent,
+  serializeArticleContent,
+  type ArticleBlock,
+} from "@/lib/visual-note/article-content"
 import type { DisplayInstance } from "@/lib/visual-note/types"
 import styles from "./article-editor.module.css"
 
@@ -32,6 +39,11 @@ type ArticleEditorProps = {
   renderDisplay?: (display: DisplayInstance, displayIndex: number) => ReactNode
 }
 
+// ---------------------------------------------------------------------------
+// Command state – managed with useReducer for atomic updates (no stale-closure
+// risk from co-dependent useState calls).
+// ---------------------------------------------------------------------------
+
 type CommandState = {
   blockIndex: number
   field: EditorField
@@ -40,51 +52,72 @@ type CommandState = {
   selectionEnd: number
 }
 
+type CommandReducerState = {
+  commandState: CommandState | null
+  commandQuery: string
+  selectedCommandIndex: number
+}
+
+type CommandAction =
+  | { type: "open"; state: CommandState }
+  | { type: "update"; patch: Pick<CommandState, "selectionEnd">; query: string }
+  | { type: "close" }
+  | { type: "selectDelta"; delta: 1 | -1; max: number }
+
+const CLOSED_COMMAND_STATE: CommandReducerState = {
+  commandState: null,
+  commandQuery: "",
+  selectedCommandIndex: 0,
+}
+
+const commandReducer = (state: CommandReducerState, action: CommandAction): CommandReducerState => {
+  switch (action.type) {
+    case "open":
+      return { commandState: action.state, commandQuery: "", selectedCommandIndex: 0 }
+    case "update":
+      if (!state.commandState) return state
+      return {
+        ...state,
+        commandState: { ...state.commandState, ...action.patch },
+        commandQuery: action.query,
+        selectedCommandIndex: 0,
+      }
+    case "close":
+      return CLOSED_COMMAND_STATE
+    case "selectDelta":
+      return {
+        ...state,
+        selectedCommandIndex: Math.max(0, Math.min(state.selectedCommandIndex + action.delta, action.max)),
+      }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Pure helpers
+// ---------------------------------------------------------------------------
+
 const commandMatch = (command: ArticleEditorCommand, query: string) => {
   const normalized = query.toLowerCase().trim()
   if (!normalized) return true
-
   if (command.label.toLowerCase().includes(normalized)) return true
-
   return command.aliases.some(alias => alias.toLowerCase().includes(normalized))
 }
+
+const HEADING_LEVELS = [1, 2, 3, 4] as const
 
 const createCommandList = (selectedDisplayIndex: number, displays: DisplayInstance[]) => {
   const selectedDisplay = Math.max(0, Math.min(selectedDisplayIndex, Math.max(displays.length - 1, 0)))
 
   const commands: ArticleEditorCommand[] = [
-    {
-      id: "heading-1",
-      label: "Heading 1",
-      description: "Create a level 1 heading",
-      aliases: ["h1", "#", "heading 1"],
-      mode: "line",
-      applyLine: () => ({ kind: "heading", id: cryptoId(), level: 1, text: "Heading" }),
-    },
-    {
-      id: "heading-2",
-      label: "Heading 2",
-      description: "Create a level 2 heading",
-      aliases: ["h2", "##", "heading 2"],
-      mode: "line",
-      applyLine: () => ({ kind: "heading", id: cryptoId(), level: 2, text: "Heading" }),
-    },
-    {
-      id: "heading-3",
-      label: "Heading 3",
-      description: "Create a level 3 heading",
-      aliases: ["h3", "###", "heading 3"],
-      mode: "line",
-      applyLine: () => ({ kind: "heading", id: cryptoId(), level: 3, text: "Heading" }),
-    },
-    {
-      id: "heading-4",
-      label: "Heading 4",
-      description: "Create a level 4 heading",
-      aliases: ["h4", "####", "heading 4"],
-      mode: "line",
-      applyLine: () => ({ kind: "heading", id: cryptoId(), level: 4, text: "Heading" }),
-    },
+    // Headings – generated from a single factory to avoid 4 near-identical objects
+    ...HEADING_LEVELS.map(level => ({
+      id: `heading-${level}`,
+      label: `Heading ${level}`,
+      description: `Create a level ${level} heading`,
+      aliases: [`h${level}`, "#".repeat(level), `heading ${level}`],
+      mode: "line" as const,
+      applyLine: () => ({ kind: "heading" as const, id: cryptoId(), level, text: "Heading" }),
+    })),
     {
       id: "paragraph",
       label: "Paragraph",
@@ -242,12 +275,6 @@ const selectedDisplayIndexFromState = (value: string, displayCount: number) => {
   return Math.min(parsed - 1, displayCount - 1)
 }
 
-const cryptoId = () => {
-  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
-
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`
-}
-
 const getLineStart = (text: string, cursor: number) => {
   const index = text.lastIndexOf("\n", cursor - 1)
   return index === -1 ? 0 : index + 1
@@ -297,25 +324,41 @@ const renderInlineLinks = (text: string) => {
   return parts
 }
 
-const normalizeParagraphText = (text: string) => {
-  return text === "" ? EMPTY_PARAGRAPH_TEXT : text
+const normalizeParagraphText = (text: string) => (text === "" ? EMPTY_PARAGRAPH_TEXT : text)
+
+const denormalizeParagraphText = (text: string) => (text === EMPTY_PARAGRAPH_TEXT ? "" : text)
+
+/** Returns the character length of the primary text field of a block, used to position the cursor after a block is created or replaced. */
+const getBlockTextLength = (block: ArticleBlock): number => {
+  if (block.kind === "heading") return block.text.length
+  if (block.kind === "paragraph") return block.text.length
+  if (block.kind === "quote") return block.lines.join("\n").length
+  if (block.kind === "callout") return block.text.length
+  if (block.kind === "code") return block.code.length
+  if (isListBlock(block)) return block.items[0]?.length ?? 0
+  return 0
 }
 
-const denormalizeParagraphText = (text: string) => {
-  return text === EMPTY_PARAGRAPH_TEXT ? "" : text
+/** Returns whether the block's editable text field is effectively empty (used for Backspace-to-delete). */
+const isBlockEmpty = (block: ArticleBlock, textValue: string): boolean => {
+  if (block.kind === "paragraph" || block.kind === "heading" || block.kind === "callout" || block.kind === "quote" || block.kind === "code")
+    return textValue.trim() === ""
+  if (block.kind === "image") return block.alt.trim() === "" && block.url.trim() === ""
+  if (isListBlock(block)) return block.items.every(item => item.trim() === "")
+  return false
 }
 
-const articleBlockCanReceiveTextFocus = (block: ArticleBlock) => {
-  return (
-    block.kind === "paragraph" ||
-    block.kind === "heading" ||
-    block.kind === "quote" ||
-    block.kind === "callout" ||
-    block.kind === "code" ||
-    block.kind === "bulletList" ||
-    block.kind === "orderedList"
-  )
+/** Maps a heading level to its CSS module class. */
+const headingLevelClass = (level: 1 | 2 | 3 | 4) => {
+  if (level === 1) return styles["heading-1"]
+  if (level === 2) return styles["heading-2"]
+  if (level === 3) return styles["heading-3"]
+  return styles["heading-4"]
 }
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
 
 type BlockTextareaProps = ComponentProps<typeof motion.textarea> & {
   value: string
@@ -347,7 +390,7 @@ function BlockTextarea({ value, className, ...props }: BlockTextareaProps) {
 }
 
 function InlineLinkTextarea({ value, className, ...props }: BlockTextareaProps) {
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useReducer((_: boolean, next: boolean) => next, false)
   const shouldDisplayLinks = !isEditing && hasMarkdownLink(value)
 
   if (shouldDisplayLinks)
@@ -396,18 +439,24 @@ function InlineLinkTextarea({ value, className, ...props }: BlockTextareaProps) 
   )
 }
 
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
 export function ArticleEditor({ value, displays, selectedDisplayForArticle, onChangeSelectedDisplay, onChange, renderDisplay }: ArticleEditorProps) {
   const parsed = useMemo(() => parseArticleContent(value, displays.length), [value, displays.length])
   const editorRef = useRef<HTMLDivElement | null>(null)
   const commandRef = useRef<HTMLDivElement | null>(null)
+  const menuPositionRef = useRef({ top: 0, left: 0 })
+
+  // Pending focus target after a block split/replace. Stored in refs to avoid
+  // triggering an extra render – the effect that reads them runs after `parsed`
+  // already re-renders due to a content change.
   const splitFocusBlockIndexRef = useRef<number | null>(null)
   const splitFocusListIndexRef = useRef<number | null>(null)
   const splitFocusSelectionRef = useRef<number>(0)
 
-  const [commandState, setCommandState] = useState<CommandState | null>(null)
-  const [commandQuery, setCommandQuery] = useState("")
-  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0)
-  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
+  const [{ commandState, commandQuery, selectedCommandIndex }, dispatchCommand] = useReducer(commandReducer, CLOSED_COMMAND_STATE)
 
   const selectedDisplayIndex = useMemo(() => selectedDisplayIndexFromState(selectedDisplayForArticle, displays.length), [selectedDisplayForArticle, displays.length])
 
@@ -433,9 +482,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
       const target = event.target as Node
       if (editorRef.current?.contains(target) || commandRef.current?.contains(target)) return
 
-      setCommandState(null)
-      setCommandQuery("")
-      setSelectedCommandIndex(0)
+      dispatchCommand({ type: "close" })
     }
 
     document.addEventListener("pointerdown", closeOutside)
@@ -447,7 +494,10 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
     if (targetIndex == null) return
 
     const targetListIndex = splitFocusListIndexRef.current
-    const selector = targetListIndex == null ? `textarea[data-block-index="${targetIndex}"]` : `textarea[data-block-index="${targetIndex}"][data-list-index="${targetListIndex}"]`
+    const selector =
+      targetListIndex == null
+        ? `textarea[data-block-index="${targetIndex}"]`
+        : `textarea[data-block-index="${targetIndex}"][data-list-index="${targetListIndex}"]`
     const target = editorRef.current?.querySelector<HTMLTextAreaElement>(selector)
     if (!target) return
 
@@ -461,18 +511,23 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
     splitFocusSelectionRef.current = 0
   }, [parsed.blocks])
 
-  const closeCommand = useCallback(() => {
-    setCommandState(null)
-    setCommandQuery("")
-    setSelectedCommandIndex(0)
-  }, [])
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+
+  /** Sets all three split-focus refs in one call. */
+  const setSplitFocus = (blockIndex: number, listIndex: number | null, selection: number) => {
+    splitFocusBlockIndexRef.current = blockIndex
+    splitFocusListIndexRef.current = listIndex
+    splitFocusSelectionRef.current = selection
+  }
 
   const writeBlocks = useCallback(
     (blocks: ArticleBlock[], options: { closeCommand?: boolean } = {}) => {
       onChange(serializeArticleContent(blocks))
-      if (options.closeCommand ?? true) closeCommand()
+      if (options.closeCommand ?? true) dispatchCommand({ type: "close" })
     },
-    [closeCommand, onChange],
+    [onChange],
   )
 
   const getContextText = useCallback(
@@ -481,7 +536,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
       if (!block) return null
 
       if (listIndex !== undefined) {
-        if (listIndex >= 0 && (block.kind === "bulletList" || block.kind === "orderedList")) return block.items[listIndex] ?? ""
+        if (listIndex >= 0 && isListBlock(block)) return block.items[listIndex] ?? ""
         return null
       }
 
@@ -503,7 +558,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
       if (!block) return
 
       if (listIndex !== undefined) {
-        if (block.kind !== "bulletList" && block.kind !== "orderedList") return
+        if (!isListBlock(block)) return
 
         const items = [...block.items]
         items[listIndex] = next
@@ -528,27 +583,20 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
     (blockIndex: number, field: EditorField, listIndex: number | undefined, text: string, selection: number) => {
       if (!commandState || commandState.blockIndex !== blockIndex || commandState.field !== field || commandState.listIndex !== listIndex) return
 
-      if (selection < commandState.triggerIndex + 1) {
-        closeCommand()
-        return
-      }
-
-      if (text[commandState.triggerIndex] !== "/") {
-        closeCommand()
+      if (selection < commandState.triggerIndex + 1 || text[commandState.triggerIndex] !== "/") {
+        dispatchCommand({ type: "close" })
         return
       }
 
       const between = text.slice(commandState.triggerIndex + 1, selection)
       if (between.includes("\n")) {
-        closeCommand()
+        dispatchCommand({ type: "close" })
         return
       }
 
-      setCommandState({ ...commandState, selectionEnd: selection })
-      setCommandQuery(between)
-      setSelectedCommandIndex(0)
+      dispatchCommand({ type: "update", patch: { selectionEnd: selection }, query: between })
     },
-    [closeCommand, commandState],
+    [commandState],
   )
 
   const computeMenuPosition = useCallback((target: HTMLTextAreaElement, cursor: number) => {
@@ -560,24 +608,19 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
     const lineOffset = before.length - (lineStart === -1 ? 0 : lineStart + 1)
     const offsetX = Math.max(0, Math.min(lineOffset * 8, Math.max(rect.width - 250, 20)))
 
-    setMenuPosition({
+    menuPositionRef.current = {
       top: Math.round(rect.top + lineIndex * lineHeight + lineHeight + 4),
       left: Math.round(rect.left + offsetX),
-    })
+    }
   }, [])
 
   const openCommand = useCallback(
     (blockIndex: number, field: EditorField, listIndex: number | undefined, cursor: number, textarea: HTMLTextAreaElement) => {
-      setCommandState({
-        blockIndex,
-        field,
-        listIndex,
-        triggerIndex: cursor,
-        selectionEnd: cursor,
-      })
-      setCommandQuery("")
-      setSelectedCommandIndex(0)
       computeMenuPosition(textarea, cursor)
+      dispatchCommand({
+        type: "open",
+        state: { blockIndex, field, listIndex, triggerIndex: cursor, selectionEnd: cursor },
+      })
     },
     [computeMenuPosition],
   )
@@ -585,20 +628,20 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
   const applyCommand = useCallback(
     (blockIndex: number, field: EditorField, listIndex: number | undefined, command: ArticleEditorCommand) => {
       if (!commandState) {
-        closeCommand()
+        dispatchCommand({ type: "close" })
         return
       }
 
       const contextText = getContextText(blockIndex, field, listIndex)
       if (contextText == null) {
-        closeCommand()
+        dispatchCommand({ type: "close" })
         return
       }
 
       if (command.mode === "inline") {
         const inlineText = `${contextText.slice(0, commandState.triggerIndex)}${command.inlineInsert ?? ""}${contextText.slice(commandState.selectionEnd)}`
         writeContextText(blockIndex, listIndex, inlineText)
-        closeCommand()
+        dispatchCommand({ type: "close" })
         return
       }
 
@@ -610,15 +653,10 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
       const transformed = command.applyLine(selectedDisplayIndex)
       const replacementBlock: ArticleBlock = (() => {
         if (transformed.kind === "heading") return { ...transformed, text: payload || transformed.text }
-
         if (transformed.kind === "quote") return { ...transformed, lines: [payload || transformed.lines[0] || "Quoted text"] }
-
-        if (transformed.kind === "bulletList" || transformed.kind === "orderedList") return { ...transformed, items: [payload || transformed.items[0] || "Item"] }
-
+        if (isListBlock(transformed)) return { ...transformed, items: [payload || transformed.items[0] || "Item"] }
         if (transformed.kind === "code") return { ...transformed, language: payload || transformed.language, code: transformed.code || "// Add code" }
-
         if (transformed.kind === "callout") return { ...transformed, text: payload || transformed.text }
-
         return transformed
       })()
 
@@ -634,8 +672,8 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
 
       if (listIndex !== undefined) {
         const block = nextBlocks[blockIndex]
-        if (block?.kind !== "bulletList" && block?.kind !== "orderedList") {
-          closeCommand()
+        if (!block || !isListBlock(block)) {
+          dispatchCommand({ type: "close" })
           return
         }
 
@@ -647,31 +685,24 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
         if (!afterItems.length && !articleBlockCanReceiveTextFocus(replacementBlock)) listReplacement.push({ kind: "paragraph", text: EMPTY_PARAGRAPH_TEXT })
         if (afterItems.length) listReplacement.push({ ...block, items: afterItems })
         nextBlocks.splice(blockIndex, 1, ...listReplacement)
-        splitFocusBlockIndexRef.current = blockIndex + (beforeItems.length ? 1 : 0) + (articleBlockCanReceiveTextFocus(replacementBlock) ? 0 : 1)
-        splitFocusListIndexRef.current = replacementBlock.kind === "bulletList" || replacementBlock.kind === "orderedList" ? 0 : null
+
+        setSplitFocus(
+          blockIndex + (beforeItems.length ? 1 : 0) + (articleBlockCanReceiveTextFocus(replacementBlock) ? 0 : 1),
+          isListBlock(replacementBlock) ? 0 : null,
+          getBlockTextLength(replacementBlock),
+        )
       } else {
         nextBlocks.splice(blockIndex, 1, ...replacement)
-        splitFocusBlockIndexRef.current = blockIndex + (before ? 1 : 0) + (articleBlockCanReceiveTextFocus(replacementBlock) ? 0 : 1)
-        splitFocusListIndexRef.current = replacementBlock.kind === "bulletList" || replacementBlock.kind === "orderedList" ? 0 : null
+        setSplitFocus(
+          blockIndex + (before ? 1 : 0) + (articleBlockCanReceiveTextFocus(replacementBlock) ? 0 : 1),
+          isListBlock(replacementBlock) ? 0 : null,
+          getBlockTextLength(replacementBlock),
+        )
       }
 
-      splitFocusSelectionRef.current =
-        replacementBlock.kind === "heading"
-          ? replacementBlock.text.length
-          : replacementBlock.kind === "paragraph"
-            ? replacementBlock.text.length
-            : replacementBlock.kind === "quote"
-              ? replacementBlock.lines.join("\n").length
-              : replacementBlock.kind === "callout"
-                ? replacementBlock.text.length
-                : replacementBlock.kind === "code"
-                  ? replacementBlock.code.length
-                  : replacementBlock.kind === "bulletList" || replacementBlock.kind === "orderedList"
-                    ? (replacementBlock.items[0]?.length ?? 0)
-                    : 0
       writeBlocks(nextBlocks)
     },
-    [closeCommand, commandState, getContextText, parsed.blocks, selectedDisplayIndex, writeBlocks, writeContextText],
+    [commandState, getContextText, parsed.blocks, selectedDisplayIndex, writeBlocks, writeContextText],
   )
 
   const onInputChange = useCallback(
@@ -694,7 +725,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
       if (commandState && commandState.blockIndex === blockIndex && commandState.field === field && commandState.listIndex === listIndex) {
         if (event.key === "Escape") {
           event.preventDefault()
-          closeCommand()
+          dispatchCommand({ type: "close" })
           return
         }
 
@@ -705,19 +736,19 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
         }
 
         if (commandItems.length === 0 && (event.key === "Enter" || event.key === "NumpadEnter")) {
-          closeCommand()
+          dispatchCommand({ type: "close" })
           return
         }
 
         if (event.key === "ArrowDown") {
           event.preventDefault()
-          setSelectedCommandIndex(current => Math.min(current + 1, commandItems.length - 1))
+          dispatchCommand({ type: "selectDelta", delta: 1, max: commandItems.length - 1 })
           return
         }
 
         if (event.key === "ArrowUp") {
           event.preventDefault()
-          setSelectedCommandIndex(current => Math.max(current - 1, 0))
+          dispatchCommand({ type: "selectDelta", delta: -1, max: commandItems.length - 1 })
           return
         }
       }
@@ -728,7 +759,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
       }
 
       if (isBackspace) {
-        if (listIndex !== undefined && (block?.kind === "bulletList" || block?.kind === "orderedList") && value.trim() === "") {
+        if (listIndex !== undefined && isListBlock(block) && value.trim() === "") {
           event.preventDefault()
 
           const nextBlocks = [...parsed.blocks]
@@ -736,28 +767,17 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
 
           if (remainingItems.length) {
             nextBlocks[blockIndex] = { ...block, items: remainingItems }
-            splitFocusBlockIndexRef.current = blockIndex
-            splitFocusListIndexRef.current = Math.max(0, listIndex - 1)
-            splitFocusSelectionRef.current = Number.MAX_SAFE_INTEGER
+            setSplitFocus(blockIndex, Math.max(0, listIndex - 1), Number.MAX_SAFE_INTEGER)
           } else {
             nextBlocks.splice(blockIndex, 1, { kind: "paragraph", text: EMPTY_PARAGRAPH_TEXT })
-            splitFocusBlockIndexRef.current = blockIndex
-            splitFocusListIndexRef.current = null
-            splitFocusSelectionRef.current = 0
+            setSplitFocus(blockIndex, null, 0)
           }
 
           writeBlocks(nextBlocks)
           return
         }
 
-        const isEmptyParagraph = block?.kind === "paragraph" && value.trim() === ""
-        const isEmptyHeading = block?.kind === "heading" && value.trim() === ""
-        const isEmptyQuote = block?.kind === "quote" && value.trim() === ""
-        const isEmptyCallout = block?.kind === "callout" && value.trim() === ""
-        const isEmptyCode = block?.kind === "code" && value.trim() === ""
-        const isEmptyImage = block?.kind === "image" && block.alt.trim() === "" && block.url.trim() === ""
-        const isEmptyList = (block?.kind === "bulletList" || block?.kind === "orderedList") && block.items.every(item => item.trim() === "")
-        const isEmpty = listIndex == null && (isEmptyParagraph || isEmptyHeading || isEmptyQuote || isEmptyCallout || isEmptyCode || isEmptyImage || isEmptyList)
+        const isEmpty = listIndex == null && block != null && isBlockEmpty(block, value)
 
         if (isEmpty && blockIndex > 0) {
           event.preventDefault()
@@ -769,11 +789,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
           while (focusIndex >= 0 && (nextBlocks[focusIndex]?.kind === "divider" || nextBlocks[focusIndex]?.kind === "toc" || nextBlocks[focusIndex]?.kind === "display"))
             focusIndex -= 1
 
-          if (focusIndex >= 0) {
-            splitFocusBlockIndexRef.current = focusIndex
-            splitFocusListIndexRef.current = null
-            splitFocusSelectionRef.current = Number.MAX_SAFE_INTEGER
-          }
+          if (focusIndex >= 0) setSplitFocus(focusIndex, null, Number.MAX_SAFE_INTEGER)
 
           writeBlocks(nextBlocks)
           return
@@ -792,9 +808,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
 
         nextBlocks.splice(blockIndex, 1, { ...block, text: beforeText || block.text }, { kind: "paragraph", text: afterText })
 
-        splitFocusBlockIndexRef.current = blockIndex + 1
-        splitFocusListIndexRef.current = null
-        splitFocusSelectionRef.current = 0
+        setSplitFocus(blockIndex + 1, null, 0)
         writeBlocks(nextBlocks)
         return
       }
@@ -810,14 +824,12 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
         const nextBlocks = [...parsed.blocks]
         nextBlocks.splice(blockIndex, 1, { ...block, text: beforeText }, { kind: "paragraph", text: afterText })
 
-        splitFocusBlockIndexRef.current = blockIndex + 1
-        splitFocusListIndexRef.current = null
-        splitFocusSelectionRef.current = 0
+        setSplitFocus(blockIndex + 1, null, 0)
         writeBlocks(nextBlocks)
         return
       }
 
-      if (isEnter && field === "list-item" && listIndex !== undefined && (block?.kind === "bulletList" || block?.kind === "orderedList")) {
+      if (isEnter && field === "list-item" && listIndex !== undefined && isListBlock(block)) {
         event.preventDefault()
 
         const selectionStart = event.currentTarget.selectionStart ?? 0
@@ -834,9 +846,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
           replacement.push({ kind: "paragraph", text: EMPTY_PARAGRAPH_TEXT })
           nextBlocks.splice(blockIndex, 1, ...replacement)
 
-          splitFocusBlockIndexRef.current = blockIndex + (remainingItems.length ? 1 : 0)
-          splitFocusListIndexRef.current = null
-          splitFocusSelectionRef.current = 0
+          setSplitFocus(blockIndex + (remainingItems.length ? 1 : 0), null, 0)
           writeBlocks(nextBlocks)
           return
         }
@@ -844,9 +854,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
         const items = [...block.items]
         items.splice(listIndex, 1, beforeText, afterText)
         nextBlocks[blockIndex] = { ...block, items }
-        splitFocusBlockIndexRef.current = blockIndex
-        splitFocusListIndexRef.current = listIndex + 1
-        splitFocusSelectionRef.current = 0
+        setSplitFocus(blockIndex, listIndex + 1, 0)
         writeBlocks(nextBlocks)
         return
       }
@@ -892,12 +900,11 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
         const nextBlocks = [...parsed.blocks]
         nextBlocks.splice(blockIndex, 1, ...replacement)
 
-        splitFocusBlockIndexRef.current = blockIndex
-        splitFocusSelectionRef.current = payload.length
+        setSplitFocus(blockIndex, null, payload.length)
         writeBlocks(nextBlocks)
       }
     },
-    [applyCommand, boundedSelectedCommandIndex, closeCommand, commandItems, commandState, openCommand, parsed.blocks, writeBlocks],
+    [applyCommand, boundedSelectedCommandIndex, commandItems, commandState, openCommand, parsed.blocks, writeBlocks],
   )
 
   const updateImageField = useCallback(
@@ -924,35 +931,39 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
     [parsed.blocks, writeBlocks],
   )
 
-  const addListItem = useCallback(
-    (blockIndex: number) => {
+  /** Shared callback for mutating a list block's items array. */
+  const updateListItems = useCallback(
+    (blockIndex: number, updater: (items: string[]) => string[]) => {
       const nextBlocks = [...parsed.blocks]
       const block = nextBlocks[blockIndex]
-      if (!block || (block.kind !== "bulletList" && block.kind !== "orderedList")) return
+      if (!block || !isListBlock(block)) return
 
-      nextBlocks[blockIndex] = { ...block, items: [...block.items, "Item"] }
+      nextBlocks[blockIndex] = { ...block, items: updater(block.items) }
       writeBlocks(nextBlocks)
     },
     [parsed.blocks, writeBlocks],
+  )
+
+  const addListItem = useCallback(
+    (blockIndex: number) => updateListItems(blockIndex, items => [...items, "Item"]),
+    [updateListItems],
   )
 
   const removeListItem = useCallback(
-    (blockIndex: number, listIndex: number) => {
-      const nextBlocks = [...parsed.blocks]
-      const block = nextBlocks[blockIndex]
-      if (!block || (block.kind !== "bulletList" && block.kind !== "orderedList")) return
-
-      const items = block.items.filter((_, index) => index !== listIndex)
-      nextBlocks[blockIndex] = {
-        ...block,
-        items: items.length === 0 ? ["Item"] : items,
-      }
-      writeBlocks(nextBlocks)
-    },
-    [parsed.blocks, writeBlocks],
+    (blockIndex: number, listIndex: number) =>
+      updateListItems(blockIndex, items => {
+        const next = items.filter((_, index) => index !== listIndex)
+        return next.length === 0 ? ["Item"] : next
+      }),
+    [updateListItems],
   )
 
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+
   const selectedDisplayValue = `${selectedDisplayIndex + 1}`
+  const menuPosition = menuPositionRef.current
 
   const renderBlock = (block: ArticleBlock, blockIndex: number) => {
     if (block.kind === "paragraph")
@@ -970,12 +981,11 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
         </Stack>
       )
 
-    if (block.kind === "heading") {
-      const headingClass = block.level === 1 ? styles["heading-1"] : block.level === 2 ? styles["heading-2"] : block.level === 3 ? styles["heading-3"] : styles["heading-4"]
+    if (block.kind === "heading")
       return (
         <Stack key={blockIndex} gap="xs" className={styles.articleBlock}>
           <InlineLinkTextarea
-            className={cx(styles.blockInput, styles.blockInputHeading, headingClass)}
+            className={cx(styles.blockInput, styles.blockInputHeading, headingLevelClass(block.level))}
             data-block-index={blockIndex}
             value={block.text}
             aria-label={`Heading ${block.level}`}
@@ -984,7 +994,6 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
           />
         </Stack>
       )
-    }
 
     if (block.kind === "quote")
       return (
@@ -1040,7 +1049,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
         </Stack>
       )
 
-    if (block.kind === "bulletList" || block.kind === "orderedList")
+    if (isListBlock(block))
       return (
         <Stack key={blockIndex} gap="xs" className={styles.articleBlock}>
           <Stack gap="xs">
@@ -1178,7 +1187,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
                 })
               )}
             </Stack>
-            <Button variant="ghost" onClick={closeCommand}>
+            <Button variant="ghost" onClick={() => dispatchCommand({ type: "close" })}>
               Dismiss
             </Button>
           </Stack>
