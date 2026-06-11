@@ -9,12 +9,10 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink as ExternalLinkIcon,
-  FilePlus2,
   GitPullRequest,
   Layers3,
   LinkIcon,
   LogOut,
-  NotebookTabs,
   PanelLeft,
   Pencil,
   Plus,
@@ -51,7 +49,7 @@ import {
 } from "@/components/ui"
 import { createDisplayInstance, createLocalUser, createNotebook, createPage, createSeedWorkspace, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
 import { clearStoredUser, loadStoredUser, loadStoredWorkspace, storeUser, storeWorkspace } from "@/lib/visual-note/storage"
-import type { ComponentKind, DisplayInstance, NotebookView, SelectionState, ViewMode, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
+import type { ComponentKind, DisplayInstance, NotebookSection, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
 import type { ToastMessage, ToastTone } from "@/components/ui"
 import { getSupabaseBrowserClient, getSupabaseStatus } from "@/lib/supabase/client"
 import { loadSupabaseWorkspace, saveSupabaseWorkspace } from "@/lib/supabase/workspace"
@@ -77,12 +75,6 @@ const componentKindOptions: Array<{ label: string; value: ComponentKind }> = [
   { label: "Code block", value: "code-block" },
 ]
 
-const viewModeOptions: Array<{ label: string; value: ViewMode }> = [
-  { label: "Article", value: "article" },
-  { label: "Structured", value: "structured" },
-  { label: "Dashboard", value: "dashboard" },
-]
-
 const readableKind = (kind: ComponentKind) => componentKindOptions.find(option => option.value === kind)?.label ?? kind
 const timelineItemRevealTransition = (index: number) => ({
   type: "spring" as const,
@@ -100,16 +92,16 @@ const deriveSelection = (workspace: VisualNoteWorkspace | null, selection: Selec
   if (!workspace) return blankSelection
 
   const notebook = workspace.notebooks.find(item => item.id === selection.notebookId) ?? workspace.notebooks[0]
-  const pages = workspace.pages.filter(item => item.notebookId === notebook?.id)
-  const page = pages.find(item => item.id === selection.pageId) ?? firstByPosition(pages)
-  const topics = workspace.topics.filter(item => item.pageId === page?.id)
+  const sections = workspace.pages.filter(item => item.notebookId === notebook?.id)
+  const section = sections.find(item => item.id === selection.pageId) ?? firstByPosition(sections)
+  const topics = workspace.topics.filter(item => item.pageId === section?.id)
   const topic = topics.find(item => item.id === selection.topicId) ?? firstByPosition(topics)
   const views = workspace.views.filter(item => item.topicId === topic?.id)
   const view = views.find(item => item.id === selection.viewId) ?? views[0]
 
   return {
     notebookId: notebook?.id ?? "",
-    pageId: page?.id ?? "",
+    pageId: section?.id ?? "",
     topicId: topic?.id ?? "",
     viewId: view?.id ?? "",
   }
@@ -251,7 +243,7 @@ export function VisualNoteApp() {
     )
 
   const notebooks = workspace.notebooks.filter(item => item.userId === user.id)
-  const pages = workspace.pages.filter(item => item.notebookId === selected.currentSelection.notebookId).sort((a, b) => a.position - b.position)
+  const sections = workspace.pages.filter(item => item.notebookId === selected.currentSelection.notebookId).sort((a, b) => a.position - b.position)
   const topics = workspace.topics.filter(item => item.pageId === selected.currentSelection.pageId).sort((a, b) => a.position - b.position)
   const views = workspace.views.filter(item => item.topicId === selected.currentSelection.topicId)
 
@@ -266,7 +258,7 @@ export function VisualNoteApp() {
       const notebook = createNotebook(user.id, trimmedTitle)
       const page = createPage(notebook.id, "Home", 0)
       const topic = createTopic(page.id, "Start", 0)
-      const view = createView(topic.id, "Welcome", "structured")
+      const view = createView(topic.id, "Welcome")
 
       setSelection({
         notebookId: notebook.id,
@@ -283,19 +275,19 @@ export function VisualNoteApp() {
         views: [...current.views, view],
       }
     })
-    pushToast("Notebook created", `${trimmedTitle} is ready with a starter page, topic, and view.`)
+    pushToast("Notebook created", `${trimmedTitle} is ready with a starter section, topic, and view.`)
     return true
   }
 
-  const addPage = (title: string) => {
+  const addSection = (title: string) => {
     const trimmedTitle = title.trim()
     if (!selected.notebook || !trimmedTitle) {
-      pushToast("Page title required", "Choose a notebook and enter a page title.", "error")
+      pushToast("Section title required", "Choose a notebook and enter a section title.", "error")
       return false
     }
 
     updateWorkspace(current => {
-      const page = createPage(selected.notebook?.id ?? "", trimmedTitle, pages.length)
+      const page = createPage(selected.notebook?.id ?? "", trimmedTitle, sections.length)
       const topic = createTopic(page.id, "Overview", 0)
       const view = createView(topic.id, "Primary view")
       setSelection(currentSelection => ({ ...currentSelection, pageId: page.id, topicId: topic.id, viewId: view.id }))
@@ -307,67 +299,69 @@ export function VisualNoteApp() {
         views: [...current.views, view],
       }
     })
-    pushToast("Page created", `${trimmedTitle} is now in this notebook's top navigation.`)
+    pushToast("Section created", `${trimmedTitle} is now available in this notebook.`)
     return true
   }
 
-  const renamePage = (pageId: string, title: string) => {
+  const renameSection = (sectionId: string, title: string) => {
     const trimmedTitle = title.trim()
-    const page = pages.find(item => item.id === pageId)
-    if (!page || !trimmedTitle) {
-      pushToast("Page title required", "Choose a page and enter a title before renaming.", "error")
+    const section = sections.find(item => item.id === sectionId)
+    if (!section || !trimmedTitle) {
+      pushToast("Section title required", "Choose a section and enter a title before renaming.", "error")
       return false
     }
 
     updateWorkspace(current => ({
       ...current,
-      pages: current.pages.map(item => (item.id === pageId ? { ...item, title: trimmedTitle } : item)),
+      pages: current.pages.map(item => (item.id === sectionId ? { ...item, title: trimmedTitle } : item)),
     }))
-    pushToast("Page renamed", `${page.title} is now ${trimmedTitle}.`)
+    pushToast("Section renamed", `${section.title} is now ${trimmedTitle}.`)
     return true
   }
 
-  const deletePage = (pageId: string) => {
-    const page = pages.find(item => item.id === pageId)
-    if (!page) {
-      pushToast("Page not found", "Choose an existing page before deleting.", "error")
+  const deleteSection = (sectionId: string) => {
+    const section = sections.find(item => item.id === sectionId)
+    if (!section) {
+      pushToast("Section not found", "Choose an existing section before deleting.", "error")
       return false
     }
 
     updateWorkspace(current => {
-      const deletedTopicIds = current.topics.filter(topic => topic.pageId === pageId).map(topic => topic.id)
-      const remainingPages = current.pages.filter(item => item.id !== pageId)
+      const deletedTopicIds = current.topics.filter(topic => topic.pageId === sectionId).map(topic => topic.id)
+      const remainingPages = current.pages.filter(item => item.id !== sectionId)
       const normalizedNotebookPages = remainingPages
-        .filter(item => item.notebookId === page.notebookId)
+        .filter(item => item.notebookId === section.notebookId)
         .sort((a, b) => a.position - b.position)
         .map((item, index) => ({ ...item, position: index }))
-      const otherPages = remainingPages.filter(item => item.notebookId !== page.notebookId)
+      const otherPages = remainingPages.filter(item => item.notebookId !== section.notebookId)
       const nextWorkspace = {
         ...current,
         pages: [...otherPages, ...normalizedNotebookPages],
-        topics: current.topics.filter(topic => topic.pageId !== pageId),
+        topics: current.topics.filter(topic => topic.pageId !== sectionId),
         views: current.views.filter(view => !deletedTopicIds.includes(view.topicId)),
       }
 
       setSelection(currentSelection =>
-        deriveSelection(nextWorkspace, currentSelection.pageId === pageId ? { ...currentSelection, pageId: "", topicId: "", viewId: "" } : currentSelection),
+        deriveSelection(nextWorkspace, currentSelection.pageId === sectionId ? { ...currentSelection, pageId: "", topicId: "", viewId: "" } : currentSelection),
       )
 
       return nextWorkspace
     })
-    pushToast("Page deleted", `${page.title} and its topics and views were removed.`, "info")
+    pushToast("Section deleted", `${section.title} and its topics and views were removed.`, "info")
     return true
   }
 
-  const addTopic = (title: string) => {
+  const addTopic = (sectionId: string, title: string) => {
     const trimmedTitle = title.trim()
-    if (!selected.page || !trimmedTitle) {
-      pushToast("Topic title required", "Choose a page and enter a topic title.", "error")
+    const section = sections.find(item => item.id === sectionId)
+    if (!section || !trimmedTitle) {
+      pushToast("Item title required", "Choose a section and enter an item title.", "error")
       return false
     }
 
     updateWorkspace(current => {
-      const topic = createTopic(selected.page?.id ?? "", trimmedTitle, topics.length)
+      const sectionTopics = current.topics.filter(topic => topic.pageId === sectionId).sort((a, b) => a.position - b.position)
+      const topic = createTopic(section.id, trimmedTitle, sectionTopics.length)
       const view = createView(topic.id, "Primary view")
       setSelection(currentSelection => ({ ...currentSelection, topicId: topic.id, viewId: view.id }))
 
@@ -377,7 +371,7 @@ export function VisualNoteApp() {
         views: [...current.views, view],
       }
     })
-    pushToast("Topic created", `${trimmedTitle} is now available in the page sidebar.`)
+    pushToast("Item created", `${trimmedTitle} is now available in the ${section.title} section.`)
     return true
   }
 
@@ -394,23 +388,6 @@ export function VisualNoteApp() {
       topics: current.topics.map(item => (item.id === topicId ? { ...item, title: trimmedTitle } : item)),
     }))
     pushToast("Topic renamed", `${topic.title} is now ${trimmedTitle}.`)
-    return true
-  }
-
-  const addView = (title: string, mode: ViewMode) => {
-    const trimmedTitle = title.trim()
-    if (!selected.topic || !trimmedTitle) {
-      pushToast("View title required", "Choose a topic and enter a view title.", "error")
-      return false
-    }
-
-    updateWorkspace(current => {
-      const view = createView(selected.topic?.id ?? "", trimmedTitle, mode)
-      setSelection(currentSelection => ({ ...currentSelection, viewId: view.id }))
-
-      return { ...current, views: [...current.views, view] }
-    })
-    pushToast("View created", `${trimmedTitle} is ready in ${mode} mode.`)
     return true
   }
 
@@ -456,32 +433,22 @@ export function VisualNoteApp() {
     pushToast("Display removed", `${display?.name ?? "Display"} was removed from this view.`, "info")
   }
 
+  const appendDisplayToArticle = (displayIndex: number) => {
+    if (!selected.view || displayIndex < 0) return
+
+    const marker = `{{display:${displayIndex + 1}}}`
+    const currentContent = stringFrom(selected.view.content, "")
+    const separator = currentContent.trim() ? "\n\n" : ""
+    const nextContent = `${currentContent}${separator}${marker}\n`
+    updateView({ ...selected.view, content: nextContent })
+    pushToast("Display added", `Added ${display.name ?? "Display"} to article content.`, "info")
+  }
+
   const updateView = (view: NotebookView) => {
     updateWorkspace(current => ({
       ...current,
       views: current.views.map(item => (item.id === view.id ? view : item)),
     }))
-  }
-
-  const deleteView = (viewId: string) => {
-    const view = views.find(item => item.id === viewId)
-    if (!view) {
-      pushToast("View not found", "Choose an existing view before deleting.", "error")
-      return false
-    }
-
-    updateWorkspace(current => {
-      const nextWorkspace = {
-        ...current,
-        views: current.views.filter(item => item.id !== viewId),
-      }
-
-      setSelection(currentSelection => deriveSelection(nextWorkspace, currentSelection.viewId === viewId ? { ...currentSelection, viewId: "" } : currentSelection))
-
-      return nextWorkspace
-    })
-    pushToast("View deleted", `${view.title} was removed.`, "info")
-    return true
   }
 
   return (
@@ -497,40 +464,42 @@ export function VisualNoteApp() {
           onCreate={addNotebook}
           onSignOut={signOut}
         />
-        <Stack className={styles.main}>
-          <WorkspaceTopbar
-            notebookTitle={selected.notebook?.title ?? "No notebook"}
-            pages={pages}
-            activePageId={selected.currentSelection.pageId}
-            onCreatePage={addPage}
-            onRenamePage={renamePage}
-            onDeletePage={deletePage}
-            onSelectPage={pageId => setSelection(current => deriveSelection(workspace, { ...current, pageId, topicId: "", viewId: "" }))}
+        <Grid className={styles.contentGrid}>
+          <SectionSidebar
+            sections={sections}
+            topics={workspace.topics}
+            activeSectionId={selected.currentSelection.pageId}
+            activeTopicId={selected.currentSelection.topicId}
+            onCreateSection={addSection}
+            onRenameSection={renameSection}
+            onDeleteSection={deleteSection}
+            onCreateTopic={addTopic}
+            onRenameTopic={renameTopic}
+            onSelectSection={sectionId => setSelection(current => deriveSelection(workspace, { ...current, pageId: sectionId, topicId: "", viewId: "" }))}
+            onSelectTopic={topicId => {
+              const topic = workspace.topics.find(item => item.id === topicId)
+              setSelection(currentSelection =>
+                deriveSelection(workspace, {
+                  ...currentSelection,
+                  pageId: topic?.pageId ?? currentSelection.pageId,
+                  topicId,
+                  viewId: "",
+                }),
+              )
+            }}
           />
-          <Grid className={styles.contentGrid}>
-            <TopicSidebar
-              topics={topics}
-              activeTopicId={selected.currentSelection.topicId}
-              onCreateTopic={addTopic}
-              onRenameTopic={renameTopic}
-              onSelectTopic={topicId => setSelection(current => deriveSelection(workspace, { ...current, topicId, viewId: "" }))}
-            />
-            <ScrollArea className={styles.content}>
-              <ViewWorkspace
-                view={selected.view}
-                views={views}
-                onSelectView={viewId => setSelection(current => ({ ...current, viewId }))}
-                onCreateView={addView}
-                onDeleteView={deleteView}
-                onUpdateView={updateView}
-                onAddDisplay={addDisplay}
-                onUpdateDisplay={updateDisplay}
-                onMoveDisplay={moveDisplay}
-                onRemoveDisplay={removeDisplay}
-              />
-            </ScrollArea>
-          </Grid>
-        </Stack>
+          <ScrollArea className={styles.content}>
+          <ViewWorkspace
+            view={selected.view}
+            onUpdateView={updateView}
+            onAddDisplay={addDisplay}
+            onUpdateDisplay={updateDisplay}
+            onMoveDisplay={moveDisplay}
+            onRemoveDisplay={removeDisplay}
+            onAppendDisplayToArticle={appendDisplayToArticle}
+          />
+        </ScrollArea>
+      </Grid>
       </Grid>
       <ToastShelf messages={toastMessages} onDismiss={dismissToast} />
     </Stack>
@@ -565,7 +534,7 @@ function AuthPanel({ notice, supabaseStatus, onSignIn, onRegister }: AuthPanelPr
           <Sparkles size={14} />
           Web-native notebooks
           <InfoPopover title="Visual Note model" label="Visual Note model details">
-            Visual Note organizes knowledge as notebooks, pages, topics, views, displays, and data so each notebook behaves like a small website.
+            Visual Note organizes knowledge as notebooks, sections, topics, views, displays, and data so each notebook behaves like a structured website.
           </InfoPopover>
         </Pill>
         <Stack gap="lg">
@@ -649,7 +618,7 @@ function NotebookRail({ user, notebooks, activeNotebookId, status, notice, onSel
       <Stack gap="lg">
         <Stack gap="sm">
           <Pill>
-            <NotebookTabs size={14} />
+            <BookOpen size={14} />
             Visual Note
           </Pill>
           <Heading size="md">Notebooks</Heading>
@@ -681,12 +650,7 @@ function NotebookRail({ user, notebooks, activeNotebookId, status, notice, onSel
           Sign out
         </Button>
       </Stack>
-      <ModalDialog
-        open={isCreateOpen}
-        title="Create notebook"
-        description="Start a new website-shaped notebook with a default page, topic, and view."
-        onOpenChange={setIsCreateOpen}
-      >
+      <ModalDialog open={isCreateOpen} title="Create notebook" description="Start a new notebook with a default section, topic, and view." onOpenChange={setIsCreateOpen}>
         <Stack gap="md">
           <TextField label="Notebook title" value={title} onChange={event => setTitle(event.target.value)} />
           <Button icon={<Plus size={15} />} variant="primary" onClick={create} fullWidth>
@@ -698,161 +662,57 @@ function NotebookRail({ user, notebooks, activeNotebookId, status, notice, onSel
   )
 }
 
-type WorkspaceTopbarProps = {
-  notebookTitle: string
-  pages: VisualNoteWorkspace["pages"]
-  activePageId: string
-  onCreatePage: (title: string) => boolean
-  onRenamePage: (pageId: string, title: string) => boolean
-  onDeletePage: (pageId: string) => boolean
-  onSelectPage: (pageId: string) => void
-}
-
-function WorkspaceTopbar({ notebookTitle, pages, activePageId, onCreatePage, onRenamePage, onDeletePage, onSelectPage }: WorkspaceTopbarProps) {
-  const [title, setTitle] = useState("New page")
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [isManageOpen, setIsManageOpen] = useState(false)
-  const [pageTitleDrafts, setPageTitleDrafts] = useState<Record<string, string>>({})
-  const [pendingDeletePageId, setPendingDeletePageId] = useState("")
-
-  const create = () => {
-    if (!onCreatePage(title)) return
-
-    setTitle("New page")
-    setIsCreateOpen(false)
-  }
-
-  const openPageManager = () => {
-    setPageTitleDrafts(Object.fromEntries(pages.map(page => [page.id, page.title])))
-    setPendingDeletePageId("")
-    setIsManageOpen(true)
-  }
-
-  const rename = (pageId: string) => {
-    if (!onRenamePage(pageId, pageTitleDrafts[pageId] ?? "")) return
-
-    setPendingDeletePageId("")
-  }
-
-  const deleteSelectedPage = (pageId: string) => {
-    if (!onDeletePage(pageId)) return
-
-    setPendingDeletePageId("")
-  }
-
-  return (
-    <Stack className={styles.topbar} gap="md">
-      <Stack className={styles.toolbar} direction="horizontal" gap="md">
-        <Stack gap="xs">
-          <Stack direction="horizontal" gap="sm">
-            <Heading size="md">{notebookTitle}</Heading>
-            <InfoPopover title="Pages" label="Page navigation details">
-              Pages are top navigation items for this notebook website.
-            </InfoPopover>
-          </Stack>
-        </Stack>
-        <Stack className={styles.wrapRow} direction="horizontal" gap="sm">
-          <Button icon={<FilePlus2 size={15} />} onClick={() => setIsCreateOpen(true)}>
-            New page
-          </Button>
-          <Button icon={<Pencil size={15} />} onClick={openPageManager}>
-            Manage pages
-          </Button>
-        </Stack>
-      </Stack>
-      <Stack className={styles.pageTabs} direction="horizontal" gap="sm">
-        {pages.map(page => (
-          <Button key={page.id} className={page.id === activePageId ? styles.activeNavButton : ""} onClick={() => onSelectPage(page.id)}>
-            {page.title}
-          </Button>
-        ))}
-      </Stack>
-      <ModalDialog open={isCreateOpen} title="Create page" description="Pages become top navigation items inside the active notebook website." onOpenChange={setIsCreateOpen}>
-        <Stack gap="md">
-          <TextField label="Page title" value={title} onChange={event => setTitle(event.target.value)} />
-          <Button icon={<FilePlus2 size={15} />} variant="primary" onClick={create} fullWidth>
-            Create page
-          </Button>
-        </Stack>
-      </ModalDialog>
-      <SideDrawer
-        open={isManageOpen}
-        title="Manage pages"
-        description="Rename pages, open another top navigation item, or delete a page and its child topics and views."
-        onOpenChange={setIsManageOpen}
-      >
-        <Stack gap="lg">
-          {pages.map(page => (
-            <Card key={page.id} className={page.id === activePageId ? styles.activePageManagerCard : ""} padding="compact">
-              <Stack gap="md">
-                <Stack className={styles.toolbar} direction="horizontal" gap="sm">
-                  <Stack gap="xs">
-                    <Heading size="sm">{page.title}</Heading>
-                    {page.id === activePageId ? <Pill>Active page</Pill> : null}
-                  </Stack>
-                  <Button variant="ghost" onClick={() => onSelectPage(page.id)}>
-                    Open
-                  </Button>
-                </Stack>
-                <TextField
-                  label="Page name"
-                  value={pageTitleDrafts[page.id] ?? page.title}
-                  onChange={event => setPageTitleDrafts(current => ({ ...current, [page.id]: event.target.value }))}
-                />
-                <Stack className={styles.wrapRow} direction="horizontal" gap="sm">
-                  <Button icon={<Pencil size={15} />} variant="primary" onClick={() => rename(page.id)}>
-                    Rename
-                  </Button>
-                  <Button icon={<Trash2 size={15} />} variant="danger" onClick={() => setPendingDeletePageId(page.id)}>
-                    Delete
-                  </Button>
-                </Stack>
-                {pendingDeletePageId === page.id ? (
-                  <Card className={styles.error} padding="compact">
-                    <Stack gap="sm">
-                      <Text tone="strong">Delete {page.title}?</Text>
-                      <Text size="small">This removes the page plus its topics, views, and view displays. Other pages remain available.</Text>
-                      <Stack className={styles.wrapRow} direction="horizontal" gap="sm">
-                        <Button variant="ghost" onClick={() => setPendingDeletePageId("")}>
-                          Cancel
-                        </Button>
-                        <Button icon={<Trash2 size={15} />} variant="danger" onClick={() => deleteSelectedPage(page.id)}>
-                          Confirm delete
-                        </Button>
-                      </Stack>
-                    </Stack>
-                  </Card>
-                ) : null}
-              </Stack>
-            </Card>
-          ))}
-          {pages.length === 0 ? <Text>This notebook has no pages yet. Create a page to restore the website navigation.</Text> : null}
-        </Stack>
-      </SideDrawer>
-    </Stack>
-  )
-}
-
-type TopicSidebarProps = {
+type SectionSidebarProps = {
+  sections: NotebookSection[]
   topics: VisualNoteWorkspace["topics"]
+  activeSectionId: string
   activeTopicId: string
-  onCreateTopic: (title: string) => boolean
+  onCreateSection: (title: string) => boolean
+  onRenameSection: (sectionId: string, title: string) => boolean
+  onDeleteSection: (sectionId: string) => boolean
+  onCreateTopic: (sectionId: string, title: string) => boolean
   onRenameTopic: (topicId: string, title: string) => boolean
   onSelectTopic: (topicId: string) => void
+  onSelectSection: (sectionId: string) => void
 }
 
-function TopicSidebar({ topics, activeTopicId, onCreateTopic, onRenameTopic, onSelectTopic }: TopicSidebarProps) {
-  const [title, setTitle] = useState("New topic")
+function SectionSidebar({
+  sections,
+  topics,
+  activeSectionId,
+  activeTopicId,
+  onCreateSection,
+  onRenameSection,
+  onDeleteSection,
+  onCreateTopic,
+  onRenameTopic,
+  onSelectTopic,
+  onSelectSection,
+}: SectionSidebarProps) {
+  const [title, setTitle] = useState("New section")
+  const [itemTitle, setItemTitle] = useState("New item")
   const [editTitle, setEditTitle] = useState("")
   const [editingTopicId, setEditingTopicId] = useState("")
+  const [editingSectionId, setEditingSectionId] = useState("")
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isCreateTopicOpen, setIsCreateTopicOpen] = useState(false)
+  const [activeSectionIdForTopic, setActiveSectionIdForTopic] = useState("")
 
   const create = () => {
-    if (!onCreateTopic(title)) return
+    if (!onCreateSection(title)) return
 
-    setTitle("New topic")
+    setTitle("New section")
     setIsCreateOpen(false)
   }
+
+  const createTopic = () => {
+    if (!activeSectionIdForTopic) return
+    if (!onCreateTopic(activeSectionIdForTopic, itemTitle)) return
+
+    setItemTitle("New item")
+    setIsCreateTopicOpen(false)
+  }
+
   const openEditTopic = (topicId: string) => {
     const topic = topics.find(item => item.id === topicId)
     if (!topic) return
@@ -860,11 +720,29 @@ function TopicSidebar({ topics, activeTopicId, onCreateTopic, onRenameTopic, onS
     setEditingTopicId(topic.id)
     setEditTitle(topic.title)
   }
+  const openEditSection = (sectionId: string) => {
+    const section = sections.find(item => item.id === sectionId)
+    if (!section) return
+
+    setEditingSectionId(section.id)
+    setEditTitle(section.title)
+  }
+  const renameSection = () => {
+    if (!onRenameSection(editingSectionId, editTitle)) return
+
+    setEditingSectionId("")
+    setEditTitle("")
+  }
   const rename = () => {
     if (!onRenameTopic(editingTopicId, editTitle)) return
 
     setEditingTopicId("")
     setEditTitle("")
+  }
+  const openTopicCreator = (sectionId: string) => {
+    setActiveSectionIdForTopic(sectionId)
+    setItemTitle("New item")
+    setIsCreateTopicOpen(true)
   }
 
   return (
@@ -873,36 +751,70 @@ function TopicSidebar({ topics, activeTopicId, onCreateTopic, onRenameTopic, onS
         <Stack gap="xs">
           <Pill>
             <PanelLeft size={14} />
-            Topics
-            <InfoPopover title="Topics" label="Topic details">
-              Topics are page-specific sidebar items.
+            Sections
+            <InfoPopover title="Sections" label="Section details">
+              Topics are section-specific items in the notebook sidebar.
             </InfoPopover>
           </Pill>
         </Stack>
         <Stack gap="sm">
-          {topics.map(topic => (
-            <Stack key={topic.id} className={styles.topicRow} direction="horizontal" gap="xs">
-              <ContextActions className={styles.topicContextTrigger} items={[{ label: "Rename topic", icon: <Pencil size={14} />, onSelect: () => openEditTopic(topic.id) }]}>
-                <Button
-                  className={`${styles.navButton} ${styles.topicSelectButton} ${topic.id === activeTopicId ? styles.activeNavButton : ""}`}
-                  onClick={() => onSelectTopic(topic.id)}
-                  fullWidth
+          {sections.map(section => (
+            <Card key={section.id} padding="compact">
+              <Stack gap="sm">
+                <ContextActions
+                  items={[
+                    { label: "Rename section", icon: <Pencil size={14} />, onSelect: () => openEditSection(section.id) },
+                    { label: "Delete section", icon: <Trash2 size={14} />, onSelect: () => onDeleteSection(section.id) },
+                  ]}
                 >
-                  {topic.title}
-                </Button>
-              </ContextActions>
-            </Stack>
+                  <Button className={`${styles.navButton} ${section.id === activeSectionId ? styles.activeNavButton : ""}`} onClick={() => onSelectSection(section.id)} fullWidth>
+                    {section.title}
+                  </Button>
+                </ContextActions>
+                <Stack gap="xs">
+                  {topics
+                    .filter(topic => topic.pageId === section.id)
+                    .sort((a, b) => a.position - b.position)
+                    .map(topic => (
+                      <ContextActions
+                        key={topic.id}
+                        className={styles.topicContextTrigger}
+                        items={[{ label: "Rename item", icon: <Pencil size={14} />, onSelect: () => openEditTopic(topic.id) }]}
+                      >
+                        <Button
+                          className={`${styles.navButton} ${styles.topicSelectButton} ${topic.id === activeTopicId ? styles.activeNavButton : ""}`}
+                          onClick={() => onSelectTopic(topic.id)}
+                          fullWidth
+                        >
+                          {topic.title}
+                        </Button>
+                      </ContextActions>
+                    ))}
+                  <Button icon={<Plus size={15} />} onClick={() => openTopicCreator(section.id)} fullWidth>
+                    New item
+                  </Button>
+                </Stack>
+              </Stack>
+            </Card>
           ))}
         </Stack>
         <Button icon={<Plus size={15} />} onClick={() => setIsCreateOpen(true)} fullWidth>
-          New topic
+          New section
         </Button>
       </Stack>
-      <ModalDialog open={isCreateOpen} title="Create topic" description="Topics are sidebar subdivisions for the current page." onOpenChange={setIsCreateOpen}>
+      <ModalDialog open={isCreateOpen} title="Create section" description="Sections are sidebar groups for this notebook." onOpenChange={setIsCreateOpen}>
         <Stack gap="md">
-          <TextField label="Topic title" value={title} onChange={event => setTitle(event.target.value)} />
+          <TextField label="Section title" value={title} onChange={event => setTitle(event.target.value)} />
           <Button icon={<Plus size={15} />} variant="primary" onClick={create} fullWidth>
-            Create topic
+            Create section
+          </Button>
+        </Stack>
+      </ModalDialog>
+      <ModalDialog open={isCreateTopicOpen} title="Create item" description="Add a sidebar item to this section." onOpenChange={setIsCreateTopicOpen}>
+        <Stack gap="md">
+          <TextField label="Item title" value={itemTitle} onChange={event => setItemTitle(event.target.value)} />
+          <Button icon={<Plus size={15} />} variant="primary" onClick={createTopic} fullWidth>
+            Create item
           </Button>
         </Stack>
       </ModalDialog>
@@ -911,6 +823,14 @@ function TopicSidebar({ topics, activeTopicId, onCreateTopic, onRenameTopic, onS
           <TextField label="Topic title" value={editTitle} onChange={event => setEditTitle(event.target.value)} />
           <Button icon={<Pencil size={15} />} variant="primary" onClick={rename} fullWidth>
             Rename topic
+          </Button>
+        </Stack>
+      </ModalDialog>
+      <ModalDialog open={Boolean(editingSectionId)} title="Rename section" description="Update this sidebar section title." onOpenChange={open => !open && setEditingSectionId("")}>
+        <Stack gap="md">
+          <TextField label="Section title" value={editTitle} onChange={event => setEditTitle(event.target.value)} />
+          <Button icon={<Pencil size={15} />} variant="primary" onClick={renameSection} fullWidth>
+            Rename section
           </Button>
         </Stack>
       </ModalDialog>

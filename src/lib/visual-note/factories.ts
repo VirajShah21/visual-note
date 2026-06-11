@@ -22,7 +22,7 @@ export const createNotebook = (userId: string, title: string): Notebook => ({
   userId,
   title,
   slug: slugify(title) || "untitled-notebook",
-  summary: "A structured web notebook with pages, topics, views, components, and data.",
+  summary: "A structured web notebook with sections, topics, views, components, and data.",
   color: "#2f7d5c",
   createdAt: now(),
 })
@@ -38,7 +38,7 @@ export const createTopic = (pageId: string, title: string, position: number): To
   id: createId("topic"),
   pageId,
   title,
-  summary: "A focused subdivision inside this page.",
+  summary: "A focused subdivision inside this section.",
   position,
 })
 
@@ -135,7 +135,7 @@ export const defaultComponentData = (kind: ComponentKind): Record<string, unknow
       bannerImage: "",
       socialPreviewImage: "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80",
       pageTitle: "Visual Note",
-      pageDescription: "A structured notebook where pages, topics, views, and data compose into a small website.",
+      pageDescription: "A structured notebook where sections, topics, views, and data compose into a small website.",
       keywords: ["notebook", "structured data", "workspace"],
       url: "https://example.com/visual-note",
       favicon: "https://www.google.com/s2/favicons?domain=example.com&sz=64",

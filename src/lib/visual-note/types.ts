@@ -25,6 +25,8 @@ export type NotebookPage = {
   position: number
 }
 
+export type NotebookSection = NotebookPage
+
 export type Topic = {
   id: string
   pageId: string
