@@ -377,6 +377,35 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     return true
   }
 
+  const deleteNotebook = (notebookId: string) => {
+    const notebook = notebooks.find(item => item.id === notebookId)
+    if (!notebook) {
+      pushToast("Notebook not found", "Choose an existing notebook before deleting.", "error")
+      return false
+    }
+
+    const deletedPageIds = workspace.pages.filter(page => page.notebookId === notebookId).map(page => page.id)
+    const deletedTopicIds = workspace.topics.filter(topic => deletedPageIds.includes(topic.pageId)).map(topic => topic.id)
+    const nextWorkspace = {
+      ...workspace,
+      notebooks: workspace.notebooks.filter(item => item.id !== notebookId),
+      pages: workspace.pages.filter(page => page.notebookId !== notebookId),
+      topics: workspace.topics.filter(topic => !deletedPageIds.includes(topic.pageId)),
+      views: workspace.views.filter(view => !deletedTopicIds.includes(view.topicId)),
+    }
+    const nextSelection = deriveSelection(nextWorkspace, selected.currentSelection.notebookId === notebookId ? { ...blankSelection, notebookId: "" } : selected.currentSelection)
+
+    setWorkspace(nextWorkspace)
+    setSelection(nextSelection)
+
+    if (selected.currentSelection.notebookId === notebookId)
+      if (nextSelection.notebookId) router.push(`/notebook?id=${encodeURIComponent(nextSelection.notebookId)}`)
+      else router.push("/")
+
+    pushToast("Notebook deleted", `${notebook.title} and its pages, topics, and views were removed.`, "info")
+    return true
+  }
+
   const galleryItems = createNotebookGalleryItems(workspace, notebooks)
 
   if (mode === "home")
@@ -547,6 +576,29 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     return true
   }
 
+  const deleteTopic = (topicId: string) => {
+    const topic = workspace.topics.find(item => item.id === topicId)
+    if (!topic) {
+      pushToast("Item not found", "Choose an existing item before deleting.", "error")
+      return false
+    }
+
+    const nextWorkspace = {
+      ...workspace,
+      topics: workspace.topics.filter(item => item.id !== topicId),
+      views: workspace.views.filter(view => view.topicId !== topicId),
+    }
+    const nextSelection = deriveSelection(
+      nextWorkspace,
+      selected.currentSelection.topicId === topicId ? { ...selected.currentSelection, topicId: "", viewId: "" } : selected.currentSelection,
+    )
+
+    setWorkspace(nextWorkspace)
+    setSelection(nextSelection)
+    pushToast("Item deleted", `${topic.title} and its article were removed.`, "info")
+    return true
+  }
+
   const addDisplay = (kind: ComponentKind) => {
     if (!selected.view) {
       pushToast("View required", "Choose a view before adding a display.", "error")
@@ -640,6 +692,7 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
           notice={notice}
           onSelect={selectNotebook}
           onCreate={createNotebookAndOpen}
+          onDelete={deleteNotebook}
           onSignOut={signOut}
         />
         <Grid className={styles.contentGrid}>
@@ -653,6 +706,7 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
             onDeleteSection={deleteSection}
             onCreateTopic={addTopic}
             onRenameTopic={renameTopic}
+            onDeleteTopic={deleteTopic}
             onSelectSection={selectSection}
             onSelectTopic={selectTopic}
           />
@@ -767,10 +821,11 @@ type NotebookRailProps = {
   notice: string
   onSelect: (notebookId: string) => void
   onCreate: (title: string) => boolean
+  onDelete: (notebookId: string) => boolean
   onSignOut: () => Promise<void>
 }
 
-function NotebookRail({ user, notebooks, activeNotebookId, status, notice, onSelect, onCreate, onSignOut }: NotebookRailProps) {
+function NotebookRail({ user, notebooks, activeNotebookId, status, notice, onSelect, onCreate, onDelete, onSignOut }: NotebookRailProps) {
   const [title, setTitle] = useState("New web notebook")
   const [isCreateOpen, setIsCreateOpen] = useState(false)
 
@@ -794,15 +849,12 @@ function NotebookRail({ user, notebooks, activeNotebookId, status, notice, onSel
         </Stack>
         <Stack gap="sm">
           {notebooks.map(notebook => (
-            <Button
-              key={notebook.id}
-              className={`${styles.navButton} ${notebook.id === activeNotebookId ? styles.activeNavButton : ""}`}
-              onClick={() => onSelect(notebook.id)}
-              fullWidth
-            >
-              <BookOpen size={15} />
-              {notebook.title}
-            </Button>
+            <ContextActions key={notebook.id} items={[{ label: "Delete notebook", icon: <Trash2 size={14} />, onSelect: () => onDelete(notebook.id) }]}>
+              <Button className={`${styles.navButton} ${notebook.id === activeNotebookId ? styles.activeNavButton : ""}`} onClick={() => onSelect(notebook.id)} fullWidth>
+                <BookOpen size={15} />
+                {notebook.title}
+              </Button>
+            </ContextActions>
           ))}
         </Stack>
         <Button icon={<Plus size={15} />} onClick={() => setIsCreateOpen(true)} fullWidth>
@@ -840,6 +892,7 @@ type SectionSidebarProps = {
   onDeleteSection: (sectionId: string) => boolean
   onCreateTopic: (sectionId: string, title: string) => boolean
   onRenameTopic: (topicId: string, title: string) => boolean
+  onDeleteTopic: (topicId: string) => boolean
   onSelectTopic: (topicId: string) => void
   onSelectSection: (sectionId: string) => void
 }
@@ -854,6 +907,7 @@ function SectionSidebar({
   onDeleteSection,
   onCreateTopic,
   onRenameTopic,
+  onDeleteTopic,
   onSelectTopic,
   onSelectSection,
 }: SectionSidebarProps) {
@@ -947,7 +1001,10 @@ function SectionSidebar({
                       <ContextActions
                         key={topic.id}
                         className={styles.topicContextTrigger}
-                        items={[{ label: "Rename item", icon: <Pencil size={14} />, onSelect: () => openEditTopic(topic.id) }]}
+                        items={[
+                          { label: "Rename item", icon: <Pencil size={14} />, onSelect: () => openEditTopic(topic.id) },
+                          { label: "Delete item", icon: <Trash2 size={14} />, onSelect: () => onDeleteTopic(topic.id) },
+                        ]}
                       >
                         <Button
                           className={`${styles.navButton} ${styles.topicSelectButton} ${topic.id === activeTopicId ? styles.activeNavButton : ""}`}
