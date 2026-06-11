@@ -40,6 +40,30 @@
     padding: 16px;
 }
 
+.sectionGroup {
+    padding-bottom: 8px;
+}
+
+.sectionHeaderTrigger {
+    width: 100%;
+}
+
+.sectionTitle {
+    color: var(--ink);
+    text-transform: none;
+    cursor: pointer;
+}
+
+.activeSectionTitle {
+    color: var(--accent-strong);
+    font-weight: 600;
+}
+
+.sectionPageList {
+    border-top: 1px solid rgba(220, 228, 235, 0.9);
+    padding-top: 8px;
+}
+
 .content {
     padding: 20px;
 }

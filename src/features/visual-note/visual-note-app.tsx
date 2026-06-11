@@ -801,43 +801,42 @@ function SectionSidebar({ sections, topics, activeSectionId, activeTopicId, onCr
                         const sectionTopics = topics.filter(topic => topic.pageId === section.id).sort((a, b) => a.position - b.position)
 
                         return (
-                            <Card key={section.id} className={styles.sectionCard} padding="compact">
-                                <Stack gap="sm">
-                                    <ContextActions
-                                        className={styles.sectionHeaderTrigger}
-                                        items={[
-                                            { label: "Rename section", icon: <Pencil size={14} />, onSelect: () => openEditSection(section.id) },
-                                            { label: "Delete section", icon: <Trash2 size={14} />, onSelect: () => onDeleteSection(section.id) },
-                                        ]}
+                            <Stack key={section.id} className={styles.sectionGroup} gap="sm">
+                                <ContextActions
+                                    className={styles.sectionHeaderTrigger}
+                                    items={[
+                                        { label: "Rename section", icon: <Pencil size={14} />, onSelect: () => openEditSection(section.id) },
+                                        { label: "Delete section", icon: <Trash2 size={14} />, onSelect: () => onDeleteSection(section.id) },
+                                    ]}
+                                >
+                                    <Heading
+                                        className={`${styles.sectionTitle} ${section.id === activeSectionId ? styles.activeSectionTitle : ""}`}
+                                        size="sm"
+                                        onClick={() => onSelectSection(section.id)}
                                     >
-                                        <Stack className={`${styles.sectionHeader} ${section.id === activeSectionId ? styles.activeSectionHeader : ""}`} gap="xs" onClick={() => onSelectSection(section.id)}>
-                                            <Heading className={styles.sectionTitle} size="sm">
-                                                {section.title}
-                                            </Heading>
-                                            <Text size="small">{sectionTopics.length === 1 ? "1 page" : `${sectionTopics.length} pages`}</Text>
-                                        </Stack>
-                                    </ContextActions>
-                                    <Stack className={styles.sectionPageList} gap="xs">
-                                        {sectionTopics.map(topic => (
-                                            <ContextActions
-                                                key={topic.id}
-                                                className={styles.topicContextTrigger}
-                                                items={[
-                                                    { label: "Rename item", icon: <Pencil size={14} />, onSelect: () => openEditTopic(topic.id) },
-                                                    { label: "Delete item", icon: <Trash2 size={14} />, onSelect: () => onDeleteTopic(topic.id) },
-                                                ]}
-                                            >
-                                                <Button className={`${styles.navButton} ${styles.topicSelectButton} ${topic.id === activeTopicId ? styles.activeNavButton : ""}`} onClick={() => onSelectTopic(topic.id)} fullWidth>
-                                                    {topic.title}
-                                                </Button>
-                                            </ContextActions>
-                                        ))}
-                                        <Button icon={<Plus size={15} />} onClick={() => openTopicCreator(section.id)} fullWidth>
-                                            New item
-                                        </Button>
-                                    </Stack>
+                                        {section.title}
+                                    </Heading>
+                                </ContextActions>
+                                <Stack className={styles.sectionPageList} gap="xs">
+                                    {sectionTopics.map(topic => (
+                                        <ContextActions
+                                            key={topic.id}
+                                            className={styles.topicContextTrigger}
+                                            items={[
+                                                { label: "Rename item", icon: <Pencil size={14} />, onSelect: () => openEditTopic(topic.id) },
+                                                { label: "Delete item", icon: <Trash2 size={14} />, onSelect: () => onDeleteTopic(topic.id) },
+                                            ]}
+                                        >
+                                            <Button className={`${styles.navButton} ${styles.topicSelectButton} ${topic.id === activeTopicId ? styles.activeNavButton : ""}`} onClick={() => onSelectTopic(topic.id)} fullWidth>
+                                                {topic.title}
+                                            </Button>
+                                        </ContextActions>
+                                    ))}
+                                    <Button icon={<Plus size={15} />} onClick={() => openTopicCreator(section.id)} fullWidth>
+                                        New item
+                                    </Button>
                                 </Stack>
-                            </Card>
+                            </Stack>
                         )
                     })}
                 </Stack>
