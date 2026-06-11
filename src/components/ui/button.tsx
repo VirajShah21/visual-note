@@ -17,7 +17,14 @@ type ButtonProps = Omit<ComponentProps<typeof BaseButton>, "className"> & {
 
 export function Button({ children, className, icon, variant = "secondary", fullWidth = false, iconOnly = false, ...props }: ButtonProps) {
     return (
-        <motion.span className={cx(styles.buttonHost, fullWidth && styles.buttonHostFull)} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -1, transition: { duration: 0.12 } }} whileTap={{ scale: 0.98 }} transition={{ type: "spring", stiffness: 220, damping: 22 }}>
+        <motion.span
+            className={cx(styles.buttonHost, fullWidth && styles.buttonHostFull)}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ y: -1, transition: { duration: 0.12 } }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ type: "spring", stiffness: 220, damping: 22 }}
+        >
             <BaseButton className={cx(styles.button, styles[variant], fullWidth && styles.fullWidth, iconOnly && styles.iconOnly, className)} {...props}>
                 {icon}
                 {children}

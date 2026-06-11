@@ -62,7 +62,9 @@ export function SimpleChart({ title, type = "bar", rows, xLabel, yLabel }: Simpl
                             ))}
                         </>
                     ) : (
-                        data.map(row => <rect key={row.label} className={styles.bar} x={x(row.label) ?? 0} y={y(row.value)} width={x.bandwidth()} height={innerHeight - y(row.value)} rx={5} />)
+                        data.map(row => (
+                            <rect key={row.label} className={styles.bar} x={x(row.label) ?? 0} y={y(row.value)} width={x.bandwidth()} height={innerHeight - y(row.value)} rx={5} />
+                        ))
                     )}
                     {data.map(row => (
                         <text key={`${row.label}-label`} className={styles.axis} x={(x(row.label) ?? 0) + x.bandwidth() / 2} y={innerHeight + 20} textAnchor="middle">

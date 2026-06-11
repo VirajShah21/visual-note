@@ -44,7 +44,9 @@ export function NotebookHome({ userLabel, storageLabel, notebooks, onCreateNoteb
         const normalizedQuery = query.trim().toLowerCase()
         if (!normalizedQuery) return notebooks
 
-        return notebooks.filter(notebook => [notebook.title, notebook.summary, ...notebook.pageTitles, ...notebook.topicTitles].some(value => value.toLowerCase().includes(normalizedQuery)))
+        return notebooks.filter(notebook =>
+            [notebook.title, notebook.summary, ...notebook.pageTitles, ...notebook.topicTitles].some(value => value.toLowerCase().includes(normalizedQuery)),
+        )
     }, [notebooks, query])
 
     const createNotebook = () => {
@@ -226,7 +228,12 @@ type NotebookGalleryCardProps = {
 
 export function NotebookGalleryCard({ notebook, index }: NotebookGalleryCardProps) {
     return (
-        <motion.article className={styles.card} initial={{ opacity: 0, y: 18, filter: "blur(4px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }} transition={{ type: "spring", stiffness: 170, damping: 22, delay: index * 0.04 }}>
+        <motion.article
+            className={styles.card}
+            initial={{ opacity: 0, y: 18, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ type: "spring", stiffness: 170, damping: 22, delay: index * 0.04 }}
+        >
             <Link className={styles.cardLink} href={notebook.href} aria-label={`Open ${notebook.title}`}>
                 <NotebookWebsitePreview notebook={notebook} />
                 <Stack className={styles.cardBody} gap="sm">

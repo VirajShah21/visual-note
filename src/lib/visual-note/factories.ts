@@ -49,7 +49,13 @@ export const createView = (topicId: string, title: string, mode: ViewMode = "art
     mode,
     content:
         mode === "article"
-            ? ["# Article", "## Why this view exists", "Use this mode to write long-form documentation with embedded displays.", "## Section title", "Start writing the next section."].join("\n\n")
+            ? [
+                  "# Article",
+                  "## Why this view exists",
+                  "Use this mode to write long-form documentation with embedded displays.",
+                  "## Section title",
+                  "Start writing the next section.",
+              ].join("\n\n")
             : mode === "dashboard"
               ? "Capture dashboard context, metrics, and operational narratives here."
               : "Capture context, decisions, links, and structured observations here.",

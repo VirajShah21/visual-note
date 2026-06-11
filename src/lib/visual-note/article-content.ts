@@ -19,9 +19,11 @@ export const cryptoId = () => {
     return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
-export const isListBlock = (block: ArticleBlock): block is Extract<ArticleBlock, { kind: "bulletList" | "orderedList" }> => block.kind === "bulletList" || block.kind === "orderedList"
+export const isListBlock = (block: ArticleBlock): block is Extract<ArticleBlock, { kind: "bulletList" | "orderedList" }> =>
+    block.kind === "bulletList" || block.kind === "orderedList"
 
-export const articleBlockCanReceiveTextFocus = (block: ArticleBlock) => block.kind === "paragraph" || block.kind === "heading" || block.kind === "quote" || block.kind === "callout" || block.kind === "code" || isListBlock(block)
+export const articleBlockCanReceiveTextFocus = (block: ArticleBlock) =>
+    block.kind === "paragraph" || block.kind === "heading" || block.kind === "quote" || block.kind === "callout" || block.kind === "code" || isListBlock(block)
 
 export type ArticleHeadingIndex = {
     id: string
@@ -205,7 +207,8 @@ export const parseArticleContent = (source: string, displayCount: number): Parse
     }
 
     if (blocks.length === 0) blocks.push({ kind: "paragraph", text: "Start by adding content in this article." })
-    if (displayCount > 0 && blocks.every(block => block.kind !== "display")) blocks.push({ kind: "paragraph", text: "Use {{display:1}}, {{display:2}}, and so on to embed configured displays inline." })
+    if (displayCount > 0 && blocks.every(block => block.kind !== "display"))
+        blocks.push({ kind: "paragraph", text: "Use {{display:1}}, {{display:2}}, and so on to embed configured displays inline." })
 
     return { blocks, headings }
 }

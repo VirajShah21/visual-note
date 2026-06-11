@@ -1,6 +1,18 @@
 import JSON5 from "json5"
 
-export const visualBlockKinds = ["pull-request", "calendar-event", "packing-list", "contact-card", "address-card", "chart", "recipe", "task-list", "shopping-list", "timeline", "poll"] as const
+export const visualBlockKinds = [
+    "pull-request",
+    "calendar-event",
+    "packing-list",
+    "contact-card",
+    "address-card",
+    "chart",
+    "recipe",
+    "task-list",
+    "shopping-list",
+    "timeline",
+    "poll",
+] as const
 
 export type VisualBlockKind = (typeof visualBlockKinds)[number]
 

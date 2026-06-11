@@ -79,7 +79,13 @@ type TextAreaFieldProps = Omit<HTMLMotionProps<"textarea">, "children"> & {
 export function TextAreaField({ className, label, hint, error, ...props }: TextAreaFieldProps) {
     return (
         <FieldShell label={label} hint={hint} error={error}>
-            <motion.textarea className={cx(styles.textarea, className)} initial={{ opacity: 0.9, scale: 0.995 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring", stiffness: 180, damping: 24 }} {...props} />
+            <motion.textarea
+                className={cx(styles.textarea, className)}
+                initial={{ opacity: 0.9, scale: 0.995 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: "spring", stiffness: 180, damping: 24 }}
+                {...props}
+            />
         </FieldShell>
     )
 }
@@ -102,7 +108,14 @@ export function SelectField({ className, label, hint, error, options, onValueCha
 
     return (
         <FieldShell label={label} hint={hint} error={error}>
-            <motion.select className={cx(styles.select, className)} initial={{ opacity: 0.9, scale: 0.995 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring", stiffness: 180, damping: 24 }} onChange={handleChange} {...props}>
+            <motion.select
+                className={cx(styles.select, className)}
+                initial={{ opacity: 0.9, scale: 0.995 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: "spring", stiffness: 180, damping: 24 }}
+                onChange={handleChange}
+                {...props}
+            >
                 {options.map(option => createElement("option", { key: option.value, value: option.value }, option.label))}
             </motion.select>
         </FieldShell>

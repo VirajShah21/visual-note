@@ -1,6 +1,26 @@
 "use client"
 
-import { Bug, CalendarDays, CheckCircle2, Clock, Code2, Contact, ExternalLink as ExternalLinkIcon, GitPullRequest, Layers3, LinkIcon, ListChecks, MapPin, PanelLeft, Pencil, Plus, ShoppingCart, Sparkles, Trash2, Vote } from "lucide-react"
+import {
+    Bug,
+    CalendarDays,
+    CheckCircle2,
+    Clock,
+    Code2,
+    Contact,
+    ExternalLink as ExternalLinkIcon,
+    GitPullRequest,
+    Layers3,
+    LinkIcon,
+    ListChecks,
+    MapPin,
+    PanelLeft,
+    Pencil,
+    Plus,
+    ShoppingCart,
+    Sparkles,
+    Trash2,
+    Vote,
+} from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -236,7 +256,11 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
 
         setWorkspace(resolved.workspace)
         setSelection(resolved.selection)
-        setNotice(supabaseStatus === "configured" ? "Supabase is configured. Workspace changes are mirrored to the configured project." : "Demo mode is active because Supabase env vars are not configured.")
+        setNotice(
+            supabaseStatus === "configured"
+                ? "Supabase is configured. Workspace changes are mirrored to the configured project."
+                : "Demo mode is active because Supabase env vars are not configured.",
+        )
         pushToast("Workspace opened", supabaseStatus === "configured" ? "Changes will sync to Supabase." : "Changes will be saved locally in demo mode.", "info")
     }
 
@@ -360,7 +384,13 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     if (mode === "home")
         return (
             <Stack className={styles.app}>
-                <NotebookHome userLabel={user.email} storageLabel={supabaseStatus === "configured" ? "Supabase connected" : "Demo storage"} notebooks={galleryItems} onCreateNotebook={createNotebookAndOpen} onSignOut={signOut} />
+                <NotebookHome
+                    userLabel={user.email}
+                    storageLabel={supabaseStatus === "configured" ? "Supabase connected" : "Demo storage"}
+                    notebooks={galleryItems}
+                    onCreateNotebook={createNotebookAndOpen}
+                    onSignOut={signOut}
+                />
                 <ToastShelf messages={toastMessages} onDismiss={dismissToast} />
             </Stack>
         )
@@ -430,7 +460,9 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                 views: current.views.filter(view => !deletedTopicIds.includes(view.topicId)),
             }
 
-            setSelection(currentSelection => deriveSelection(nextWorkspace, currentSelection.pageId === sectionId ? { ...currentSelection, pageId: "", topicId: "", viewId: "" } : currentSelection))
+            setSelection(currentSelection =>
+                deriveSelection(nextWorkspace, currentSelection.pageId === sectionId ? { ...currentSelection, pageId: "", topicId: "", viewId: "" } : currentSelection),
+            )
 
             return nextWorkspace
         })
@@ -529,7 +561,10 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
             topics: workspace.topics.filter(item => item.id !== topicId),
             views: workspace.views.filter(view => view.topicId !== topicId),
         }
-        const nextSelection = deriveSelection(nextWorkspace, selected.currentSelection.topicId === topicId ? { ...selected.currentSelection, topicId: "", viewId: "" } : selected.currentSelection)
+        const nextSelection = deriveSelection(
+            nextWorkspace,
+            selected.currentSelection.topicId === topicId ? { ...selected.currentSelection, topicId: "", viewId: "" } : selected.currentSelection,
+        )
 
         setWorkspace(nextWorkspace)
         setSelection(nextSelection)
@@ -681,7 +716,20 @@ type SectionSidebarProps = {
     onSelectSection: (sectionId: string) => void
 }
 
-function SectionSidebar({ sections, topics, activeSectionId, activeTopicId, onCreateSection, onRenameSection, onDeleteSection, onCreateTopic, onRenameTopic, onDeleteTopic, onSelectTopic, onSelectSection }: SectionSidebarProps) {
+function SectionSidebar({
+    sections,
+    topics,
+    activeSectionId,
+    activeTopicId,
+    onCreateSection,
+    onRenameSection,
+    onDeleteSection,
+    onCreateTopic,
+    onRenameTopic,
+    onDeleteTopic,
+    onSelectTopic,
+    onSelectSection,
+}: SectionSidebarProps) {
     const [title, setTitle] = useState("New section")
     const [itemTitle, setItemTitle] = useState("New item")
     const [editTitle, setEditTitle] = useState("")
@@ -763,7 +811,11 @@ function SectionSidebar({ sections, topics, activeSectionId, activeTopicId, onCr
                                         { label: "Delete section", icon: <Trash2 size={14} />, onSelect: () => onDeleteSection(section.id) },
                                     ]}
                                 >
-                                    <Heading className={`${styles.sectionTitle} ${section.id === activeSectionId ? styles.activeSectionTitle : ""}`} size="sm" onClick={() => onSelectSection(section.id)}>
+                                    <Heading
+                                        className={`${styles.sectionTitle} ${section.id === activeSectionId ? styles.activeSectionTitle : ""}`}
+                                        size="sm"
+                                        onClick={() => onSelectSection(section.id)}
+                                    >
                                         {section.title}
                                     </Heading>
                                 </ContextActions>
@@ -777,7 +829,11 @@ function SectionSidebar({ sections, topics, activeSectionId, activeTopicId, onCr
                                                 { label: "Delete item", icon: <Trash2 size={14} />, onSelect: () => onDeleteTopic(topic.id) },
                                             ]}
                                         >
-                                            <Button className={`${styles.navButton} ${styles.topicSelectButton} ${topic.id === activeTopicId ? styles.activeNavButton : ""}`} onClick={() => onSelectTopic(topic.id)} fullWidth>
+                                            <Button
+                                                className={`${styles.navButton} ${styles.topicSelectButton} ${topic.id === activeTopicId ? styles.activeNavButton : ""}`}
+                                                onClick={() => onSelectTopic(topic.id)}
+                                                fullWidth
+                                            >
                                                 {topic.title}
                                             </Button>
                                         </ContextActions>
@@ -818,7 +874,12 @@ function SectionSidebar({ sections, topics, activeSectionId, activeTopicId, onCr
                     </Button>
                 </Stack>
             </ModalDialog>
-            <ModalDialog open={Boolean(editingSectionId)} title="Rename section" description="Update this sidebar section title." onOpenChange={open => !open && setEditingSectionId("")}>
+            <ModalDialog
+                open={Boolean(editingSectionId)}
+                title="Rename section"
+                description="Update this sidebar section title."
+                onOpenChange={open => !open && setEditingSectionId("")}
+            >
                 <Stack gap="md">
                     <TextField label="Section title" value={editTitle} onChange={event => setEditTitle(event.target.value)} />
                     <Button icon={<Pencil size={15} />} variant="primary" onClick={renameSection} fullWidth>
@@ -869,7 +930,9 @@ function ArticleWorkspace({ view, onUpdateView, onUpdateDisplay }: ArticleWorksp
             displays={view.displays}
             onChange={content => onUpdateView({ ...view, content })}
             renderDisplay={display => <RenderedDisplay display={display} onUpdate={onUpdateDisplay} isReadOnly={false} />}
-            renderVisualBlock={(block, onDataChange) => <VisualBlockDisplay visualKind={block.visualKind} data={block.data} raw={block.raw} parseError={block.parseError} onDataChange={onDataChange} />}
+            renderVisualBlock={(block, onDataChange) => (
+                <VisualBlockDisplay visualKind={block.visualKind} data={block.data} raw={block.raw} parseError={block.parseError} onDataChange={onDataChange} />
+            )}
         />
     )
 }
@@ -947,8 +1010,20 @@ function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }:
                     <TextField label="Author" value={stringFrom(data.author)} onChange={event => updateField("author", event.target.value)} />
                     <TextField label="Source" value={stringFrom(data.source)} onChange={event => updateField("source", event.target.value)} />
                 </Grid>
-                <InlineStringList title="Reviewers" items={arrayFrom(data.reviewers)} onAdd={() => addStringListItem("reviewers", "Reviewer")} onChange={(index, value) => updateStringList("reviewers", index, value)} onRemove={index => removeStringListItem("reviewers", index)} />
-                <InlineStringList title="Notes" items={arrayFrom(data.notes)} onAdd={() => addStringListItem("notes", "New note")} onChange={(index, value) => updateStringList("notes", index, value)} onRemove={index => removeStringListItem("notes", index)} />
+                <InlineStringList
+                    title="Reviewers"
+                    items={arrayFrom(data.reviewers)}
+                    onAdd={() => addStringListItem("reviewers", "Reviewer")}
+                    onChange={(index, value) => updateStringList("reviewers", index, value)}
+                    onRemove={index => removeStringListItem("reviewers", index)}
+                />
+                <InlineStringList
+                    title="Notes"
+                    items={arrayFrom(data.notes)}
+                    onAdd={() => addStringListItem("notes", "New note")}
+                    onChange={(index, value) => updateStringList("notes", index, value)}
+                    onRemove={index => removeStringListItem("notes", index)}
+                />
             </Stack>
         )
 
@@ -974,7 +1049,13 @@ function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }:
                     <TextField label="Location" value={stringFrom(data.location)} onChange={event => updateField("location", event.target.value)} />
                 </Grid>
                 <TextAreaField label="Notes" value={stringFrom(data.notes)} onChange={event => updateField("notes", event.target.value)} />
-                <InlineStringList title="Attendees" items={arrayFrom(data.attendees)} onAdd={() => addStringListItem("attendees", "New attendee")} onChange={(index, value) => updateStringList("attendees", index, value)} onRemove={index => removeStringListItem("attendees", index)} />
+                <InlineStringList
+                    title="Attendees"
+                    items={arrayFrom(data.attendees)}
+                    onAdd={() => addStringListItem("attendees", "New attendee")}
+                    onChange={(index, value) => updateStringList("attendees", index, value)}
+                    onRemove={index => removeStringListItem("attendees", index)}
+                />
             </Stack>
         )
 
@@ -993,7 +1074,13 @@ function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }:
                     <TextField label="Email" value={stringFrom(data.email)} onChange={event => updateField("email", event.target.value)} />
                     <TextField label="Phone" value={stringFrom(data.phone)} onChange={event => updateField("phone", event.target.value)} />
                 </Grid>
-                <InlineStringList title="Links" items={arrayFrom(data.links)} onAdd={() => addStringListItem("links", "https://example.com")} onChange={(index, value) => updateStringList("links", index, value)} onRemove={index => removeStringListItem("links", index)} />
+                <InlineStringList
+                    title="Links"
+                    items={arrayFrom(data.links)}
+                    onAdd={() => addStringListItem("links", "https://example.com")}
+                    onChange={(index, value) => updateStringList("links", index, value)}
+                    onRemove={index => removeStringListItem("links", index)}
+                />
             </Stack>
         )
 
@@ -1015,7 +1102,13 @@ function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }:
                     <Text>{arrayFrom(data.lines).join(", ")}</Text>
                 </Stack>
                 <TextField label="Label" value={stringFrom(data.label)} onChange={event => updateField("label", event.target.value)} />
-                <InlineStringList title="Address lines" items={arrayFrom(data.lines)} onAdd={() => addStringListItem("lines", "Address line")} onChange={(index, value) => updateStringList("lines", index, value)} onRemove={index => removeStringListItem("lines", index)} />
+                <InlineStringList
+                    title="Address lines"
+                    items={arrayFrom(data.lines)}
+                    onAdd={() => addStringListItem("lines", "Address line")}
+                    onChange={(index, value) => updateStringList("lines", index, value)}
+                    onRemove={index => removeStringListItem("lines", index)}
+                />
                 <TextField label="Map URL" value={stringFrom(data.mapUrl)} onChange={event => updateField("mapUrl", event.target.value)} />
                 <TextAreaField label="Notes" value={stringFrom(data.notes)} onChange={event => updateField("notes", event.target.value)} />
             </Stack>
@@ -1048,7 +1141,12 @@ function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }:
                     {rows.map((row, index) => (
                         <Grid key={`${index}-${row.label}`} columns="two" gap="sm">
                             <TextField label="Label" value={row.label} onChange={event => updateObjectList("data", index, { label: event.target.value })} />
-                            <TextField label="Value" type="number" value={String(row.value)} onChange={event => updateObjectList("data", index, { value: Number(event.target.value) })} />
+                            <TextField
+                                label="Value"
+                                type="number"
+                                value={String(row.value)}
+                                onChange={event => updateObjectList("data", index, { value: Number(event.target.value) })}
+                            />
                         </Grid>
                     ))}
                     <Button icon={<Plus size={15} />} variant="ghost" onClick={() => addObjectListItem("data", { label: "New", value: 1 })}>
@@ -1081,7 +1179,12 @@ function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }:
                     {ingredients.map((ingredient, index) => (
                         <Grid key={`${index}-${ingredient.name}`} columns="three" gap="sm">
                             <TextField label="Name" value={stringFrom(ingredient.name)} onChange={event => updateObjectList("ingredients", index, { name: event.target.value })} />
-                            <TextField label="Quantity" type="number" value={String(numberFrom(ingredient.quantity, 0) * portionScale)} onChange={event => updateObjectList("ingredients", index, { quantity: Number(event.target.value) / portionScale })} />
+                            <TextField
+                                label="Quantity"
+                                type="number"
+                                value={String(numberFrom(ingredient.quantity, 0) * portionScale)}
+                                onChange={event => updateObjectList("ingredients", index, { quantity: Number(event.target.value) / portionScale })}
+                            />
                             <TextField label="Unit" value={stringFrom(ingredient.unit)} onChange={event => updateObjectList("ingredients", index, { unit: event.target.value })} />
                         </Grid>
                     ))}
@@ -1089,7 +1192,13 @@ function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }:
                         Add ingredient
                     </Button>
                 </Stack>
-                <InlineStringList title="Cooking steps" items={arrayFrom(data.steps)} onAdd={() => addStringListItem("steps", "New step")} onChange={(index, value) => updateStringList("steps", index, value)} onRemove={index => removeStringListItem("steps", index)} />
+                <InlineStringList
+                    title="Cooking steps"
+                    items={arrayFrom(data.steps)}
+                    onAdd={() => addStringListItem("steps", "New step")}
+                    onChange={(index, value) => updateStringList("steps", index, value)}
+                    onRemove={index => removeStringListItem("steps", index)}
+                />
             </Stack>
         )
     }
@@ -1104,8 +1213,16 @@ function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }:
                         <Stack key={`${index}-${eventItem.label}`} className={styles.timelineItem} gap="sm">
                             <Grid columns="three" gap="sm">
                                 <TextField label="Label" value={stringFrom(eventItem.label)} onChange={event => updateObjectList("events", index, { label: event.target.value })} />
-                                <DateField label="Date" value={dateInputValue(eventItem.date)} onChange={event => updateObjectList("events", index, { date: event.target.value })} />
-                                <TimeField label="Time" value={timeInputValue(eventItem.time)} onChange={event => updateObjectList("events", index, { time: event.target.value })} />
+                                <DateField
+                                    label="Date"
+                                    value={dateInputValue(eventItem.date)}
+                                    onChange={event => updateObjectList("events", index, { date: event.target.value })}
+                                />
+                                <TimeField
+                                    label="Time"
+                                    value={timeInputValue(eventItem.time)}
+                                    onChange={event => updateObjectList("events", index, { time: event.target.value })}
+                                />
                             </Grid>
                             <Button variant="ghost" onClick={() => removeObjectListItem("events", index)}>
                                 Delete event
@@ -1135,8 +1252,17 @@ function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }:
                         return (
                             <Stack key={`${index}-${option.label}`} className={styles.pollOption} gap="xs">
                                 <Grid columns="two" gap="sm">
-                                    <TextField label="Option" value={stringFrom(option.label)} onChange={event => updateObjectList("options", index, { label: event.target.value })} />
-                                    <TextField label="Votes" type="number" value={String(votes)} onChange={event => updateObjectList("options", index, { votes: Number(event.target.value) })} />
+                                    <TextField
+                                        label="Option"
+                                        value={stringFrom(option.label)}
+                                        onChange={event => updateObjectList("options", index, { label: event.target.value })}
+                                    />
+                                    <TextField
+                                        label="Votes"
+                                        type="number"
+                                        value={String(votes)}
+                                        onChange={event => updateObjectList("options", index, { votes: Number(event.target.value) })}
+                                    />
                                 </Grid>
                                 <Stack className={styles.pollBar} style={{ "--poll-percent": `${percent}%` } as CSSProperties}>
                                     <Text size="small">{`${percent}%`}</Text>
@@ -1165,7 +1291,10 @@ function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }:
 
     return (
         <Stack className={styles.visualBlock} gap="md">
-            {header(visualKind === "shopping-list" ? <ShoppingCart size={13} /> : <CheckCircle2 size={13} />, visualKind === "packing-list" ? "Packing List" : visualKind === "shopping-list" ? "Shopping List" : "Task List")}
+            {header(
+                visualKind === "shopping-list" ? <ShoppingCart size={13} /> : <CheckCircle2 size={13} />,
+                visualKind === "packing-list" ? "Packing List" : visualKind === "shopping-list" ? "Shopping List" : "Task List",
+            )}
             <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
             <Stack gap="sm">
                 {listItems.map((item, index) => (
@@ -1177,18 +1306,33 @@ function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }:
                                     items={objectArrayFrom(item.items)}
                                     onAdd={() => updateObjectList(listField, index, { items: [...objectArrayFrom(item.items), { label: "New item", packed: false }] })}
                                     onChange={(itemIndex, patch) => updateObjectList(listField, index, { items: replaceObjectAt(objectArrayFrom(item.items), itemIndex, patch) })}
-                                    onRemove={itemIndex => updateObjectList(listField, index, { items: objectArrayFrom(item.items).filter((_, nestedIndex) => nestedIndex !== itemIndex) })}
+                                    onRemove={itemIndex =>
+                                        updateObjectList(listField, index, { items: objectArrayFrom(item.items).filter((_, nestedIndex) => nestedIndex !== itemIndex) })
+                                    }
                                 />
                             </>
                         ) : (
                             <Grid columns="three" gap="sm">
-                                <TextField label={visualKind === "task-list" ? "Task" : "Item"} value={stringFrom(item.title || item.name)} onChange={event => updateObjectList(listField, index, visualKind === "task-list" ? { title: event.target.value } : { name: event.target.value })} />
+                                <TextField
+                                    label={visualKind === "task-list" ? "Task" : "Item"}
+                                    value={stringFrom(item.title || item.name)}
+                                    onChange={event =>
+                                        updateObjectList(listField, index, visualKind === "task-list" ? { title: event.target.value } : { name: event.target.value })
+                                    }
+                                />
                                 <TextField
                                     label={visualKind === "task-list" ? "Owner" : "Quantity"}
                                     value={stringFrom(item.owner || item.quantity)}
-                                    onChange={event => updateObjectList(listField, index, visualKind === "task-list" ? { owner: event.target.value } : { quantity: event.target.value })}
+                                    onChange={event =>
+                                        updateObjectList(listField, index, visualKind === "task-list" ? { owner: event.target.value } : { quantity: event.target.value })
+                                    }
                                 />
-                                <Button variant={item.done || item.purchased ? "primary" : "ghost"} onClick={() => updateObjectList(listField, index, visualKind === "task-list" ? { done: !Boolean(item.done) } : { purchased: !Boolean(item.purchased) })}>
+                                <Button
+                                    variant={item.done || item.purchased ? "primary" : "ghost"}
+                                    onClick={() =>
+                                        updateObjectList(listField, index, visualKind === "task-list" ? { done: !Boolean(item.done) } : { purchased: !Boolean(item.purchased) })
+                                    }
+                                >
                                     {item.done || item.purchased ? "Done" : "Open"}
                                 </Button>
                             </Grid>
@@ -1202,7 +1346,16 @@ function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }:
             <Button
                 icon={<Plus size={15} />}
                 variant="ghost"
-                onClick={() => addObjectListItem(listField, visualKind === "task-list" ? { title: "New task", done: false, dueDate: "", owner: "" } : visualKind === "shopping-list" ? { name: "New item", quantity: "", purchased: false } : { title: "New section", items: [] })}
+                onClick={() =>
+                    addObjectListItem(
+                        listField,
+                        visualKind === "task-list"
+                            ? { title: "New task", done: false, dueDate: "", owner: "" }
+                            : visualKind === "shopping-list"
+                              ? { name: "New item", quantity: "", purchased: false }
+                              : { title: "New section", items: [] },
+                    )
+                }
             >
                 Add item
             </Button>
@@ -1291,7 +1444,16 @@ function DisplayDataEditor({ display, onDataChange }: DisplayDataEditorProps) {
         )
 
     if (display.kind === "checklist")
-        return <StringListEditor title="Checklist items" items={arrayFrom(data.items)} label="Item" onAdd={() => addListItem("items", "New checklist item")} onChange={(index, value) => updateListItem("items", index, value)} onRemove={index => removeListItem("items", index)} />
+        return (
+            <StringListEditor
+                title="Checklist items"
+                items={arrayFrom(data.items)}
+                label="Item"
+                onAdd={() => addListItem("items", "New checklist item")}
+                onChange={(index, value) => updateListItem("items", index, value)}
+                onRemove={index => removeListItem("items", index)}
+            />
+        )
 
     if (display.kind === "timeline")
         return (
@@ -1309,9 +1471,21 @@ function DisplayDataEditor({ display, onDataChange }: DisplayDataEditorProps) {
                         >
                             <Stack gap="md">
                                 <Grid columns="two">
-                                    <TextField label="Label" value={stringFrom(eventItem.label)} onChange={event => updateObjectItem("events", index, "label", event.target.value)} />
-                                    <DateField label="Date" value={dateInputValue(eventItem.date)} onChange={event => updateObjectItem("events", index, "date", event.target.value)} />
-                                    <TimeField label="Time" value={timeInputValue(eventItem.time)} onChange={event => updateObjectItem("events", index, "time", event.target.value)} />
+                                    <TextField
+                                        label="Label"
+                                        value={stringFrom(eventItem.label)}
+                                        onChange={event => updateObjectItem("events", index, "label", event.target.value)}
+                                    />
+                                    <DateField
+                                        label="Date"
+                                        value={dateInputValue(eventItem.date)}
+                                        onChange={event => updateObjectItem("events", index, "date", event.target.value)}
+                                    />
+                                    <TimeField
+                                        label="Time"
+                                        value={timeInputValue(eventItem.time)}
+                                        onChange={event => updateObjectItem("events", index, "time", event.target.value)}
+                                    />
                                 </Grid>
                                 <Button variant="ghost" onClick={() => removeObjectItem("events", index)} fullWidth>
                                     Delete Event
@@ -1357,12 +1531,28 @@ function DisplayDataEditor({ display, onDataChange }: DisplayDataEditorProps) {
                     <Card key={`${index}-${log.title}`} padding="compact">
                         <Stack gap="md">
                             <Grid columns="two">
-                                <TextField label="Timestamp" value={stringFrom(log.timestamp)} onChange={event => updateObjectItem("workLogs", index, "timestamp", event.target.value)} />
-                                <TextField label="Time worked" value={stringFrom(log.timeWorked)} onChange={event => updateObjectItem("workLogs", index, "timeWorked", event.target.value)} />
+                                <TextField
+                                    label="Timestamp"
+                                    value={stringFrom(log.timestamp)}
+                                    onChange={event => updateObjectItem("workLogs", index, "timestamp", event.target.value)}
+                                />
+                                <TextField
+                                    label="Time worked"
+                                    value={stringFrom(log.timeWorked)}
+                                    onChange={event => updateObjectItem("workLogs", index, "timeWorked", event.target.value)}
+                                />
                             </Grid>
                             <TextField label="Title" value={stringFrom(log.title)} onChange={event => updateObjectItem("workLogs", index, "title", event.target.value)} />
-                            <TextAreaField label="Description" value={stringFrom(log.description)} onChange={event => updateObjectItem("workLogs", index, "description", event.target.value)} />
-                            <TextField label="Pull request URL" value={stringFrom(log.pullRequestUrl)} onChange={event => updateObjectItem("workLogs", index, "pullRequestUrl", event.target.value)} />
+                            <TextAreaField
+                                label="Description"
+                                value={stringFrom(log.description)}
+                                onChange={event => updateObjectItem("workLogs", index, "description", event.target.value)}
+                            />
+                            <TextField
+                                label="Pull request URL"
+                                value={stringFrom(log.pullRequestUrl)}
+                                onChange={event => updateObjectItem("workLogs", index, "pullRequestUrl", event.target.value)}
+                            />
                             <Button variant="ghost" onClick={() => removeObjectItem("workLogs", index)} fullWidth>
                                 Delete Work Log
                             </Button>
@@ -1386,8 +1576,16 @@ function DisplayDataEditor({ display, onDataChange }: DisplayDataEditorProps) {
                                 <TextField label="Title" value={stringFrom(bug.title)} onChange={event => updateObjectItem("bugs", index, "title", event.target.value)} />
                                 <TextField label="Severity" value={stringFrom(bug.severity)} onChange={event => updateObjectItem("bugs", index, "severity", event.target.value)} />
                             </Grid>
-                            <TextAreaField label="Description" value={stringFrom(bug.description)} onChange={event => updateObjectItem("bugs", index, "description", event.target.value)} />
-                            <TextField label="GitHub issue or Jira ticket URL" value={stringFrom(bug.ticketUrl)} onChange={event => updateObjectItem("bugs", index, "ticketUrl", event.target.value)} />
+                            <TextAreaField
+                                label="Description"
+                                value={stringFrom(bug.description)}
+                                onChange={event => updateObjectItem("bugs", index, "description", event.target.value)}
+                            />
+                            <TextField
+                                label="GitHub issue or Jira ticket URL"
+                                value={stringFrom(bug.ticketUrl)}
+                                onChange={event => updateObjectItem("bugs", index, "ticketUrl", event.target.value)}
+                            />
                             <Button variant="ghost" onClick={() => removeObjectItem("bugs", index)} fullWidth>
                                 Delete Bug
                             </Button>
@@ -1409,11 +1607,27 @@ function DisplayDataEditor({ display, onDataChange }: DisplayDataEditorProps) {
                         <Stack gap="md">
                             <Grid columns="two">
                                 <TextField label="Brand" value={stringFrom(item.brand)} onChange={event => updateObjectItem("shoppingItems", index, "brand", event.target.value)} />
-                                <TextField label="Product" value={stringFrom(item.product)} onChange={event => updateObjectItem("shoppingItems", index, "product", event.target.value)} />
-                                <TextField label="Model or variant" value={stringFrom(item.modelVariant)} onChange={event => updateObjectItem("shoppingItems", index, "modelVariant", event.target.value)} />
+                                <TextField
+                                    label="Product"
+                                    value={stringFrom(item.product)}
+                                    onChange={event => updateObjectItem("shoppingItems", index, "product", event.target.value)}
+                                />
+                                <TextField
+                                    label="Model or variant"
+                                    value={stringFrom(item.modelVariant)}
+                                    onChange={event => updateObjectItem("shoppingItems", index, "modelVariant", event.target.value)}
+                                />
                                 <TextField label="Store" value={stringFrom(item.store)} onChange={event => updateObjectItem("shoppingItems", index, "store", event.target.value)} />
-                                <TextField label="Store location" value={stringFrom(item.storeLocation)} onChange={event => updateObjectItem("shoppingItems", index, "storeLocation", event.target.value)} />
-                                <TextField label="Store URL" value={stringFrom(item.storeUrl)} onChange={event => updateObjectItem("shoppingItems", index, "storeUrl", event.target.value)} />
+                                <TextField
+                                    label="Store location"
+                                    value={stringFrom(item.storeLocation)}
+                                    onChange={event => updateObjectItem("shoppingItems", index, "storeLocation", event.target.value)}
+                                />
+                                <TextField
+                                    label="Store URL"
+                                    value={stringFrom(item.storeUrl)}
+                                    onChange={event => updateObjectItem("shoppingItems", index, "storeUrl", event.target.value)}
+                                />
                             </Grid>
                             <Button variant="ghost" onClick={() => removeObjectItem("shoppingItems", index)} fullWidth>
                                 Delete Item
@@ -1438,7 +1652,14 @@ function DisplayDataEditor({ display, onDataChange }: DisplayDataEditorProps) {
                 </Grid>
                 <TextField label="PR title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
                 <TextAreaField label="PR description" value={stringFrom(data.description)} onChange={event => updateField("description", event.target.value)} />
-                <StringListEditor title="Comments" items={arrayFrom(data.comments)} label="Comment" onAdd={() => addListItem("comments", "New comment")} onChange={(index, value) => updateListItem("comments", index, value)} onRemove={index => removeListItem("comments", index)} />
+                <StringListEditor
+                    title="Comments"
+                    items={arrayFrom(data.comments)}
+                    label="Comment"
+                    onAdd={() => addListItem("comments", "New comment")}
+                    onChange={(index, value) => updateListItem("comments", index, value)}
+                    onRemove={index => removeListItem("comments", index)}
+                />
             </Stack>
         )
 
@@ -1451,7 +1672,14 @@ function DisplayDataEditor({ display, onDataChange }: DisplayDataEditorProps) {
                 <TextField label="Banner image" value={stringFrom(data.bannerImage)} onChange={event => updateField("bannerImage", event.target.value)} />
                 <TextField label="Social preview image" value={stringFrom(data.socialPreviewImage)} onChange={event => updateField("socialPreviewImage", event.target.value)} />
                 <TextField label="Favicon" value={stringFrom(data.favicon)} onChange={event => updateField("favicon", event.target.value)} />
-                <StringListEditor title="Keywords" items={arrayFrom(data.keywords)} label="Keyword" onAdd={() => addListItem("keywords", "New keyword")} onChange={(index, value) => updateListItem("keywords", index, value)} onRemove={index => removeListItem("keywords", index)} />
+                <StringListEditor
+                    title="Keywords"
+                    items={arrayFrom(data.keywords)}
+                    label="Keyword"
+                    onAdd={() => addListItem("keywords", "New keyword")}
+                    onChange={(index, value) => updateListItem("keywords", index, value)}
+                    onRemove={index => removeListItem("keywords", index)}
+                />
             </Stack>
         )
 
@@ -1624,12 +1852,28 @@ function RenderedDisplay({ display, onUpdate, isReadOnly = false }: RenderedDisp
                                     {editingWorkLogIndex === index ? (
                                         <Stack gap="md">
                                             <Grid columns="two">
-                                                <TextField label="Timestamp" value={stringFrom(log.timestamp)} onChange={event => updateWorkLog(index, "timestamp", event.target.value)} />
-                                                <TextField label="Time worked" value={stringFrom(log.timeWorked)} onChange={event => updateWorkLog(index, "timeWorked", event.target.value)} />
+                                                <TextField
+                                                    label="Timestamp"
+                                                    value={stringFrom(log.timestamp)}
+                                                    onChange={event => updateWorkLog(index, "timestamp", event.target.value)}
+                                                />
+                                                <TextField
+                                                    label="Time worked"
+                                                    value={stringFrom(log.timeWorked)}
+                                                    onChange={event => updateWorkLog(index, "timeWorked", event.target.value)}
+                                                />
                                             </Grid>
                                             <TextField label="Title" value={stringFrom(log.title)} onChange={event => updateWorkLog(index, "title", event.target.value)} />
-                                            <TextAreaField label="Description" value={stringFrom(log.description)} onChange={event => updateWorkLog(index, "description", event.target.value)} />
-                                            <TextField label="Pull request URL" value={stringFrom(log.pullRequestUrl)} onChange={event => updateWorkLog(index, "pullRequestUrl", event.target.value)} />
+                                            <TextAreaField
+                                                label="Description"
+                                                value={stringFrom(log.description)}
+                                                onChange={event => updateWorkLog(index, "description", event.target.value)}
+                                            />
+                                            <TextField
+                                                label="Pull request URL"
+                                                value={stringFrom(log.pullRequestUrl)}
+                                                onChange={event => updateWorkLog(index, "pullRequestUrl", event.target.value)}
+                                            />
                                             <Stack className={styles.wrapRow} direction="horizontal" gap="sm">
                                                 <Button variant="ghost" onClick={() => setEditingWorkLogIndex(null)}>
                                                     Done
@@ -1908,9 +2152,21 @@ function RenderedDisplay({ display, onUpdate, isReadOnly = false }: RenderedDisp
                                 {editingTimelineEventIndex === index ? (
                                     <Stack gap="md">
                                         <Grid columns="two">
-                                            <TextField label="Label" value={stringFrom(eventItem.label)} onChange={event => updateTimelineEvent(index, "label", event.target.value)} />
-                                            <DateField label="Date" value={dateInputValue(eventItem.date)} onChange={event => updateTimelineEvent(index, "date", event.target.value)} />
-                                            <TimeField label="Time" value={timeInputValue(eventItem.time)} onChange={event => updateTimelineEvent(index, "time", event.target.value)} />
+                                            <TextField
+                                                label="Label"
+                                                value={stringFrom(eventItem.label)}
+                                                onChange={event => updateTimelineEvent(index, "label", event.target.value)}
+                                            />
+                                            <DateField
+                                                label="Date"
+                                                value={dateInputValue(eventItem.date)}
+                                                onChange={event => updateTimelineEvent(index, "date", event.target.value)}
+                                            />
+                                            <TimeField
+                                                label="Time"
+                                                value={timeInputValue(eventItem.time)}
+                                                onChange={event => updateTimelineEvent(index, "time", event.target.value)}
+                                            />
                                         </Grid>
                                         <Stack className={styles.wrapRow} direction="horizontal" gap="sm">
                                             <Button variant="ghost" onClick={() => setEditingTimelineEventIndex(null)}>
@@ -2072,7 +2328,8 @@ const calendarEventSchedule = (data: VisualBlockData) => {
 
 const replaceStringAt = (items: string[], index: number, value: string) => items.map((item, itemIndex) => (itemIndex === index ? value : item))
 
-const replaceObjectAt = (items: Array<Record<string, unknown>>, index: number, patch: Record<string, unknown>) => items.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item))
+const replaceObjectAt = (items: Array<Record<string, unknown>>, index: number, patch: Record<string, unknown>) =>
+    items.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item))
 
 const defaultListItems = {
     workLog: {
