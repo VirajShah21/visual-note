@@ -41,6 +41,7 @@ export const commandMatch = (command: ArticleEditorCommand, query: string) => {
 const HEADING_LEVELS = [1, 2, 3, 4] as const
 
 const VISUAL_BLOCK_ALIASES: Record<VisualBlockKind, string[]> = {
+    image: ["rich image", "image block", "caption", "photo block"],
     "pull-request": ["github", "pr", "pull request", "github pull request"],
     "calendar-event": ["calendar", "event", "meeting"],
     "packing-list": ["packing", "trip", "travel"],
@@ -157,9 +158,9 @@ const createBlockCommands = (selectedDisplay: number): ArticleEditorCommand[] =>
     },
     {
         id: "image",
-        label: "Image",
-        description: "Insert an image block",
-        aliases: ["image", "img", "photo", "media"],
+        label: "Markdown image",
+        description: "Insert a ![alt](url) image",
+        aliases: ["markdown image", "img", "photo", "media", "![alt](url)"],
         mode: "line",
         applyLine: () => ({ kind: "image", alt: "Image", url: "" }),
     },

@@ -1,6 +1,7 @@
 import JSON5 from "json5"
 
 export const visualBlockKinds = [
+    "image",
     "pull-request",
     "calendar-event",
     "packing-list",
@@ -27,6 +28,18 @@ export const visualBlockLabel = (kind: VisualBlockKind) =>
         .join(" ")
 
 export const defaultVisualBlockData = (kind: VisualBlockKind): VisualBlockData => {
+    if (kind === "image")
+        return {
+            url: "",
+            alt: "Image",
+            title: "",
+            caption: "",
+            overlayText: "",
+            size: "full",
+            borderRadius: 12,
+            borderWidth: 0,
+        }
+
     if (kind === "pull-request")
         return {
             source: "github",

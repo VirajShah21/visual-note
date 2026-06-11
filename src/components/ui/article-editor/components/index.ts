@@ -1,4 +1,5 @@
 export { ArticleBlockRenderer } from "./article-block-renderer"
+export { MarkdownImageBlock } from "./markdown-image-block"
 export { BlockTextarea } from "./block-textarea"
 export { CommandMenu } from "./command-menu"
 export { InlineLinkTextarea } from "./inline-link-textarea"

@@ -1,42 +1,46 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element -- Inline markdown images use arbitrary URLs and must keep native aspect behavior. */
+
 import { useReducer, type ReactNode } from "react"
 import { cx } from "../../class-name"
 import styles from "../../article-editor.module.css"
 import { BlockTextarea, type BlockTextareaProps } from "./block-textarea"
 
-const markdownLinkPattern = /(^|[^!])\[([^\]\n]+)\]\(([^)\s]+)\)/g
+const markdownInlineMediaPattern = /(!?)\[([^\]\n]*)\]\(([^)\s]+)\)/g
 
-const hasMarkdownLink = (text: string) => {
-    markdownLinkPattern.lastIndex = 0
-    return markdownLinkPattern.test(text)
+const hasMarkdownInlineMedia = (text: string) => {
+    markdownInlineMediaPattern.lastIndex = 0
+    return markdownInlineMediaPattern.test(text)
 }
 
-const safeLinkHref = (href: string) => {
-    if (/^(https?:|mailto:|tel:)/i.test(href)) return href
+const safeInlineUrl = (href: string) => {
+    if (/^(https?:|mailto:|tel:|data:image\/|blob:)/i.test(href) || href.startsWith("/")) return href
 
     return `https://${href}`
 }
 
-const renderInlineLinks = (text: string) => {
+const renderInlineMedia = (text: string) => {
     const parts: ReactNode[] = []
     let cursor = 0
     let match: RegExpExecArray | null
-    markdownLinkPattern.lastIndex = 0
+    markdownInlineMediaPattern.lastIndex = 0
 
-    while ((match = markdownLinkPattern.exec(text)) !== null) {
-        const prefix = match[1]
-        const matchStart = match.index + prefix.length
-        const matchEnd = markdownLinkPattern.lastIndex
+    while ((match = markdownInlineMediaPattern.exec(text)) !== null) {
+        const matchStart = match.index
+        const matchEnd = markdownInlineMediaPattern.lastIndex
         if (matchStart > cursor) parts.push(text.slice(cursor, matchStart))
 
+        const isImage = match[1] === "!"
         const label = match[2]
-        const href = safeLinkHref(match[3])
-        parts.push(
-            <a key={`${matchStart}-${href}`} className={styles.inlineLink} href={href} target="_blank" rel="noreferrer">
-                {label}
-            </a>,
-        )
+        const href = safeInlineUrl(match[3])
+        if (isImage) parts.push(<img key={`${matchStart}-${href}`} className={styles.inlineImage} src={href} alt={label} />)
+        else
+            parts.push(
+                <a key={`${matchStart}-${href}`} className={styles.inlineLink} href={href} target="_blank" rel="noreferrer">
+                    {label}
+                </a>,
+            )
         cursor = matchEnd
     }
 
@@ -46,7 +50,7 @@ const renderInlineLinks = (text: string) => {
 
 export function InlineLinkTextarea({ value, className, ...props }: BlockTextareaProps) {
     const [isEditing, setIsEditing] = useReducer((_: boolean, next: boolean) => next, false)
-    const shouldDisplayLinks = !isEditing && hasMarkdownLink(value)
+    const shouldDisplayLinks = !isEditing && hasMarkdownInlineMedia(value)
 
     if (shouldDisplayLinks)
         return (
@@ -68,7 +72,7 @@ export function InlineLinkTextarea({ value, className, ...props }: BlockTextarea
                     setIsEditing(true)
                 }}
             >
-                {renderInlineLinks(value)}
+                {renderInlineMedia(value)}
             </div>
         )
 

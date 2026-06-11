@@ -10,6 +10,7 @@ import { denormalizeParagraphText, headingLevelClassName } from "../utils/text"
 import styles from "../../article-editor.module.css"
 import { BlockTextarea } from "./block-textarea"
 import { InlineLinkTextarea } from "./inline-link-textarea"
+import { MarkdownImageBlock } from "./markdown-image-block"
 
 type ArticleBlockRendererProps = {
     block: ArticleBlock
@@ -142,15 +143,8 @@ export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, re
 
     if (block.kind === "image")
         return (
-            <Stack gap="xs" className={cx(styles.articleBlock, styles.imageUrlBlock)}>
-                <BlockTextarea
-                    className={cx(styles.blockInput, styles.blockInputImage)}
-                    data-block-index={blockIndex}
-                    value={block.url}
-                    placeholder="Paste image URL"
-                    onChange={event => handlers.updateImageField(blockIndex, { url: event.target.value })}
-                    onKeyDown={event => handlers.onInputKeyDown(blockIndex, "paragraph", undefined, event)}
-                />
+            <Stack gap="xs" className={styles.articleBlock}>
+                <MarkdownImageBlock blockIndex={blockIndex} alt={block.alt} url={block.url} handlers={handlers} />
             </Stack>
         )
 

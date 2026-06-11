@@ -5,9 +5,11 @@
     min-height: 0;
     max-width: none;
     min-width: 0;
+    box-sizing: border-box;
     background: #fcfcfc;
     display: flex;
     flex-direction: column;
+    padding: clamp(1rem, 1.4vw, 1.5rem) clamp(1rem, 2vw, 2rem);
 }
 
 .articleHeader {
@@ -19,6 +21,7 @@
     width: 100%;
     flex: 1 1 auto;
     min-height: 0;
+    gap: 0.45rem;
 }
 
 .articleBlock {
@@ -85,6 +88,27 @@
 
 .inlineLink:hover {
     color: color-mix(in srgb, var(--accent, #0b57d0) 70%, #0f172a);
+}
+
+.inlineImage {
+    display: inline-block;
+    max-width: min(100%, 12rem);
+    max-height: 1.8em;
+    margin: 0 0.2em;
+    border-radius: 4px;
+    vertical-align: middle;
+}
+
+.markdownImageBlock {
+    display: grid;
+    gap: 0.85rem;
+    padding: 0.55rem 0;
+}
+
+.imageFieldGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+    gap: 0.75rem;
 }
 
 .heading-1,
@@ -156,19 +180,6 @@
     padding: 0.65rem 0.75rem;
 }
 
-.imageUrlBlock {
-    border: 1px solid color-mix(in srgb, var(--accent, #0b57d0) 22%, transparent);
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--accent, #0b57d0) 4%, transparent);
-    padding: 0.55rem 0.65rem;
-}
-
-.blockInputImage {
-    min-height: 2rem;
-    padding: 0.15rem 0;
-    font-size: 0.93rem;
-}
-
 .calloutBlock {
     border-left: 3px solid color-mix(in srgb, #f59e0b 54%, transparent);
     background: color-mix(in srgb, #f59e0b 8%, transparent);
@@ -235,4 +246,10 @@
 .commandButtonActive {
     background: color-mix(in srgb, var(--accent, #0b57d0) 16%, transparent);
     border-color: color-mix(in srgb, var(--accent, #0b57d0) 30%, transparent);
+}
+
+@media (max-width: 720px) {
+    .imageFieldGrid {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }

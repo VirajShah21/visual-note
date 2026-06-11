@@ -18,6 +18,7 @@ import {
 import styles from "../../visual-note-app.module.css"
 import { InlineStringList } from "./inline-string-list"
 import { VisualBlockListDisplay } from "./visual-blocks/visual-block-list-display"
+import { VisualImageBlock } from "./visual-blocks/visual-image-block"
 
 export function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }: VisualBlockDisplayProps) {
     const updateField = (field: string, value: unknown) => onDataChange({ ...data, [field]: value })
@@ -51,6 +52,8 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataCh
                 </Text>
             </Stack>
         )
+
+    if (visualKind === "image") return <VisualImageBlock data={data} onDataChange={onDataChange} />
 
     if (
         visualKind === "recipe" ||
