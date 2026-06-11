@@ -1,35 +1,35 @@
 {
-  "name": "visual-note",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev -p 8000",
-    "build": "next build",
-    "start": "next start -p 8000",
-    "lint": "eslint",
-    "lint:fix": "eslint --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "knip": "knip"
-  },
-  "dependencies": {
-    "@base-ui/react": "^1.5.0",
-    "@supabase/supabase-js": "^2.106.2",
-    "lucide-react": "^1.17.0",
-    "motion": "^12.40.0",
-    "next": "16.2.6",
-    "react": "19.2.4",
-    "react-dom": "19.2.4"
-  },
-  "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.6",
-    "eslint-config-prettier": "^10.1.8",
-    "knip": "^6.16.1",
-    "prettier": "^3.8.3",
-    "typescript": "^5"
-  }
+    "name": "visual-note",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "next dev -p 8000",
+        "build": "next build",
+        "start": "next start -p 8000",
+        "lint": "eslint",
+        "lint:fix": "eslint --fix",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "knip": "knip"
+    },
+    "dependencies": {
+        "@base-ui/react": "^1.5.0",
+        "@supabase/supabase-js": "^2.106.2",
+        "lucide-react": "^1.17.0",
+        "motion": "^12.40.0",
+        "next": "16.2.6",
+        "react": "19.2.4",
+        "react-dom": "19.2.4"
+    },
+    "devDependencies": {
+        "@types/node": "^20",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "eslint": "^9",
+        "eslint-config-next": "16.2.6",
+        "eslint-config-prettier": "^10.1.8",
+        "knip": "^6.16.1",
+        "prettier": "^3.8.3",
+        "typescript": "^5"
+    }
 }

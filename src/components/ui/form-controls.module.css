@@ -1,58 +1,58 @@
 .field {
-  display: grid;
-  gap: 6px;
+    display: grid;
+    gap: 6px;
 }
 
 .label {
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 700;
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 700;
 }
 
 .input,
 .textarea,
 .select {
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink);
-  font: inherit;
-  font-size: 14px;
-  outline: none;
-  transition:
-    border-color 140ms ease,
-    box-shadow 140ms ease;
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+    outline: none;
+    transition:
+        border-color 140ms ease,
+        box-shadow 140ms ease;
 }
 
 .input,
 .select {
-  height: 38px;
-  padding: 0 11px;
+    height: 38px;
+    padding: 0 11px;
 }
 
 .textarea {
-  min-height: 110px;
-  resize: vertical;
-  padding: 10px 11px;
-  line-height: 1.45;
+    min-height: 110px;
+    resize: vertical;
+    padding: 10px 11px;
+    line-height: 1.45;
 }
 
 .input:focus,
 .textarea:focus,
 .select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-ring);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
 .hint {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.35;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
 }
 
 .error {
-  color: var(--danger);
-  font-size: 12px;
-  font-weight: 650;
+    color: var(--danger);
+    font-size: 12px;
+    font-weight: 650;
 }
