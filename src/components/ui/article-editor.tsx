@@ -51,11 +51,7 @@ type CommandReducerState = {
     selectedCommandIndex: number
 }
 
-type CommandAction =
-    | { type: "open"; state: CommandState }
-    | { type: "update"; patch: Pick<CommandState, "selectionEnd">; query: string }
-    | { type: "close" }
-    | { type: "selectDelta"; delta: 1 | -1; max: number }
+type CommandAction = { type: "open"; state: CommandState } | { type: "update"; patch: Pick<CommandState, "selectionEnd">; query: string } | { type: "close" } | { type: "selectDelta"; delta: 1 | -1; max: number }
 
 const CLOSED_COMMAND_STATE: CommandReducerState = {
     commandState: null,
@@ -367,18 +363,7 @@ function BlockTextarea({ value, className, ...props }: BlockTextareaProps) {
         input.style.height = `${input.scrollHeight}px`
     }, [value])
 
-    return (
-        <motion.textarea
-            ref={inputRef}
-            className={className}
-            value={value}
-            rows={1}
-            initial={{ opacity: 0.98 }}
-            animate={{ opacity: 1 }}
-            transition={{ type: "spring", stiffness: 180, damping: 24 }}
-            {...props}
-        />
-    )
+    return <motion.textarea ref={inputRef} className={className} value={value} rows={1} initial={{ opacity: 0.98 }} animate={{ opacity: 1 }} transition={{ type: "spring", stiffness: 180, damping: 24 }} {...props} />
 }
 
 function InlineLinkTextarea({ value, className, ...props }: BlockTextareaProps) {
@@ -486,8 +471,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
         if (targetIndex == null) return
 
         const targetListIndex = splitFocusListIndexRef.current
-        const selector =
-            targetListIndex == null ? `textarea[data-block-index="${targetIndex}"]` : `textarea[data-block-index="${targetIndex}"][data-list-index="${targetListIndex}"]`
+        const selector = targetListIndex == null ? `textarea[data-block-index="${targetIndex}"]` : `textarea[data-block-index="${targetIndex}"][data-list-index="${targetListIndex}"]`
         const target = editorRef.current?.querySelector<HTMLTextAreaElement>(selector)
         if (!target) return
 
@@ -676,18 +660,10 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
                 if (afterItems.length) listReplacement.push({ ...block, items: afterItems })
                 nextBlocks.splice(blockIndex, 1, ...listReplacement)
 
-                setSplitFocus(
-                    blockIndex + (beforeItems.length ? 1 : 0) + (articleBlockCanReceiveTextFocus(replacementBlock) ? 0 : 1),
-                    isListBlock(replacementBlock) ? 0 : null,
-                    getBlockTextLength(replacementBlock),
-                )
+                setSplitFocus(blockIndex + (beforeItems.length ? 1 : 0) + (articleBlockCanReceiveTextFocus(replacementBlock) ? 0 : 1), isListBlock(replacementBlock) ? 0 : null, getBlockTextLength(replacementBlock))
             } else {
                 nextBlocks.splice(blockIndex, 1, ...replacement)
-                setSplitFocus(
-                    blockIndex + (before ? 1 : 0) + (articleBlockCanReceiveTextFocus(replacementBlock) ? 0 : 1),
-                    isListBlock(replacementBlock) ? 0 : null,
-                    getBlockTextLength(replacementBlock),
-                )
+                setSplitFocus(blockIndex + (before ? 1 : 0) + (articleBlockCanReceiveTextFocus(replacementBlock) ? 0 : 1), isListBlock(replacementBlock) ? 0 : null, getBlockTextLength(replacementBlock))
             }
 
             writeBlocks(nextBlocks)
@@ -776,8 +752,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
                     nextBlocks.splice(blockIndex, 1)
 
                     let focusIndex = blockIndex - 1
-                    while (focusIndex >= 0 && (nextBlocks[focusIndex]?.kind === "divider" || nextBlocks[focusIndex]?.kind === "toc" || nextBlocks[focusIndex]?.kind === "display"))
-                        focusIndex -= 1
+                    while (focusIndex >= 0 && (nextBlocks[focusIndex]?.kind === "divider" || nextBlocks[focusIndex]?.kind === "toc" || nextBlocks[focusIndex]?.kind === "display")) focusIndex -= 1
 
                     if (focusIndex >= 0) setSplitFocus(focusIndex, null, Number.MAX_SAFE_INTEGER)
 
@@ -1130,14 +1105,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
             <Stack className={styles.blockList} gap="xs">
                 <AnimatePresence mode="popLayout">
                     {parsed.blocks.map((block, blockIndex) => (
-                        <motion.div
-                            key={blockIndex}
-                            initial={{ opacity: 0, y: 10, scale: 0.985 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -10, scale: 0.99 }}
-                            transition={{ type: "spring", stiffness: 210, damping: 24 }}
-                            layout
-                        >
+                        <motion.div key={blockIndex} initial={{ opacity: 0, y: 10, scale: 0.985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -10, scale: 0.99 }} transition={{ type: "spring", stiffness: 210, damping: 24 }} layout>
                             <Stack gap="sm">{renderBlock(block, blockIndex)}</Stack>
                         </motion.div>
                     ))}

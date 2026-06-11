@@ -40,14 +40,7 @@ type StackProps = Omit<BoxProps, "direction" | "gap"> & {
 
 export function Stack({ className, children, direction = "vertical", gap = "md", initial, animate, transition, ...props }: StackProps) {
     return (
-        <motion.div
-            className={cx(styles.stack, direction === "horizontal" ? styles.stackHorizontal : styles.stackVertical, gapClass(gap), className)}
-            initial={initial ?? motionEnter}
-            animate={animate ?? motionShow}
-            transition={transition ?? { ...motionTransition, delay: 0 }}
-            layout
-            {...props}
-        >
+        <motion.div className={cx(styles.stack, direction === "horizontal" ? styles.stackHorizontal : styles.stackVertical, gapClass(gap), className)} initial={initial ?? motionEnter} animate={animate ?? motionShow} transition={transition ?? { ...motionTransition, delay: 0 }} layout {...props}>
             {children}
         </motion.div>
     )
@@ -61,14 +54,7 @@ type GridProps = Omit<BoxProps, "columns" | "gap"> & {
 export function Grid({ className, children, columns = "auto", gap = "md", initial, animate, transition, ...props }: GridProps) {
     return (
         <motion.div
-            className={cx(
-                styles.grid,
-                columns === "two" && styles.gridTwo,
-                columns === "three" && styles.gridThree,
-                columns === "auto" && styles.gridAuto,
-                gapClass(gap),
-                className,
-            )}
+            className={cx(styles.grid, columns === "two" && styles.gridTwo, columns === "three" && styles.gridThree, columns === "auto" && styles.gridAuto, gapClass(gap), className)}
             initial={initial ?? motionEnter}
             animate={animate ?? motionShow}
             transition={transition ?? { ...motionTransition, delay: 0.02 }}
@@ -119,14 +105,7 @@ export function Heading({ as = "h2", size = "md", className, children, initial, 
 
     return (
         <Element
-            className={cx(
-                styles.heading,
-                size === "hero" && styles.headingHero,
-                size === "lg" && styles.headingLg,
-                size === "md" && styles.headingMd,
-                size === "sm" && styles.headingSm,
-                className,
-            )}
+            className={cx(styles.heading, size === "hero" && styles.headingHero, size === "lg" && styles.headingLg, size === "md" && styles.headingMd, size === "sm" && styles.headingSm, className)}
             initial={initial ?? { ...motionEnter, y: 9 }}
             animate={animate ?? motionShow}
             transition={transition ?? { ...motionTransition, delay: 0.04 }}
@@ -174,40 +153,19 @@ type PillProps = Omit<HTMLMotionProps<"span">, "children"> & {
 
 export function Pill({ className, children, initial, animate, transition, ...props }: PillProps) {
     return (
-        <motion.span
-            className={cx(styles.pill, className)}
-            initial={initial ?? { ...motionEnter, scale: 0.98 }}
-            animate={animate ?? motionShow}
-            transition={transition ?? { ...motionTransition, delay: 0.03 }}
-            {...props}
-        >
+        <motion.span className={cx(styles.pill, className)} initial={initial ?? { ...motionEnter, scale: 0.98 }} animate={animate ?? motionShow} transition={transition ?? { ...motionTransition, delay: 0.03 }} {...props}>
             {children}
         </motion.span>
     )
 }
 
 export function Divider({ className, initial, animate, transition, ...props }: Omit<HTMLMotionProps<"hr">, "children"> & { className?: string }) {
-    return (
-        <motion.hr
-            className={cx(styles.divider, className)}
-            initial={initial ?? { scaleX: 0, opacity: 0 }}
-            animate={animate ?? { scaleX: 1, opacity: 1 }}
-            transition={transition ?? { ...motionTransition, delay: 0.02 }}
-            {...props}
-        />
-    )
+    return <motion.hr className={cx(styles.divider, className)} initial={initial ?? { scaleX: 0, opacity: 0 }} animate={animate ?? { scaleX: 1, opacity: 1 }} transition={transition ?? { ...motionTransition, delay: 0.02 }} {...props} />
 }
 
 export function ScrollArea({ className, children, initial, animate, transition, ...props }: BoxProps) {
     return (
-        <motion.div
-            className={cx(styles.scrollArea, className)}
-            initial={initial ?? motionEnter}
-            animate={animate ?? motionShow}
-            transition={transition ?? { ...motionTransition, delay: 0.03 }}
-            layout
-            {...props}
-        >
+        <motion.div className={cx(styles.scrollArea, className)} initial={initial ?? motionEnter} animate={animate ?? motionShow} transition={transition ?? { ...motionTransition, delay: 0.03 }} layout {...props}>
             {children}
         </motion.div>
     )
@@ -219,16 +177,7 @@ type ExternalLinkProps = Omit<HTMLMotionProps<"a">, "children"> & {
 
 export function ExternalLink({ className, children, initial, animate, transition, ...props }: ExternalLinkProps) {
     return (
-        <motion.a
-            className={cx(styles.externalLink, className)}
-            rel="noreferrer"
-            target="_blank"
-            initial={initial ?? { opacity: 0, x: -4 }}
-            animate={animate ?? { opacity: 1, x: 0 }}
-            whileHover={{ scale: 1.01, x: 1 }}
-            transition={transition ?? motionTransition}
-            {...props}
-        >
+        <motion.a className={cx(styles.externalLink, className)} rel="noreferrer" target="_blank" initial={initial ?? { opacity: 0, x: -4 }} animate={animate ?? { opacity: 1, x: 0 }} whileHover={{ scale: 1.01, x: 1 }} transition={transition ?? motionTransition} {...props}>
             {children}
         </motion.a>
     )
@@ -236,15 +185,6 @@ export function ExternalLink({ className, children, initial, animate, transition
 
 export function MediaImage({ className, alt, initial, animate, transition, ...props }: Omit<HTMLMotionProps<"img">, "children" | "alt"> & { alt?: string }) {
     return (
-        <motion.img
-            className={cx(styles.mediaImage, className)}
-            alt={alt ?? ""}
-            initial={initial ?? { opacity: 0, scale: 0.985 }}
-            animate={animate ?? { opacity: 1, scale: 1 }}
-            whileInView={{ scale: 1 }}
-            transition={transition ?? { ...motionTransition, duration: 0.4 }}
-            loading="lazy"
-            {...props}
-        />
+        <motion.img className={cx(styles.mediaImage, className)} alt={alt ?? ""} initial={initial ?? { opacity: 0, scale: 0.985 }} animate={animate ?? { opacity: 1, scale: 1 }} whileInView={{ scale: 1 }} transition={transition ?? { ...motionTransition, duration: 0.4 }} loading="lazy" {...props} />
     )
 }

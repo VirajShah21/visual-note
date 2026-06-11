@@ -2,9 +2,7 @@
     display: grid;
     min-height: 100vh;
     grid-template-columns: 246px minmax(0, 1fr);
-    background:
-        radial-gradient(circle at 16% 8%, rgba(178, 112, 72, 0.16), transparent 28%), radial-gradient(circle at 85% 8%, rgba(76, 110, 132, 0.16), transparent 30%),
-        linear-gradient(135deg, #f7f1e8 0%, #f7f5ed 46%, #eef4ef 100%);
+    background: radial-gradient(circle at 16% 8%, rgba(178, 112, 72, 0.16), transparent 28%), radial-gradient(circle at 85% 8%, rgba(76, 110, 132, 0.16), transparent 30%), linear-gradient(135deg, #f7f1e8 0%, #f7f5ed 46%, #eef4ef 100%);
 }
 
 .rail {
@@ -160,9 +158,7 @@
     display: grid;
     gap: 10px;
     border-bottom: 1px solid rgba(81, 72, 60, 0.12);
-    background:
-        linear-gradient(135deg, color-mix(in srgb, var(--notebook-color) 16%, transparent), transparent 54%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(239, 234, 222, 0.68));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--notebook-color) 16%, transparent), transparent 54%), linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(239, 234, 222, 0.68));
     padding: 14px;
 }
 

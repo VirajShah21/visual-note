@@ -31,7 +31,7 @@ The application should make this hierarchy visible in the interface. Avoid rever
 - Use CSS Modules for shared component styling.
 - Use React with TypeScript.
 - Keep the lint and format configuration aligned:
-    - 180 character line length.
+    - 300 character maximum line length for TypeScript and TSX files.
     - 4 spaces for indentation.
     - No semicolons.
     - Do not use parentheses for arrow functions with exactly one untyped parameter unless syntax requires them.
