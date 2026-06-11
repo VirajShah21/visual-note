@@ -1,6 +1,6 @@
 "use client"
 
-import { BookOpen, Bug, CheckCircle2, Clock, Code2, ChevronDown, ChevronUp, ExternalLink as ExternalLinkIcon, GitPullRequest, Layers3, LinkIcon, LogOut, PanelLeft, Pencil, Plus, ShoppingCart, Sparkles, Trash2 } from "lucide-react"
+import { Bug, CheckCircle2, Clock, Code2, ChevronDown, ChevronUp, ExternalLink as ExternalLinkIcon, GitPullRequest, Layers3, LinkIcon, PanelLeft, Pencil, Plus, ShoppingCart, Sparkles, Trash2 } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -354,35 +354,6 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
         return true
     }
 
-    const deleteNotebook = (notebookId: string) => {
-        const notebook = notebooks.find(item => item.id === notebookId)
-        if (!notebook) {
-            pushToast("Notebook not found", "Choose an existing notebook before deleting.", "error")
-            return false
-        }
-
-        const deletedPageIds = workspace.pages.filter(page => page.notebookId === notebookId).map(page => page.id)
-        const deletedTopicIds = workspace.topics.filter(topic => deletedPageIds.includes(topic.pageId)).map(topic => topic.id)
-        const nextWorkspace = {
-            ...workspace,
-            notebooks: workspace.notebooks.filter(item => item.id !== notebookId),
-            pages: workspace.pages.filter(page => page.notebookId !== notebookId),
-            topics: workspace.topics.filter(topic => !deletedPageIds.includes(topic.pageId)),
-            views: workspace.views.filter(view => !deletedTopicIds.includes(view.topicId)),
-        }
-        const nextSelection = deriveSelection(nextWorkspace, selected.currentSelection.notebookId === notebookId ? { ...blankSelection, notebookId: "" } : selected.currentSelection)
-
-        setWorkspace(nextWorkspace)
-        setSelection(nextSelection)
-
-        if (selected.currentSelection.notebookId === notebookId)
-            if (nextSelection.notebookId) router.push(`/notebook?id=${encodeURIComponent(nextSelection.notebookId)}`)
-            else router.push("/")
-
-        pushToast("Notebook deleted", `${notebook.title} and its pages, topics, and views were removed.`, "info")
-        return true
-    }
-
     const galleryItems = createNotebookGalleryItems(workspace, notebooks)
 
     if (mode === "home")
@@ -621,25 +592,6 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
         pushToast("Display added", `Added ${display.name ?? "Display"} to article content.`, "info")
     }
 
-    const selectNotebook = (notebookId: string) => {
-        const next = ensureSelectionHasArticleView(workspace, {
-            ...selected.currentSelection,
-            notebookId,
-            pageId: "",
-            topicId: "",
-            viewId: "",
-        })
-
-        setSelection(next.selection)
-
-        if (next.createdView) {
-            setWorkspace(next.workspace)
-            pushToast("Article created", "An article was added for this notebook item.", "info")
-        }
-
-        router.push(`/notebook?id=${encodeURIComponent(notebookId)}`)
-    }
-
     const updateView = (view: NotebookView) => {
         updateWorkspace(current => ({
             ...current,
@@ -650,7 +602,6 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     return (
         <Stack className={styles.app}>
             <Grid className={styles.workspace}>
-                <NotebookRail user={user} notebooks={notebooks} activeNotebookId={selected.currentSelection.notebookId} status={supabaseStatus} notice={notice} onSelect={selectNotebook} onCreate={createNotebookAndOpen} onDelete={deleteNotebook} onSignOut={signOut} />
                 <Grid className={styles.contentGrid}>
                     <SectionSidebar
                         sections={sections}
@@ -761,75 +712,6 @@ function AuthPanel({ notice, supabaseStatus, onSignIn, onRegister }: AuthPanelPr
     )
 }
 
-type NotebookRailProps = {
-    user: VisualUser
-    notebooks: VisualNoteWorkspace["notebooks"]
-    activeNotebookId: string
-    status: "configured" | "demo"
-    notice: string
-    onSelect: (notebookId: string) => void
-    onCreate: (title: string) => boolean
-    onDelete: (notebookId: string) => boolean
-    onSignOut: () => Promise<void>
-}
-
-function NotebookRail({ user, notebooks, activeNotebookId, status, notice, onSelect, onCreate, onDelete, onSignOut }: NotebookRailProps) {
-    const [title, setTitle] = useState("New web notebook")
-    const [isCreateOpen, setIsCreateOpen] = useState(false)
-
-    const create = () => {
-        if (!onCreate(title)) return
-
-        setTitle("New web notebook")
-        setIsCreateOpen(false)
-    }
-
-    return (
-        <ScrollArea className={styles.rail}>
-            <Stack gap="lg">
-                <Stack gap="sm">
-                    <Pill>
-                        <BookOpen size={14} />
-                        Visual Note
-                    </Pill>
-                    <Heading size="md">Notebooks</Heading>
-                    <Text size="small">{user.email}</Text>
-                </Stack>
-                <Stack gap="sm">
-                    {notebooks.map(notebook => (
-                        <ContextActions key={notebook.id} items={[{ label: "Delete notebook", icon: <Trash2 size={14} />, onSelect: () => onDelete(notebook.id) }]}>
-                            <Button className={`${styles.navButton} ${notebook.id === activeNotebookId ? styles.activeNavButton : ""}`} onClick={() => onSelect(notebook.id)} fullWidth>
-                                <BookOpen size={15} />
-                                {notebook.title}
-                            </Button>
-                        </ContextActions>
-                    ))}
-                </Stack>
-                <Button icon={<Plus size={15} />} onClick={() => setIsCreateOpen(true)} fullWidth>
-                    New notebook
-                </Button>
-                <Stack direction="horizontal" gap="sm">
-                    <Pill>{status === "configured" ? "Supabase connected" : "Demo storage"}</Pill>
-                    <InfoPopover title="Storage status" label="Storage status details">
-                        {notice || (status === "configured" ? "Workspace changes are mirrored to the configured Supabase project." : "Workspace changes are saved locally in demo mode.")}
-                    </InfoPopover>
-                </Stack>
-                <Button icon={<LogOut size={15} />} variant="ghost" onClick={onSignOut}>
-                    Sign out
-                </Button>
-            </Stack>
-            <ModalDialog open={isCreateOpen} title="Create notebook" description="Start a new notebook with a default section, topic, and view." onOpenChange={setIsCreateOpen}>
-                <Stack gap="md">
-                    <TextField label="Notebook title" value={title} onChange={event => setTitle(event.target.value)} />
-                    <Button icon={<Plus size={15} />} variant="primary" onClick={create} fullWidth>
-                        Create notebook
-                    </Button>
-                </Stack>
-            </ModalDialog>
-        </ScrollArea>
-    )
-}
-
 type SectionSidebarProps = {
     sections: NotebookSection[]
     topics: VisualNoteWorkspace["topics"]
@@ -915,24 +797,28 @@ function SectionSidebar({ sections, topics, activeSectionId, activeTopicId, onCr
                     </Pill>
                 </Stack>
                 <Stack gap="sm">
-                    {sections.map(section => (
-                        <Card key={section.id} padding="compact">
-                            <Stack gap="sm">
-                                <ContextActions
-                                    items={[
-                                        { label: "Rename section", icon: <Pencil size={14} />, onSelect: () => openEditSection(section.id) },
-                                        { label: "Delete section", icon: <Trash2 size={14} />, onSelect: () => onDeleteSection(section.id) },
-                                    ]}
-                                >
-                                    <Button className={`${styles.navButton} ${section.id === activeSectionId ? styles.activeNavButton : ""}`} onClick={() => onSelectSection(section.id)} fullWidth>
-                                        {section.title}
-                                    </Button>
-                                </ContextActions>
-                                <Stack gap="xs">
-                                    {topics
-                                        .filter(topic => topic.pageId === section.id)
-                                        .sort((a, b) => a.position - b.position)
-                                        .map(topic => (
+                    {sections.map(section => {
+                        const sectionTopics = topics.filter(topic => topic.pageId === section.id).sort((a, b) => a.position - b.position)
+
+                        return (
+                            <Card key={section.id} className={styles.sectionCard} padding="compact">
+                                <Stack gap="sm">
+                                    <ContextActions
+                                        className={styles.sectionHeaderTrigger}
+                                        items={[
+                                            { label: "Rename section", icon: <Pencil size={14} />, onSelect: () => openEditSection(section.id) },
+                                            { label: "Delete section", icon: <Trash2 size={14} />, onSelect: () => onDeleteSection(section.id) },
+                                        ]}
+                                    >
+                                        <Stack className={`${styles.sectionHeader} ${section.id === activeSectionId ? styles.activeSectionHeader : ""}`} gap="xs" onClick={() => onSelectSection(section.id)}>
+                                            <Heading className={styles.sectionTitle} size="sm">
+                                                {section.title}
+                                            </Heading>
+                                            <Text size="small">{sectionTopics.length === 1 ? "1 page" : `${sectionTopics.length} pages`}</Text>
+                                        </Stack>
+                                    </ContextActions>
+                                    <Stack className={styles.sectionPageList} gap="xs">
+                                        {sectionTopics.map(topic => (
                                             <ContextActions
                                                 key={topic.id}
                                                 className={styles.topicContextTrigger}
@@ -946,13 +832,14 @@ function SectionSidebar({ sections, topics, activeSectionId, activeTopicId, onCr
                                                 </Button>
                                             </ContextActions>
                                         ))}
-                                    <Button icon={<Plus size={15} />} onClick={() => openTopicCreator(section.id)} fullWidth>
-                                        New item
-                                    </Button>
+                                        <Button icon={<Plus size={15} />} onClick={() => openTopicCreator(section.id)} fullWidth>
+                                            New item
+                                        </Button>
+                                    </Stack>
                                 </Stack>
-                            </Stack>
-                        </Card>
-                    ))}
+                            </Card>
+                        )
+                    })}
                 </Stack>
                 <Button icon={<Plus size={15} />} onClick={() => setIsCreateOpen(true)} fullWidth>
                     New section

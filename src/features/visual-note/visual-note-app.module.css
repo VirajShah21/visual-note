@@ -26,19 +26,7 @@
 .workspace {
     display: grid;
     min-height: 100vh;
-    grid-template-columns: 280px minmax(0, 1fr);
-}
-
-.rail {
-    border-right: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.86);
-    padding: 18px;
-}
-
-.main {
-    display: grid;
-    min-width: 0;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
 }
 
 .contentGrid {
@@ -54,12 +42,6 @@
 
 .content {
     padding: 20px;
-}
-
-.inspector {
-    border-left: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.88);
-    padding: 18px;
 }
 
 .navButton {
@@ -432,18 +414,6 @@
     padding: 13px;
 }
 
-@media (max-width: 1180px) {
-    .workspace {
-        grid-template-columns: 240px minmax(0, 1fr);
-    }
-
-    .inspector {
-        grid-column: 1 / -1;
-        border-top: 1px solid var(--border);
-        border-left: 0;
-    }
-}
-
 @media (max-width: 860px) {
     .authShell,
     .workspace,
@@ -457,9 +427,7 @@
     }
 
     .authPanel,
-    .rail,
-    .sidebar,
-    .inspector {
+    .sidebar {
         border: 0;
         border-top: 1px solid var(--border);
     }
