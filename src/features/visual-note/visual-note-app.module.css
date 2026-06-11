@@ -41,17 +41,6 @@
   grid-template-rows: auto minmax(0, 1fr);
 }
 
-.topbar {
-  border-bottom: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.72);
-  padding: 16px 20px;
-  backdrop-filter: blur(16px);
-}
-
-.pageTabs {
-  flex-wrap: wrap;
-}
-
 .contentGrid {
   display: grid;
   min-height: 0;
@@ -111,34 +100,6 @@
 .viewHeader {
   align-items: flex-start;
   justify-content: space-between;
-}
-
-.viewTabs {
-  align-items: stretch;
-  gap: 0;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
-  background: var(--surface-raised);
-  max-width: 100%;
-  min-height: 34px;
-}
-
-.viewTab {
-  border-radius: 0;
-  border: 0;
-  background: transparent;
-}
-
-.viewTab:hover {
-  background: var(--surface);
-}
-
-.viewTabActive {
-  border-radius: 0;
-  border: 0;
-  background: var(--accent);
-  color: #ffffff;
 }
 
 .viewActions {

@@ -42,7 +42,7 @@ export const createTopic = (pageId: string, title: string, position: number): To
   position,
 })
 
-export const createView = (topicId: string, title: string, mode: ViewMode = "structured"): NotebookView => ({
+export const createView = (topicId: string, title: string, mode: ViewMode = "article"): NotebookView => ({
   id: createId("view"),
   topicId,
   title,
@@ -221,7 +221,7 @@ export const createSeedWorkspace = (user: VisualUser): VisualNoteWorkspace => {
   const researchPage = createPage(notebook.id, "Research", 1)
   const conceptTopic = createTopic(overviewPage.id, "Concept", 0)
   const architectureTopic = createTopic(overviewPage.id, "Architecture", 1)
-  const view = createView(conceptTopic.id, "Why web-shaped notes matter", "structured")
+  const view = createView(conceptTopic.id, "Why web-shaped notes matter", "article")
   const dataCard = createDisplayInstance("data-card", "Core thesis")
   const timeline = createDisplayInstance("timeline", "Notebook evolution")
 

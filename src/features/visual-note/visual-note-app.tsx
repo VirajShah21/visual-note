@@ -88,6 +88,52 @@ const MotionCard = motion(Card)
 const MotionStack = motion(Stack)
 const firstByPosition = <T extends { position: number }>(items: T[]) => [...items].sort((a, b) => a.position - b.position)[0]
 
+const ensureSelectionHasArticleView = (workspace: VisualNoteWorkspace, selection: SelectionState) => {
+  const nextSelection = deriveSelection(workspace, selection)
+  const topic = workspace.topics.find(item => item.id === nextSelection.topicId)
+
+  if (!topic) return { selection: nextSelection, workspace, createdView: false }
+
+  const existingView = workspace.views.find(item => item.topicId === topic.id)
+  if (existingView) return { selection: { ...nextSelection, viewId: existingView.id }, workspace, createdView: false }
+
+  const view = createView(topic.id, "Article")
+
+  return {
+    selection: { ...nextSelection, viewId: view.id },
+    workspace: { ...workspace, views: [...workspace.views, view] },
+    createdView: true,
+  }
+}
+
+const coerceSingleArticleViewPerTopic = (workspace: VisualNoteWorkspace) => {
+  const viewsByTopic = new Map<string, NotebookView[]>()
+
+  workspace.views.forEach(view => {
+    const existing = viewsByTopic.get(view.topicId) ?? []
+    viewsByTopic.set(view.topicId, [...existing, view])
+  })
+
+  const views: NotebookView[] = []
+
+  for (const topic of workspace.topics) {
+    const topicViews = viewsByTopic.get(topic.id) ?? []
+
+    if (topicViews.length === 0) {
+      views.push(createView(topic.id, "Article"))
+      continue
+    }
+
+    const articleView = topicViews.find(item => item.mode === "article") ?? topicViews[0]
+    views.push({ ...articleView, mode: "article" })
+  }
+
+  return {
+    ...workspace,
+    views,
+  }
+}
+
 const deriveSelection = (workspace: VisualNoteWorkspace | null, selection: SelectionState): SelectionState => {
   if (!workspace) return blankSelection
 
@@ -135,9 +181,11 @@ export function VisualNoteApp() {
 
       setUser(storedUser)
       const remoteWorkspace = await loadSupabaseWorkspace(storedUser.id)
-      const nextWorkspace = normalizeWorkspace(remoteWorkspace ?? loadStoredWorkspace(storedUser.id) ?? createSeedWorkspace(storedUser))
-      setWorkspace(nextWorkspace)
-      setSelection(current => deriveSelection(nextWorkspace, current))
+      const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? loadStoredWorkspace(storedUser.id) ?? createSeedWorkspace(storedUser)))
+      const resolved = ensureSelectionHasArticleView(nextWorkspace, blankSelection)
+
+      setWorkspace(resolved.workspace)
+      setSelection(resolved.selection)
       setIsLoading(false)
     }
 
@@ -165,9 +213,11 @@ export function VisualNoteApp() {
     storeUser(nextUser)
     setUser(nextUser)
     const remoteWorkspace = await loadSupabaseWorkspace(nextUser.id)
-    const nextWorkspace = normalizeWorkspace(remoteWorkspace ?? loadStoredWorkspace(nextUser.id) ?? createSeedWorkspace(nextUser))
-    setWorkspace(nextWorkspace)
-    setSelection(deriveSelection(nextWorkspace, blankSelection))
+    const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? loadStoredWorkspace(nextUser.id) ?? createSeedWorkspace(nextUser)))
+    const resolved = ensureSelectionHasArticleView(nextWorkspace, blankSelection)
+
+    setWorkspace(resolved.workspace)
+    setSelection(resolved.selection)
     setNotice(
       supabaseStatus === "configured"
         ? "Supabase is configured. Workspace changes are mirrored to the configured project."
@@ -245,7 +295,6 @@ export function VisualNoteApp() {
   const notebooks = workspace.notebooks.filter(item => item.userId === user.id)
   const sections = workspace.pages.filter(item => item.notebookId === selected.currentSelection.notebookId).sort((a, b) => a.position - b.position)
   const topics = workspace.topics.filter(item => item.pageId === selected.currentSelection.pageId).sort((a, b) => a.position - b.position)
-  const views = workspace.views.filter(item => item.topicId === selected.currentSelection.topicId)
 
   const addNotebook = (title: string) => {
     const trimmedTitle = title.trim()
@@ -375,6 +424,45 @@ export function VisualNoteApp() {
     return true
   }
 
+  const selectSection = (sectionId: string) => {
+    if (!workspace) return
+
+    const next = ensureSelectionHasArticleView(workspace, {
+      ...selected.currentSelection,
+      pageId: sectionId,
+      topicId: "",
+      viewId: "",
+    })
+
+    setSelection(next.selection)
+
+    if (next.createdView) {
+      setWorkspace(next.workspace)
+      pushToast("Article created", "An article was added for this section item.", "info")
+    }
+  }
+
+  const selectTopic = (topicId: string) => {
+    if (!workspace) return
+
+    const topic = workspace.topics.find(item => item.id === topicId)
+    if (!topic) return
+
+    const next = ensureSelectionHasArticleView(workspace, {
+      ...selected.currentSelection,
+      pageId: topic.pageId,
+      topicId,
+      viewId: "",
+    })
+
+    setSelection(next.selection)
+
+    if (next.createdView) {
+      setWorkspace(next.workspace)
+      pushToast("Article created", "An article view was added for this item.", "info")
+    }
+  }
+
   const renameTopic = (topicId: string, title: string) => {
     const trimmedTitle = title.trim()
     const topic = topics.find(item => item.id === topicId)
@@ -436,12 +524,32 @@ export function VisualNoteApp() {
   const appendDisplayToArticle = (displayIndex: number) => {
     if (!selected.view || displayIndex < 0) return
 
+    const display = selected.view.displays[displayIndex]
+    if (!display) return
+
     const marker = `{{display:${displayIndex + 1}}}`
     const currentContent = stringFrom(selected.view.content, "")
     const separator = currentContent.trim() ? "\n\n" : ""
     const nextContent = `${currentContent}${separator}${marker}\n`
     updateView({ ...selected.view, content: nextContent })
     pushToast("Display added", `Added ${display.name ?? "Display"} to article content.`, "info")
+  }
+
+  const selectNotebook = (notebookId: string) => {
+    const next = ensureSelectionHasArticleView(workspace, {
+      ...selected.currentSelection,
+      notebookId,
+      pageId: "",
+      topicId: "",
+      viewId: "",
+    })
+
+    setSelection(next.selection)
+
+    if (next.createdView) {
+      setWorkspace(next.workspace)
+      pushToast("Article created", "An article was added for this notebook item.", "info")
+    }
   }
 
   const updateView = (view: NotebookView) => {
@@ -460,7 +568,7 @@ export function VisualNoteApp() {
           activeNotebookId={selected.currentSelection.notebookId}
           status={supabaseStatus}
           notice={notice}
-          onSelect={notebookId => setSelection(current => deriveSelection(workspace, { ...current, notebookId }))}
+          onSelect={selectNotebook}
           onCreate={addNotebook}
           onSignOut={signOut}
         />
@@ -475,31 +583,21 @@ export function VisualNoteApp() {
             onDeleteSection={deleteSection}
             onCreateTopic={addTopic}
             onRenameTopic={renameTopic}
-            onSelectSection={sectionId => setSelection(current => deriveSelection(workspace, { ...current, pageId: sectionId, topicId: "", viewId: "" }))}
-            onSelectTopic={topicId => {
-              const topic = workspace.topics.find(item => item.id === topicId)
-              setSelection(currentSelection =>
-                deriveSelection(workspace, {
-                  ...currentSelection,
-                  pageId: topic?.pageId ?? currentSelection.pageId,
-                  topicId,
-                  viewId: "",
-                }),
-              )
-            }}
+            onSelectSection={selectSection}
+            onSelectTopic={selectTopic}
           />
           <ScrollArea className={styles.content}>
-          <ViewWorkspace
-            view={selected.view}
-            onUpdateView={updateView}
-            onAddDisplay={addDisplay}
-            onUpdateDisplay={updateDisplay}
-            onMoveDisplay={moveDisplay}
-            onRemoveDisplay={removeDisplay}
-            onAppendDisplayToArticle={appendDisplayToArticle}
-          />
-        </ScrollArea>
-      </Grid>
+            <ViewWorkspace
+              view={selected.view}
+              onUpdateView={updateView}
+              onAddDisplay={addDisplay}
+              onUpdateDisplay={updateDisplay}
+              onMoveDisplay={moveDisplay}
+              onRemoveDisplay={removeDisplay}
+              onAppendDisplayToArticle={appendDisplayToArticle}
+            />
+          </ScrollArea>
+        </Grid>
       </Grid>
       <ToastShelf messages={toastMessages} onDismiss={dismissToast} />
     </Stack>
@@ -534,7 +632,7 @@ function AuthPanel({ notice, supabaseStatus, onSignIn, onRegister }: AuthPanelPr
           <Sparkles size={14} />
           Web-native notebooks
           <InfoPopover title="Visual Note model" label="Visual Note model details">
-            Visual Note organizes knowledge as notebooks, sections, topics, views, displays, and data so each notebook behaves like a structured website.
+            Visual Note organizes knowledge as notebooks, sections, topics, article views, displays, and data so each notebook behaves like a structured website.
           </InfoPopover>
         </Pill>
         <Stack gap="lg">
@@ -553,9 +651,9 @@ function AuthPanel({ notice, supabaseStatus, onSignIn, onRegister }: AuthPanelPr
           </Card>
           <Card>
             <Stack direction="horizontal" gap="sm">
-              <Pill>View</Pill>
-              <InfoPopover title="View" label="View details">
-                Views combine prose, structured displays, and dashboard data.
+              <Pill>Article</Pill>
+              <InfoPopover title="Article" label="Article details">
+                Each topic has one article view. Add displays to the article as embedded items.
               </InfoPopover>
             </Stack>
           </Card>
@@ -840,184 +938,55 @@ function SectionSidebar({
 
 type ViewWorkspaceProps = {
   view: NotebookView | null
-  views: NotebookView[]
-  onSelectView: (viewId: string) => void
-  onCreateView: (title: string, mode: ViewMode) => boolean
-  onDeleteView: (viewId: string) => boolean
   onUpdateView: (view: NotebookView) => void
   onAddDisplay: (kind: ComponentKind) => boolean
   onUpdateDisplay: (display: DisplayInstance) => void
   onMoveDisplay: (displayId: string, direction: "up" | "down") => void
   onRemoveDisplay: (displayId: string) => void
+  onAppendDisplayToArticle: (displayIndex: number) => void
 }
 
-function ViewWorkspace({ view, views, onSelectView, onCreateView, onDeleteView, onUpdateView, onAddDisplay, onUpdateDisplay, onMoveDisplay, onRemoveDisplay }: ViewWorkspaceProps) {
-  const [title, setTitle] = useState("New view")
-  const [mode, setMode] = useState<ViewMode>("structured")
+function ViewWorkspace({ view, onUpdateView, onAddDisplay, onUpdateDisplay, onMoveDisplay, onRemoveDisplay, onAppendDisplayToArticle }: ViewWorkspaceProps) {
   const [displayKind, setDisplayKind] = useState<ComponentKind>("data-card")
   const [selectedDisplayForArticle, setSelectedDisplayForArticle] = useState("1")
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [editingViewId, setEditingViewId] = useState("")
-  const [editingViewTitle, setEditingViewTitle] = useState("")
-  const [changingModeViewId, setChangingModeViewId] = useState("")
-  const [changingModeValue, setChangingModeValue] = useState<ViewMode>("structured")
   const [isDisplaysOpen, setIsDisplaysOpen] = useState(false)
-
-  const create = () => {
-    if (!onCreateView(title, mode)) return
-
-    setTitle("New view")
-    setIsCreateOpen(false)
-  }
 
   const addDisplayToView = () => {
     if (!onAddDisplay(displayKind)) return
 
     setDisplayKind("data-card")
   }
-  const openRenameView = (viewId: string) => {
-    const targetView = views.find(item => item.id === viewId)
-    if (!targetView) return
-
-    setEditingViewId(targetView.id)
-    setEditingViewTitle(targetView.title)
-  }
-  const renameView = () => {
-    const targetView = views.find(item => item.id === editingViewId)
-    const trimmedTitle = editingViewTitle.trim()
-    if (!targetView || !trimmedTitle) return
-
-    onUpdateView({ ...targetView, title: trimmedTitle })
-    setEditingViewId("")
-    setEditingViewTitle("")
-  }
-  const openChangeMode = (viewId: string) => {
-    const targetView = views.find(item => item.id === viewId)
-    if (!targetView) return
-
-    setChangingModeViewId(targetView.id)
-    setChangingModeValue(targetView.mode)
-  }
-  const changeMode = () => {
-    const targetView = views.find(item => item.id === changingModeViewId)
-    if (!targetView) return
-
-    onUpdateView({ ...targetView, mode: changingModeValue })
-    setChangingModeViewId("")
-  }
-  const closeChangeMode = () => {
-    setChangingModeViewId("")
-  }
-  const createViewDialog = (
-    <ModalDialog open={isCreateOpen} title="Create view" description="Add another view to this topic and choose how it should present content." onOpenChange={setIsCreateOpen}>
-      <Stack gap="md">
-        <TextField label="Title" value={title} onChange={event => setTitle(event.target.value)} />
-        <SelectField label="Mode" value={mode} options={viewModeOptions} onValueChange={value => setMode(value as ViewMode)} />
-        <Button icon={<Plus size={15} />} variant="primary" onClick={create} fullWidth>
-          Create view
-        </Button>
-      </Stack>
-    </ModalDialog>
-  )
 
   if (!view)
     return (
       <>
         <Card className={styles.emptyCanvas}>
           <Stack gap="md">
-            <Heading>No view selected</Heading>
-            <Text>Create a view to start composing structured notebook content for this topic.</Text>
-            <Button icon={<Plus size={15} />} variant="primary" onClick={() => setIsCreateOpen(true)}>
-              New view
-            </Button>
+            <Heading>No article found</Heading>
+            <Text>This topic does not yet have an article view. Use actions to continue.</Text>
           </Stack>
         </Card>
-        {createViewDialog}
       </>
     )
 
   return (
     <Stack gap="lg">
       <Stack className={styles.viewHeader} direction="horizontal" gap="md">
-        <Stack direction="horizontal" role="tablist" aria-label="Views" className={styles.viewTabs} gap="none">
-          {views.map(viewOption => (
-            <ContextActions
-              key={viewOption.id}
-              items={[
-                { label: "Rename", icon: <Pencil size={14} />, onSelect: () => openRenameView(viewOption.id) },
-                { label: "Change mode", icon: <Layers3 size={14} />, onSelect: () => openChangeMode(viewOption.id) },
-                { label: "Delete", icon: <Trash2 size={14} />, onSelect: () => onDeleteView(viewOption.id) },
-              ]}
-            >
-              <Button
-                key={viewOption.id}
-                variant="ghost"
-                className={viewOption.id === view.id ? styles.viewTabActive : styles.viewTab}
-                role="tab"
-                aria-selected={viewOption.id === view.id}
-                onClick={() => onSelectView(viewOption.id)}
-                fullWidth={false}
-              >
-                {viewOption.title}
-              </Button>
-            </ContextActions>
-          ))}
-        </Stack>
         <Stack className={styles.viewActions} direction="horizontal" gap="sm">
-          <Button icon={<Plus size={15} />} onClick={() => setIsCreateOpen(true)}>
-            New view
-          </Button>
           <Button icon={<Layers3 size={15} />} onClick={() => setIsDisplaysOpen(true)}>
             Displays
           </Button>
         </Stack>
       </Stack>
       <Stack className={styles.preview} gap="lg">
-        {view.mode === "article" ? (
-          <ArticleWorkspace
-            view={view}
-            onUpdateView={onUpdateView}
-            onUpdateDisplay={onUpdateDisplay}
-            selectedDisplayForArticle={selectedDisplayForArticle}
-            onChangeSelectedDisplay={setSelectedDisplayForArticle}
-          />
-        ) : (
-          <>
-            <Stack className={styles.displayStack} gap="lg">
-              {view.displays.map(display => (
-                <RenderedDisplay key={display.id} display={display} onUpdate={onUpdateDisplay} />
-              ))}
-            </Stack>
-            {view.displays.length === 0 ? (
-              <Card className={styles.emptyCanvas}>
-                <Stack gap="md">
-                  <Text>No displays have been added to this view yet.</Text>
-                  <Button icon={<Layers3 size={15} />} onClick={() => setIsDisplaysOpen(true)}>
-                    Add a display
-                  </Button>
-                </Stack>
-              </Card>
-            ) : null}
-          </>
-        )}
+        <ArticleWorkspace
+          view={view}
+          onUpdateView={onUpdateView}
+          onUpdateDisplay={onUpdateDisplay}
+          selectedDisplayForArticle={selectedDisplayForArticle}
+          onChangeSelectedDisplay={setSelectedDisplayForArticle}
+        />
       </Stack>
-      {createViewDialog}
-      <ModalDialog open={Boolean(editingViewId)} title="Rename view" description="Update the selected view title." onOpenChange={open => !open && setEditingViewId("")}>
-        <Stack gap="md">
-          <TextField label="View title" value={editingViewTitle} onChange={event => setEditingViewTitle(event.target.value)} />
-          <Button icon={<Pencil size={15} />} variant="primary" onClick={renameView} fullWidth>
-            Rename view
-          </Button>
-        </Stack>
-      </ModalDialog>
-      <ModalDialog open={Boolean(changingModeViewId)} title="Change view mode" description="Choose how this view should render its content." onOpenChange={closeChangeMode}>
-        <Stack gap="md">
-          <SelectField label="Mode" value={changingModeValue} options={viewModeOptions} onValueChange={value => setChangingModeValue(value as ViewMode)} />
-          <Button icon={<Layers3 size={15} />} variant="primary" onClick={changeMode} fullWidth>
-            Save mode
-          </Button>
-        </Stack>
-      </ModalDialog>
       <SideDrawer
         open={isDisplaysOpen}
         title="Manage displays"
@@ -1052,6 +1021,9 @@ function ViewWorkspace({ view, views, onSelectView, onCreateView, onDeleteView, 
                       </Button>
                       <Button icon={<ChevronDown size={15} />} variant="ghost" onClick={() => onMoveDisplay(display.id, "down")} disabled={index === view.displays.length - 1}>
                         Move down
+                      </Button>
+                      <Button icon={<Sparkles size={15} />} variant="secondary" onClick={() => onAppendDisplayToArticle(index)}>
+                        Add into article
                       </Button>
                       <Button icon={<Trash2 size={15} />} variant="danger" onClick={() => onRemoveDisplay(display.id)}>
                         Remove
