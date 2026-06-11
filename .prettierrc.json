@@ -5,13 +5,5 @@
     "semi": false,
     "arrowParens": "avoid",
     "trailingComma": "all",
-    "endOfLine": "lf",
-    "overrides": [
-        {
-            "files": ["**/*.{ts,tsx}"],
-            "options": {
-                "printWidth": 300
-            }
-        }
-    ]
+    "endOfLine": "lf"
 }
