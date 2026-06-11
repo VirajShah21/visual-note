@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "motion/react"
 import { Stack } from "../primitives"
 import styles from "../article-editor.module.css"
-import { ArticleBlockRenderer, CommandMenu } from "./components"
+import { ArticleBlockChip, ArticleBlockRenderer, ArticleTableOfContents, CommandMenu } from "./components"
 import { useArticleEditorController } from "./hooks/use-article-editor-controller"
 import type { ArticleEditorProps } from "./types"
 
@@ -22,8 +22,10 @@ export function ArticleEditor({ value, displays, onChange, renderDisplay, render
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -10, scale: 0.99 }}
                             transition={{ type: "spring", stiffness: 210, damping: 24 }}
+                            className={styles.articleBlockRow}
                             layout
                         >
+                            <ArticleBlockChip block={block} />
                             <Stack gap="sm">
                                 <ArticleBlockRenderer
                                     block={block}
@@ -38,6 +40,7 @@ export function ArticleEditor({ value, displays, onChange, renderDisplay, render
                     ))}
                 </AnimatePresence>
             </Stack>
+            <ArticleTableOfContents headings={parsed.headings} />
 
             {commandState ? (
                 <CommandMenu

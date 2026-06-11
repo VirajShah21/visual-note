@@ -8,6 +8,7 @@ import { loadSupabaseWorkspace, saveSupabaseWorkspace } from "@/lib/supabase/wor
 import { createLocalUser, createNotebook, createPage, createSeedWorkspace, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
 import { clearStoredUser, loadStoredUser, loadStoredWorkspace, storeUser, storeWorkspace } from "@/lib/visual-note/storage"
 import type { DisplayInstance, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
+import type { NotebookEditorSearchResult } from "@/components/ui"
 import { blankSelection, coerceSingleArticleViewPerTopic, createNotebookGalleryItems, deriveSelection, ensureSelectionHasArticleView } from "../utils/visual-note-app.utils"
 
 export const useVisualNoteAppController = (initialNotebookId: string) => {
@@ -209,7 +210,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         pushToast("Section deleted", `${section.title} and its topics and views were removed.`, "info")
         return true
     }
-
     const addTopic = (sectionId: string, title: string) => {
         const trimmedTitle = title.trim()
         const section = sections.find(item => item.id === sectionId)
@@ -228,12 +228,14 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         pushToast("Item created", `${trimmedTitle} is now available in the ${section.title} section.`)
         return true
     }
-
     const selectSection = (sectionId: string) =>
         applySelection({ ...selected.currentSelection, pageId: sectionId, topicId: "", viewId: "" }, "An article was added for this section item.")
     const selectTopic = (topicId: string) => {
         const topic = workspace?.topics.find(item => item.id === topicId)
         if (topic) applySelection({ ...selected.currentSelection, pageId: topic.pageId, topicId, viewId: "" }, "An article view was added for this item.")
+    }
+    const selectSearchResult = (result: NotebookEditorSearchResult) => {
+        applySelection({ ...selected.currentSelection, pageId: result.pageId, topicId: result.topicId, viewId: result.viewId }, "An article view was added for this search result.")
     }
     const applySelection = (nextSelection: SelectionState, createdMessage: string) => {
         if (!workspace) return
@@ -244,7 +246,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
             pushToast("Article created", createdMessage, "info")
         }
     }
-
     const deleteTopic = (topicId: string) => {
         if (!workspace) return false
         const topic = workspace.topics.find(item => item.id === topicId)
@@ -288,6 +289,7 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
             renameSection,
             renameTopic,
             selectSection,
+            selectSearchResult,
             selectTopic,
             signIn,
             signOut,

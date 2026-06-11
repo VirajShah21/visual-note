@@ -1,4 +1,6 @@
+export { ArticleBlockChip } from "./article-block-chip"
 export { ArticleBlockRenderer } from "./article-block-renderer"
+export { ArticleTableOfContents } from "./article-table-of-contents"
 export { MarkdownImageBlock } from "./markdown-image-block"
 export { BlockTextarea } from "./block-textarea"
 export { CommandMenu } from "./command-menu"

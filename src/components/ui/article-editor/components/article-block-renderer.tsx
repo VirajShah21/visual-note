@@ -6,6 +6,7 @@ import { Divider, Pill, Stack, Text } from "../../primitives"
 import { isListBlock, type ArticleBlock } from "@/lib/visual-note/article-content"
 import type { DisplayInstance } from "@/lib/visual-note/types"
 import type { ArticleBlockHandlers, ArticleEditorProps } from "../types"
+import { articleHeadingTargetId } from "../utils/heading-target"
 import { denormalizeParagraphText, headingLevelClassName } from "../utils/text"
 import styles from "../../article-editor.module.css"
 import { BlockTextarea } from "./block-textarea"
@@ -39,7 +40,7 @@ export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, re
 
     if (block.kind === "heading")
         return (
-            <Stack gap="xs" className={styles.articleBlock}>
+            <Stack id={articleHeadingTargetId(block.id)} gap="xs" className={styles.articleBlock}>
                 <InlineLinkTextarea
                     className={cx(styles.blockInput, styles.blockInputHeading, styles[headingLevelClassName(block.level)])}
                     data-block-index={blockIndex}
