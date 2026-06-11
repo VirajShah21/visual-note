@@ -1,19 +1,12 @@
 "use client"
 
 import { AnimatePresence, motion } from "motion/react"
-import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, type ChangeEvent, type ComponentProps, type KeyboardEvent, type ReactNode } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ChangeEvent, type ComponentProps, type KeyboardEvent, type ReactNode } from "react"
 import { Button } from "./button"
 import { SelectField } from "./form-controls"
 import { Card, Divider, Pill, Stack, Text } from "./primitives"
 import { cx } from "./class-name"
-import {
-  articleBlockCanReceiveTextFocus,
-  cryptoId,
-  isListBlock,
-  parseArticleContent,
-  serializeArticleContent,
-  type ArticleBlock,
-} from "@/lib/visual-note/article-content"
+import { articleBlockCanReceiveTextFocus, cryptoId, isListBlock, parseArticleContent, serializeArticleContent, type ArticleBlock } from "@/lib/visual-note/article-content"
 import type { DisplayInstance } from "@/lib/visual-note/types"
 import styles from "./article-editor.module.css"
 
@@ -341,8 +334,7 @@ const getBlockTextLength = (block: ArticleBlock): number => {
 
 /** Returns whether the block's editable text field is effectively empty (used for Backspace-to-delete). */
 const isBlockEmpty = (block: ArticleBlock, textValue: string): boolean => {
-  if (block.kind === "paragraph" || block.kind === "heading" || block.kind === "callout" || block.kind === "quote" || block.kind === "code")
-    return textValue.trim() === ""
+  if (block.kind === "paragraph" || block.kind === "heading" || block.kind === "callout" || block.kind === "quote" || block.kind === "code") return textValue.trim() === ""
   if (block.kind === "image") return block.alt.trim() === "" && block.url.trim() === ""
   if (isListBlock(block)) return block.items.every(item => item.trim() === "")
   return false
@@ -447,7 +439,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
   const parsed = useMemo(() => parseArticleContent(value, displays.length), [value, displays.length])
   const editorRef = useRef<HTMLDivElement | null>(null)
   const commandRef = useRef<HTMLDivElement | null>(null)
-  const menuPositionRef = useRef({ top: 0, left: 0 })
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 })
 
   // Pending focus target after a block split/replace. Stored in refs to avoid
   // triggering an extra render – the effect that reads them runs after `parsed`
@@ -494,10 +486,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
     if (targetIndex == null) return
 
     const targetListIndex = splitFocusListIndexRef.current
-    const selector =
-      targetListIndex == null
-        ? `textarea[data-block-index="${targetIndex}"]`
-        : `textarea[data-block-index="${targetIndex}"][data-list-index="${targetListIndex}"]`
+    const selector = targetListIndex == null ? `textarea[data-block-index="${targetIndex}"]` : `textarea[data-block-index="${targetIndex}"][data-list-index="${targetListIndex}"]`
     const target = editorRef.current?.querySelector<HTMLTextAreaElement>(selector)
     if (!target) return
 
@@ -608,10 +597,10 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
     const lineOffset = before.length - (lineStart === -1 ? 0 : lineStart + 1)
     const offsetX = Math.max(0, Math.min(lineOffset * 8, Math.max(rect.width - 250, 20)))
 
-    menuPositionRef.current = {
+    setMenuPosition({
       top: Math.round(rect.top + lineIndex * lineHeight + lineHeight + 4),
       left: Math.round(rect.left + offsetX),
-    }
+    })
   }, [])
 
   const openCommand = useCallback(
@@ -944,10 +933,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
     [parsed.blocks, writeBlocks],
   )
 
-  const addListItem = useCallback(
-    (blockIndex: number) => updateListItems(blockIndex, items => [...items, "Item"]),
-    [updateListItems],
-  )
+  const addListItem = useCallback((blockIndex: number) => updateListItems(blockIndex, items => [...items, "Item"]), [updateListItems])
 
   const removeListItem = useCallback(
     (blockIndex: number, listIndex: number) =>
@@ -963,7 +949,6 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
   // ---------------------------------------------------------------------------
 
   const selectedDisplayValue = `${selectedDisplayIndex + 1}`
-  const menuPosition = menuPositionRef.current
 
   const renderBlock = (block: ArticleBlock, blockIndex: number) => {
     if (block.kind === "paragraph")

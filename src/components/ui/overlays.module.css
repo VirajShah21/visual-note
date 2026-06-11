@@ -6,7 +6,7 @@
   animation: overlayIn 0.2s ease-out both;
 }
 
-.backdrop[data-transition-status='ending'] {
+.backdrop[data-transition-status="ending"] {
   animation: overlayOut 0.18s ease-in both;
 }
 
@@ -31,7 +31,7 @@
   animation: surfaceIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.popup[data-transition-status='ending'] {
+.popup[data-transition-status="ending"] {
   animation: surfaceOut 0.16s ease-in both;
 }
 
@@ -55,7 +55,7 @@
   animation: sheetIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.drawer[data-transition-status='ending'] {
+.drawer[data-transition-status="ending"] {
   animation: sheetOut 0.2s ease-in both;
 }
 

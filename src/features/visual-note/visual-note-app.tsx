@@ -21,6 +21,7 @@ import {
   Trash2,
 } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
+import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { ReactNode } from "react"
 import {
@@ -36,6 +37,8 @@ import {
   InfoPopover,
   MediaImage,
   ModalDialog,
+  NotebookHome,
+  type NotebookGalleryItem,
   Pill,
   ScrollArea,
   SelectField,
@@ -87,6 +90,11 @@ const timelineItemRevealTransition = (index: number) => ({
 const MotionCard = motion(Card)
 const MotionStack = motion(Stack)
 const firstByPosition = <T extends { position: number }>(items: T[]) => [...items].sort((a, b) => a.position - b.position)[0]
+
+type VisualNoteAppProps = {
+  mode?: "home" | "notebook"
+  initialNotebookId?: string
+}
 
 const ensureSelectionHasArticleView = (workspace: VisualNoteWorkspace, selection: SelectionState) => {
   const nextSelection = deriveSelection(workspace, selection)
@@ -153,7 +161,35 @@ const deriveSelection = (workspace: VisualNoteWorkspace | null, selection: Selec
   }
 }
 
-export function VisualNoteApp() {
+const createNotebookGalleryItems = (workspace: VisualNoteWorkspace, notebooks: VisualNoteWorkspace["notebooks"]): NotebookGalleryItem[] =>
+  notebooks.map(notebook => {
+    const pages = workspace.pages.filter(page => page.notebookId === notebook.id).sort((a, b) => a.position - b.position)
+    const pageIds = pages.map(page => page.id)
+    const topics = workspace.topics.filter(topic => pageIds.includes(topic.pageId)).sort((a, b) => a.position - b.position)
+    const topicIds = topics.map(topic => topic.id)
+    const views = workspace.views.filter(view => topicIds.includes(view.topicId))
+    const displayCount = views.reduce((total, view) => total + view.displays.length, 0)
+    const createdDate = new Date(notebook.createdAt)
+    const updatedLabel = Number.isNaN(createdDate.getTime()) ? "Recently edited" : `Created ${createdDate.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+
+    return {
+      id: notebook.id,
+      title: notebook.title,
+      summary: notebook.summary,
+      color: notebook.color,
+      href: `/notebook?id=${encodeURIComponent(notebook.id)}`,
+      updatedLabel,
+      pageCount: pages.length,
+      topicCount: topics.length,
+      viewCount: views.length,
+      displayCount,
+      pageTitles: pages.map(page => page.title),
+      topicTitles: topics.map(topic => topic.title),
+    }
+  })
+
+export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualNoteAppProps) {
+  const router = useRouter()
   const [user, setUser] = useState<VisualUser | null>(null)
   const [workspace, setWorkspace] = useState<VisualNoteWorkspace | null>(null)
   const [selection, setSelection] = useState<SelectionState>(blankSelection)
@@ -182,7 +218,7 @@ export function VisualNoteApp() {
       setUser(storedUser)
       const remoteWorkspace = await loadSupabaseWorkspace(storedUser.id)
       const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? loadStoredWorkspace(storedUser.id) ?? createSeedWorkspace(storedUser)))
-      const resolved = ensureSelectionHasArticleView(nextWorkspace, blankSelection)
+      const resolved = ensureSelectionHasArticleView(nextWorkspace, { ...blankSelection, notebookId: initialNotebookId })
 
       setWorkspace(resolved.workspace)
       setSelection(resolved.selection)
@@ -190,7 +226,7 @@ export function VisualNoteApp() {
     }
 
     void restore()
-  }, [])
+  }, [initialNotebookId])
 
   useEffect(() => {
     if (!user || !workspace) return
@@ -214,7 +250,7 @@ export function VisualNoteApp() {
     setUser(nextUser)
     const remoteWorkspace = await loadSupabaseWorkspace(nextUser.id)
     const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? loadStoredWorkspace(nextUser.id) ?? createSeedWorkspace(nextUser)))
-    const resolved = ensureSelectionHasArticleView(nextWorkspace, blankSelection)
+    const resolved = ensureSelectionHasArticleView(nextWorkspace, { ...blankSelection, notebookId: initialNotebookId })
 
     setWorkspace(resolved.workspace)
     setSelection(resolved.selection)
@@ -293,21 +329,22 @@ export function VisualNoteApp() {
     )
 
   const notebooks = workspace.notebooks.filter(item => item.userId === user.id)
-  const sections = workspace.pages.filter(item => item.notebookId === selected.currentSelection.notebookId).sort((a, b) => a.position - b.position)
-  const topics = workspace.topics.filter(item => item.pageId === selected.currentSelection.pageId).sort((a, b) => a.position - b.position)
 
   const addNotebook = (title: string) => {
     const trimmedTitle = title.trim()
     if (!trimmedTitle) {
       pushToast("Notebook title required", "Add a title before creating a notebook.", "error")
-      return false
+      return null
     }
+
+    let createdNotebookId = ""
 
     updateWorkspace(current => {
       const notebook = createNotebook(user.id, trimmedTitle)
       const page = createPage(notebook.id, "Home", 0)
       const topic = createTopic(page.id, "Start", 0)
       const view = createView(topic.id, "Welcome")
+      createdNotebookId = notebook.id
 
       setSelection({
         notebookId: notebook.id,
@@ -325,8 +362,39 @@ export function VisualNoteApp() {
       }
     })
     pushToast("Notebook created", `${trimmedTitle} is ready with a starter section, topic, and view.`)
+    return createdNotebookId
+  }
+
+  const openNotebookEditor = (notebookId: string) => {
+    router.push(`/notebook?id=${encodeURIComponent(notebookId)}`)
+  }
+
+  const createNotebookAndOpen = (title: string) => {
+    const notebookId = addNotebook(title)
+    if (!notebookId) return false
+
+    openNotebookEditor(notebookId)
     return true
   }
+
+  const galleryItems = createNotebookGalleryItems(workspace, notebooks)
+
+  if (mode === "home")
+    return (
+      <Stack className={styles.app}>
+        <NotebookHome
+          userLabel={user.email}
+          storageLabel={supabaseStatus === "configured" ? "Supabase connected" : "Demo storage"}
+          notebooks={galleryItems}
+          onCreateNotebook={createNotebookAndOpen}
+          onSignOut={signOut}
+        />
+        <ToastShelf messages={toastMessages} onDismiss={dismissToast} />
+      </Stack>
+    )
+
+  const sections = workspace.pages.filter(item => item.notebookId === selected.currentSelection.notebookId).sort((a, b) => a.position - b.position)
+  const topics = workspace.topics.filter(item => item.pageId === selected.currentSelection.pageId).sort((a, b) => a.position - b.position)
 
   const addSection = (title: string) => {
     const trimmedTitle = title.trim()
@@ -550,6 +618,8 @@ export function VisualNoteApp() {
       setWorkspace(next.workspace)
       pushToast("Article created", "An article was added for this notebook item.", "info")
     }
+
+    router.push(`/notebook?id=${encodeURIComponent(notebookId)}`)
   }
 
   const updateView = (view: NotebookView) => {
@@ -569,7 +639,7 @@ export function VisualNoteApp() {
           status={supabaseStatus}
           notice={notice}
           onSelect={selectNotebook}
-          onCreate={addNotebook}
+          onCreate={createNotebookAndOpen}
           onSignOut={signOut}
         />
         <Grid className={styles.contentGrid}>

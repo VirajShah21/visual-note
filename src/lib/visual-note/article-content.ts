@@ -17,18 +17,11 @@ export const cryptoId = () => {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
-export const isListBlock = (
-  block: ArticleBlock,
-): block is Extract<ArticleBlock, { kind: "bulletList" | "orderedList" }> =>
+export const isListBlock = (block: ArticleBlock): block is Extract<ArticleBlock, { kind: "bulletList" | "orderedList" }> =>
   block.kind === "bulletList" || block.kind === "orderedList"
 
 export const articleBlockCanReceiveTextFocus = (block: ArticleBlock) =>
-  block.kind === "paragraph" ||
-  block.kind === "heading" ||
-  block.kind === "quote" ||
-  block.kind === "callout" ||
-  block.kind === "code" ||
-  isListBlock(block)
+  block.kind === "paragraph" || block.kind === "heading" || block.kind === "quote" || block.kind === "callout" || block.kind === "code" || isListBlock(block)
 
 export type ArticleHeadingIndex = {
   id: string
