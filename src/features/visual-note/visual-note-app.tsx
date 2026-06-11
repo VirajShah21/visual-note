@@ -1,17 +1,16 @@
 "use client"
 
-import { Bug, CheckCircle2, Clock, Code2, ChevronDown, ChevronUp, ExternalLink as ExternalLinkIcon, GitPullRequest, Layers3, LinkIcon, PanelLeft, Pencil, Plus, ShoppingCart, Sparkles, Trash2 } from "lucide-react"
+import { Bug, CalendarDays, CheckCircle2, Clock, Code2, Contact, ExternalLink as ExternalLinkIcon, GitPullRequest, Layers3, LinkIcon, ListChecks, MapPin, PanelLeft, Pencil, Plus, ShoppingCart, Sparkles, Trash2, Vote } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
-import type { ReactNode } from "react"
+import type { CSSProperties, ReactNode } from "react"
 import {
     Button,
     ArticleEditor,
     Card,
     ContextActions,
     DateField,
-    Divider,
     ExternalLink,
     Grid,
     Heading,
@@ -23,7 +22,8 @@ import {
     Pill,
     ScrollArea,
     SelectField,
-    SideDrawer,
+    SimpleChart,
+    type SimpleChartRow,
     Stack,
     Text,
     TextAreaField,
@@ -31,9 +31,10 @@ import {
     TimeField,
     ToastShelf,
 } from "@/components/ui"
-import { createDisplayInstance, createLocalUser, createNotebook, createPage, createSeedWorkspace, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
+import { createLocalUser, createNotebook, createPage, createSeedWorkspace, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
 import { clearStoredUser, loadStoredUser, loadStoredWorkspace, storeUser, storeWorkspace } from "@/lib/visual-note/storage"
 import type { ComponentKind, DisplayInstance, NotebookSection, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
+import type { VisualBlockData, VisualBlockKind } from "@/lib/visual-note/visual-blocks"
 import type { ToastMessage, ToastTone } from "@/components/ui"
 import { getSupabaseBrowserClient, getSupabaseStatus } from "@/lib/supabase/client"
 import { loadSupabaseWorkspace, saveSupabaseWorkspace } from "@/lib/supabase/workspace"
@@ -536,18 +537,6 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
         return true
     }
 
-    const addDisplay = (kind: ComponentKind) => {
-        if (!selected.view) {
-            pushToast("View required", "Choose a view before adding a display.", "error")
-            return false
-        }
-
-        const display = createDisplayInstance(kind)
-        updateView({ ...selected.view, displays: [...selected.view.displays, display] })
-        pushToast("Display added", `${readableKind(kind)} is ready for this view.`)
-        return true
-    }
-
     const updateDisplay = (display: DisplayInstance) => {
         if (!selected.view) return
 
@@ -555,41 +544,6 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
             ...selected.view,
             displays: selected.view.displays.map(item => (item.id === display.id ? display : item)),
         })
-    }
-
-    const moveDisplay = (displayId: string, direction: "up" | "down") => {
-        if (!selected.view) return
-
-        const currentIndex = selected.view.displays.findIndex(item => item.id === displayId)
-        const nextIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1
-        if (currentIndex < 0 || nextIndex < 0 || nextIndex >= selected.view.displays.length) return
-
-        const displays = [...selected.view.displays]
-        const [display] = displays.splice(currentIndex, 1)
-        displays.splice(nextIndex, 0, display)
-        updateView({ ...selected.view, displays })
-    }
-
-    const removeDisplay = (displayId: string) => {
-        if (!selected.view) return
-
-        const display = selected.view.displays.find(item => item.id === displayId)
-        updateView({ ...selected.view, displays: selected.view.displays.filter(item => item.id !== displayId) })
-        pushToast("Display removed", `${display?.name ?? "Display"} was removed from this view.`, "info")
-    }
-
-    const appendDisplayToArticle = (displayIndex: number) => {
-        if (!selected.view || displayIndex < 0) return
-
-        const display = selected.view.displays[displayIndex]
-        if (!display) return
-
-        const marker = `{{display:${displayIndex + 1}}}`
-        const currentContent = stringFrom(selected.view.content, "")
-        const separator = currentContent.trim() ? "\n\n" : ""
-        const nextContent = `${currentContent}${separator}${marker}\n`
-        updateView({ ...selected.view, content: nextContent })
-        pushToast("Display added", `Added ${display.name ?? "Display"} to article content.`, "info")
     }
 
     const updateView = (view: NotebookView) => {
@@ -602,7 +556,7 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     return (
         <Stack className={styles.app}>
             <Grid className={styles.workspace}>
-                <Grid className={styles.contentGrid}>
+                <Grid className={styles.contentGrid} gap="none">
                     <SectionSidebar
                         sections={sections}
                         topics={workspace.topics}
@@ -618,7 +572,7 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                         onSelectTopic={selectTopic}
                     />
                     <ScrollArea className={styles.content}>
-                        <ViewWorkspace view={selected.view} onUpdateView={updateView} onAddDisplay={addDisplay} onUpdateDisplay={updateDisplay} onMoveDisplay={moveDisplay} onRemoveDisplay={removeDisplay} onAppendDisplayToArticle={appendDisplayToArticle} />
+                        <ViewWorkspace view={selected.view} onUpdateView={updateView} onUpdateDisplay={updateDisplay} />
                     </ScrollArea>
                 </Grid>
             </Grid>
@@ -809,11 +763,7 @@ function SectionSidebar({ sections, topics, activeSectionId, activeTopicId, onCr
                                         { label: "Delete section", icon: <Trash2 size={14} />, onSelect: () => onDeleteSection(section.id) },
                                     ]}
                                 >
-                                    <Heading
-                                        className={`${styles.sectionTitle} ${section.id === activeSectionId ? styles.activeSectionTitle : ""}`}
-                                        size="sm"
-                                        onClick={() => onSelectSection(section.id)}
-                                    >
+                                    <Heading className={`${styles.sectionTitle} ${section.id === activeSectionId ? styles.activeSectionTitle : ""}`} size="sm" onClick={() => onSelectSection(section.id)}>
                                         {section.title}
                                     </Heading>
                                 </ContextActions>
@@ -883,24 +833,10 @@ function SectionSidebar({ sections, topics, activeSectionId, activeTopicId, onCr
 type ViewWorkspaceProps = {
     view: NotebookView | null
     onUpdateView: (view: NotebookView) => void
-    onAddDisplay: (kind: ComponentKind) => boolean
     onUpdateDisplay: (display: DisplayInstance) => void
-    onMoveDisplay: (displayId: string, direction: "up" | "down") => void
-    onRemoveDisplay: (displayId: string) => void
-    onAppendDisplayToArticle: (displayIndex: number) => void
 }
 
-function ViewWorkspace({ view, onUpdateView, onAddDisplay, onUpdateDisplay, onMoveDisplay, onRemoveDisplay, onAppendDisplayToArticle }: ViewWorkspaceProps) {
-    const [displayKind, setDisplayKind] = useState<ComponentKind>("data-card")
-    const [selectedDisplayForArticle, setSelectedDisplayForArticle] = useState("1")
-    const [isDisplaysOpen, setIsDisplaysOpen] = useState(false)
-
-    const addDisplayToView = () => {
-        if (!onAddDisplay(displayKind)) return
-
-        setDisplayKind("data-card")
-    }
-
+function ViewWorkspace({ view, onUpdateView, onUpdateDisplay }: ViewWorkspaceProps) {
     if (!view)
         return (
             <>
@@ -914,62 +850,8 @@ function ViewWorkspace({ view, onUpdateView, onAddDisplay, onUpdateDisplay, onMo
         )
 
     return (
-        <Stack gap="lg">
-            <Stack className={styles.viewHeader} direction="horizontal" gap="md">
-                <Stack className={styles.viewActions} direction="horizontal" gap="sm">
-                    <Button icon={<Layers3 size={15} />} onClick={() => setIsDisplaysOpen(true)}>
-                        Displays
-                    </Button>
-                </Stack>
-            </Stack>
-            <Stack className={styles.preview} gap="lg">
-                <ArticleWorkspace view={view} onUpdateView={onUpdateView} onUpdateDisplay={onUpdateDisplay} selectedDisplayForArticle={selectedDisplayForArticle} onChangeSelectedDisplay={setSelectedDisplayForArticle} />
-            </Stack>
-            <SideDrawer open={isDisplaysOpen} title="Manage displays" description="Add display types to this view, review the display order, reorder displays, or remove displays from the view." onOpenChange={setIsDisplaysOpen}>
-                <Stack gap="lg">
-                    <Stack gap="md">
-                        <Heading size="sm">Add a display</Heading>
-                        <SelectField label="Display type" value={displayKind} options={componentKindOptions} onValueChange={value => setDisplayKind(value as ComponentKind)} />
-                        <Button icon={<Plus size={15} />} variant="primary" onClick={addDisplayToView} fullWidth>
-                            Add display
-                        </Button>
-                    </Stack>
-                    <Divider />
-                    <Stack gap="md">
-                        <Heading size="sm">Display order</Heading>
-                        <Stack gap="md">
-                            {view.displays.map((display, index) => (
-                                <Card key={display.id} padding="compact">
-                                    <Stack gap="md">
-                                        <Stack className={styles.toolbar} direction="horizontal" gap="sm">
-                                            <Stack gap="xs">
-                                                <Heading size="sm">{display.name}</Heading>
-                                                <Pill>{readableKind(display.kind)}</Pill>
-                                            </Stack>
-                                            <Pill>#{index + 1}</Pill>
-                                        </Stack>
-                                        <Stack className={styles.wrapRow} direction="horizontal" gap="sm">
-                                            <Button icon={<ChevronUp size={15} />} variant="ghost" onClick={() => onMoveDisplay(display.id, "up")} disabled={index === 0}>
-                                                Move up
-                                            </Button>
-                                            <Button icon={<ChevronDown size={15} />} variant="ghost" onClick={() => onMoveDisplay(display.id, "down")} disabled={index === view.displays.length - 1}>
-                                                Move down
-                                            </Button>
-                                            <Button icon={<Sparkles size={15} />} variant="secondary" onClick={() => onAppendDisplayToArticle(index)}>
-                                                Add into article
-                                            </Button>
-                                            <Button icon={<Trash2 size={15} />} variant="danger" onClick={() => onRemoveDisplay(display.id)}>
-                                                Remove
-                                            </Button>
-                                        </Stack>
-                                    </Stack>
-                                </Card>
-                            ))}
-                        </Stack>
-                        {view.displays.length === 0 ? <Text>Add a display type to start composing this view.</Text> : null}
-                    </Stack>
-                </Stack>
-            </SideDrawer>
+        <Stack className={styles.preview} gap="none">
+            <ArticleWorkspace view={view} onUpdateView={onUpdateView} onUpdateDisplay={onUpdateDisplay} />
         </Stack>
     )
 }
@@ -978,20 +860,408 @@ type ArticleWorkspaceProps = {
     view: NotebookView
     onUpdateView: (view: NotebookView) => void
     onUpdateDisplay: (display: DisplayInstance) => void
-    selectedDisplayForArticle: string
-    onChangeSelectedDisplay: (value: string) => void
 }
 
-function ArticleWorkspace({ view, onUpdateView, onUpdateDisplay, selectedDisplayForArticle, onChangeSelectedDisplay }: ArticleWorkspaceProps) {
+function ArticleWorkspace({ view, onUpdateView, onUpdateDisplay }: ArticleWorkspaceProps) {
     return (
         <ArticleEditor
             value={stringFrom(view.content)}
             displays={view.displays}
-            selectedDisplayForArticle={selectedDisplayForArticle}
-            onChangeSelectedDisplay={onChangeSelectedDisplay}
             onChange={content => onUpdateView({ ...view, content })}
             renderDisplay={display => <RenderedDisplay display={display} onUpdate={onUpdateDisplay} isReadOnly={false} />}
+            renderVisualBlock={(block, onDataChange) => <VisualBlockDisplay visualKind={block.visualKind} data={block.data} raw={block.raw} parseError={block.parseError} onDataChange={onDataChange} />}
         />
+    )
+}
+
+type VisualBlockDisplayProps = {
+    visualKind: VisualBlockKind
+    data: VisualBlockData
+    raw: string
+    parseError?: string
+    onDataChange: (data: VisualBlockData) => void
+}
+
+function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }: VisualBlockDisplayProps) {
+    const [recipePortions, setRecipePortions] = useState(() => numberFrom(data.basePortions, 2))
+    const updateField = (field: string, value: unknown) => onDataChange({ ...data, [field]: value })
+    const updateStringList = (field: string, index: number, value: string) => updateField(field, replaceStringAt(arrayFrom(data[field]), index, value))
+    const addStringListItem = (field: string, value: string) => updateField(field, [...arrayFrom(data[field]), value])
+    const removeStringListItem = (field: string, index: number) =>
+        updateField(
+            field,
+            arrayFrom(data[field]).filter((_, itemIndex) => itemIndex !== index),
+        )
+    const updateObjectList = (field: string, index: number, patch: Record<string, unknown>) => updateField(field, replaceObjectAt(objectArrayFrom(data[field]), index, patch))
+    const addObjectListItem = (field: string, value: Record<string, unknown>) => updateField(field, [...objectArrayFrom(data[field]), value])
+    const removeObjectListItem = (field: string, index: number) =>
+        updateField(
+            field,
+            objectArrayFrom(data[field]).filter((_, itemIndex) => itemIndex !== index),
+        )
+    const header = (icon: ReactNode, title: string, action?: ReactNode) => (
+        <Stack className={styles.visualBlockHeader} direction="horizontal" gap="sm">
+            <Pill>
+                {icon}
+                {title}
+            </Pill>
+            {action}
+        </Stack>
+    )
+
+    if (parseError)
+        return (
+            <Stack className={styles.visualBlockError} gap="sm">
+                {header(<Code2 size={13} />, `visual:${visualKind}`)}
+                <Text tone="strong">Unable to parse visual block data.</Text>
+                <Text size="small">{parseError}</Text>
+                <Text as="code" tone="code" className={styles.dataPreview}>
+                    {raw}
+                </Text>
+            </Stack>
+        )
+
+    if (visualKind === "pull-request")
+        return (
+            <Stack className={styles.visualBlock} gap="md">
+                {header(
+                    <GitPullRequest size={13} />,
+                    "GitHub Pull Request",
+                    stringFrom(data.url) ? (
+                        <ExternalLink href={stringFrom(data.url)}>
+                            <ExternalLinkIcon size={14} />
+                            Open
+                        </ExternalLink>
+                    ) : null,
+                )}
+                <Stack className={styles.heroPanel} gap="sm">
+                    <Pill>{stringFrom(data.number, "PR")}</Pill>
+                    <Heading size="md">{stringFrom(data.title, "Pull request title")}</Heading>
+                    <Text>{arrayFrom(data.notes).join(" ") || "No notes provided."}</Text>
+                </Stack>
+                <Grid columns="two" gap="sm">
+                    <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
+                    <TextField label="URL" value={stringFrom(data.url)} onChange={event => updateField("url", event.target.value)} />
+                    <TextField label="Number" value={stringFrom(data.number)} onChange={event => updateField("number", event.target.value)} />
+                    <TextField label="Status" value={stringFrom(data.status)} onChange={event => updateField("status", event.target.value)} />
+                    <TextField label="Author" value={stringFrom(data.author)} onChange={event => updateField("author", event.target.value)} />
+                    <TextField label="Source" value={stringFrom(data.source)} onChange={event => updateField("source", event.target.value)} />
+                </Grid>
+                <InlineStringList title="Reviewers" items={arrayFrom(data.reviewers)} onAdd={() => addStringListItem("reviewers", "Reviewer")} onChange={(index, value) => updateStringList("reviewers", index, value)} onRemove={index => removeStringListItem("reviewers", index)} />
+                <InlineStringList title="Notes" items={arrayFrom(data.notes)} onAdd={() => addStringListItem("notes", "New note")} onChange={(index, value) => updateStringList("notes", index, value)} onRemove={index => removeStringListItem("notes", index)} />
+            </Stack>
+        )
+
+    if (visualKind === "calendar-event")
+        return (
+            <Stack className={styles.visualBlock} gap="md">
+                {header(<CalendarDays size={13} />, "Calendar Event")}
+                <Stack className={styles.itemHeader} direction="horizontal" gap="sm">
+                    <Stack gap="xs">
+                        <Heading size="md">{stringFrom(data.title, "Event")}</Heading>
+                        <Text>{calendarEventSchedule(data)}</Text>
+                    </Stack>
+                    <Pill>
+                        <MapPin size={13} />
+                        {stringFrom(data.location, "Location")}
+                    </Pill>
+                </Stack>
+                <Grid columns="two" gap="sm">
+                    <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
+                    <DateField label="Date" value={dateInputValue(data.date)} onChange={event => updateField("date", event.target.value)} />
+                    <TimeField label="Start" value={timeInputValue(data.startTime)} onChange={event => updateField("startTime", event.target.value)} />
+                    <TimeField label="End" value={timeInputValue(data.endTime)} onChange={event => updateField("endTime", event.target.value)} />
+                    <TextField label="Location" value={stringFrom(data.location)} onChange={event => updateField("location", event.target.value)} />
+                </Grid>
+                <TextAreaField label="Notes" value={stringFrom(data.notes)} onChange={event => updateField("notes", event.target.value)} />
+                <InlineStringList title="Attendees" items={arrayFrom(data.attendees)} onAdd={() => addStringListItem("attendees", "New attendee")} onChange={(index, value) => updateStringList("attendees", index, value)} onRemove={index => removeStringListItem("attendees", index)} />
+            </Stack>
+        )
+
+    if (visualKind === "contact-card")
+        return (
+            <Stack className={styles.visualBlock} gap="md">
+                {header(<Contact size={13} />, "Contact Card")}
+                <Stack className={styles.heroPanel} gap="xs">
+                    <Heading size="md">{stringFrom(data.name, "Contact")}</Heading>
+                    <Text>{[stringFrom(data.role), stringFrom(data.company)].filter(Boolean).join(" at ") || "Contact details"}</Text>
+                </Stack>
+                <Grid columns="two" gap="sm">
+                    <TextField label="Name" value={stringFrom(data.name)} onChange={event => updateField("name", event.target.value)} />
+                    <TextField label="Role" value={stringFrom(data.role)} onChange={event => updateField("role", event.target.value)} />
+                    <TextField label="Company" value={stringFrom(data.company)} onChange={event => updateField("company", event.target.value)} />
+                    <TextField label="Email" value={stringFrom(data.email)} onChange={event => updateField("email", event.target.value)} />
+                    <TextField label="Phone" value={stringFrom(data.phone)} onChange={event => updateField("phone", event.target.value)} />
+                </Grid>
+                <InlineStringList title="Links" items={arrayFrom(data.links)} onAdd={() => addStringListItem("links", "https://example.com")} onChange={(index, value) => updateStringList("links", index, value)} onRemove={index => removeStringListItem("links", index)} />
+            </Stack>
+        )
+
+    if (visualKind === "address-card")
+        return (
+            <Stack className={styles.visualBlock} gap="md">
+                {header(
+                    <MapPin size={13} />,
+                    "Address Card",
+                    stringFrom(data.mapUrl) ? (
+                        <ExternalLink href={stringFrom(data.mapUrl)}>
+                            <ExternalLinkIcon size={14} />
+                            Map
+                        </ExternalLink>
+                    ) : null,
+                )}
+                <Stack className={styles.heroPanel} gap="xs">
+                    <Heading size="md">{stringFrom(data.label, "Address")}</Heading>
+                    <Text>{arrayFrom(data.lines).join(", ")}</Text>
+                </Stack>
+                <TextField label="Label" value={stringFrom(data.label)} onChange={event => updateField("label", event.target.value)} />
+                <InlineStringList title="Address lines" items={arrayFrom(data.lines)} onAdd={() => addStringListItem("lines", "Address line")} onChange={(index, value) => updateStringList("lines", index, value)} onRemove={index => removeStringListItem("lines", index)} />
+                <TextField label="Map URL" value={stringFrom(data.mapUrl)} onChange={event => updateField("mapUrl", event.target.value)} />
+                <TextAreaField label="Notes" value={stringFrom(data.notes)} onChange={event => updateField("notes", event.target.value)} />
+            </Stack>
+        )
+
+    if (visualKind === "chart") {
+        const rows = chartRowsFromData(data.data)
+        const chartType = stringFrom(data.type, "bar") === "line" ? "line" : "bar"
+
+        return (
+            <Stack className={styles.visualBlock} gap="md">
+                {header(<Sparkles size={13} />, "Chart")}
+                <SimpleChart title={stringFrom(data.title, "Chart")} type={chartType} rows={rows} xLabel={stringFrom(data.xLabel)} yLabel={stringFrom(data.yLabel)} />
+                <Grid columns="two" gap="sm">
+                    <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
+                    <SelectField
+                        label="Type"
+                        value={chartType}
+                        options={[
+                            { label: "Bar", value: "bar" },
+                            { label: "Line", value: "line" },
+                        ]}
+                        onValueChange={value => updateField("type", value)}
+                    />
+                    <TextField label="X label" value={stringFrom(data.xLabel)} onChange={event => updateField("xLabel", event.target.value)} />
+                    <TextField label="Y label" value={stringFrom(data.yLabel)} onChange={event => updateField("yLabel", event.target.value)} />
+                </Grid>
+                <Stack gap="sm">
+                    <Heading size="sm">Data</Heading>
+                    {rows.map((row, index) => (
+                        <Grid key={`${index}-${row.label}`} columns="two" gap="sm">
+                            <TextField label="Label" value={row.label} onChange={event => updateObjectList("data", index, { label: event.target.value })} />
+                            <TextField label="Value" type="number" value={String(row.value)} onChange={event => updateObjectList("data", index, { value: Number(event.target.value) })} />
+                        </Grid>
+                    ))}
+                    <Button icon={<Plus size={15} />} variant="ghost" onClick={() => addObjectListItem("data", { label: "New", value: 1 })}>
+                        Add point
+                    </Button>
+                </Stack>
+            </Stack>
+        )
+    }
+
+    if (visualKind === "recipe") {
+        const basePortions = numberFrom(data.basePortions, 1)
+        const portionScale = basePortions > 0 ? recipePortions / basePortions : 1
+        const ingredients = objectArrayFrom(data.ingredients)
+
+        return (
+            <Stack className={styles.visualBlock} gap="md">
+                {header(<ListChecks size={13} />, "Recipe")}
+                <Stack className={styles.heroPanel} gap="sm">
+                    <Heading size="md">{stringFrom(data.title, "Recipe")}</Heading>
+                    <Text>{`Portions: ${recipePortions}`}</Text>
+                </Stack>
+                <Grid columns="two" gap="sm">
+                    <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
+                    <TextField label="Base portions" type="number" value={String(basePortions)} onChange={event => updateField("basePortions", Number(event.target.value))} />
+                    <TextField label="Display portions" type="number" value={String(recipePortions)} onChange={event => setRecipePortions(Number(event.target.value) || 1)} />
+                </Grid>
+                <Stack gap="sm">
+                    <Heading size="sm">Ingredients</Heading>
+                    {ingredients.map((ingredient, index) => (
+                        <Grid key={`${index}-${ingredient.name}`} columns="three" gap="sm">
+                            <TextField label="Name" value={stringFrom(ingredient.name)} onChange={event => updateObjectList("ingredients", index, { name: event.target.value })} />
+                            <TextField label="Quantity" type="number" value={String(numberFrom(ingredient.quantity, 0) * portionScale)} onChange={event => updateObjectList("ingredients", index, { quantity: Number(event.target.value) / portionScale })} />
+                            <TextField label="Unit" value={stringFrom(ingredient.unit)} onChange={event => updateObjectList("ingredients", index, { unit: event.target.value })} />
+                        </Grid>
+                    ))}
+                    <Button icon={<Plus size={15} />} variant="ghost" onClick={() => addObjectListItem("ingredients", { name: "Ingredient", quantity: 1, unit: "" })}>
+                        Add ingredient
+                    </Button>
+                </Stack>
+                <InlineStringList title="Cooking steps" items={arrayFrom(data.steps)} onAdd={() => addStringListItem("steps", "New step")} onChange={(index, value) => updateStringList("steps", index, value)} onRemove={index => removeStringListItem("steps", index)} />
+            </Stack>
+        )
+    }
+
+    if (visualKind === "timeline")
+        return (
+            <Stack className={styles.visualBlock} gap="md">
+                {header(<Clock size={13} />, "Timeline")}
+                <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
+                <Stack className={styles.timelineTrack} gap="none">
+                    {timelineEventsFromData(data.events).map((eventItem, index) => (
+                        <Stack key={`${index}-${eventItem.label}`} className={styles.timelineItem} gap="sm">
+                            <Grid columns="three" gap="sm">
+                                <TextField label="Label" value={stringFrom(eventItem.label)} onChange={event => updateObjectList("events", index, { label: event.target.value })} />
+                                <DateField label="Date" value={dateInputValue(eventItem.date)} onChange={event => updateObjectList("events", index, { date: event.target.value })} />
+                                <TimeField label="Time" value={timeInputValue(eventItem.time)} onChange={event => updateObjectList("events", index, { time: event.target.value })} />
+                            </Grid>
+                            <Button variant="ghost" onClick={() => removeObjectListItem("events", index)}>
+                                Delete event
+                            </Button>
+                        </Stack>
+                    ))}
+                </Stack>
+                <Button icon={<Plus size={15} />} variant="ghost" onClick={() => addObjectListItem("events", { label: "New event", date: "", time: "" })}>
+                    Add event
+                </Button>
+            </Stack>
+        )
+
+    if (visualKind === "poll") {
+        const options = objectArrayFrom(data.options)
+        const totalVotes = options.reduce((total, option) => total + numberFrom(option.votes, 0), 0)
+
+        return (
+            <Stack className={styles.visualBlock} gap="md">
+                {header(<Vote size={13} />, "Poll")}
+                <TextField label="Question" value={stringFrom(data.question)} onChange={event => updateField("question", event.target.value)} />
+                <Stack gap="sm">
+                    {options.map((option, index) => {
+                        const votes = numberFrom(option.votes, 0)
+                        const percent = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0
+
+                        return (
+                            <Stack key={`${index}-${option.label}`} className={styles.pollOption} gap="xs">
+                                <Grid columns="two" gap="sm">
+                                    <TextField label="Option" value={stringFrom(option.label)} onChange={event => updateObjectList("options", index, { label: event.target.value })} />
+                                    <TextField label="Votes" type="number" value={String(votes)} onChange={event => updateObjectList("options", index, { votes: Number(event.target.value) })} />
+                                </Grid>
+                                <Stack className={styles.pollBar} style={{ "--poll-percent": `${percent}%` } as CSSProperties}>
+                                    <Text size="small">{`${percent}%`}</Text>
+                                </Stack>
+                                <Stack direction="horizontal" gap="sm" className={styles.wrapRow}>
+                                    <Button variant="ghost" onClick={() => updateObjectList("options", index, { votes: votes + 1 })}>
+                                        Add vote
+                                    </Button>
+                                    <Button variant="ghost" onClick={() => removeObjectListItem("options", index)}>
+                                        Delete option
+                                    </Button>
+                                </Stack>
+                            </Stack>
+                        )
+                    })}
+                </Stack>
+                <Button icon={<Plus size={15} />} variant="ghost" onClick={() => addObjectListItem("options", { label: "New option", votes: 0 })}>
+                    Add option
+                </Button>
+            </Stack>
+        )
+    }
+
+    const listField = visualKind === "packing-list" ? "sections" : visualKind === "shopping-list" ? "items" : "tasks"
+    const listItems = objectArrayFrom(data[listField])
+
+    return (
+        <Stack className={styles.visualBlock} gap="md">
+            {header(visualKind === "shopping-list" ? <ShoppingCart size={13} /> : <CheckCircle2 size={13} />, visualKind === "packing-list" ? "Packing List" : visualKind === "shopping-list" ? "Shopping List" : "Task List")}
+            <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
+            <Stack gap="sm">
+                {listItems.map((item, index) => (
+                    <Stack key={`${index}-${item.title}-${item.name}-${item.label}`} className={styles.refinedItem} gap="sm">
+                        {visualKind === "packing-list" ? (
+                            <>
+                                <TextField label="Section" value={stringFrom(item.title)} onChange={event => updateObjectList(listField, index, { title: event.target.value })} />
+                                <InlineObjectItems
+                                    items={objectArrayFrom(item.items)}
+                                    onAdd={() => updateObjectList(listField, index, { items: [...objectArrayFrom(item.items), { label: "New item", packed: false }] })}
+                                    onChange={(itemIndex, patch) => updateObjectList(listField, index, { items: replaceObjectAt(objectArrayFrom(item.items), itemIndex, patch) })}
+                                    onRemove={itemIndex => updateObjectList(listField, index, { items: objectArrayFrom(item.items).filter((_, nestedIndex) => nestedIndex !== itemIndex) })}
+                                />
+                            </>
+                        ) : (
+                            <Grid columns="three" gap="sm">
+                                <TextField label={visualKind === "task-list" ? "Task" : "Item"} value={stringFrom(item.title || item.name)} onChange={event => updateObjectList(listField, index, visualKind === "task-list" ? { title: event.target.value } : { name: event.target.value })} />
+                                <TextField
+                                    label={visualKind === "task-list" ? "Owner" : "Quantity"}
+                                    value={stringFrom(item.owner || item.quantity)}
+                                    onChange={event => updateObjectList(listField, index, visualKind === "task-list" ? { owner: event.target.value } : { quantity: event.target.value })}
+                                />
+                                <Button variant={item.done || item.purchased ? "primary" : "ghost"} onClick={() => updateObjectList(listField, index, visualKind === "task-list" ? { done: !Boolean(item.done) } : { purchased: !Boolean(item.purchased) })}>
+                                    {item.done || item.purchased ? "Done" : "Open"}
+                                </Button>
+                            </Grid>
+                        )}
+                        <Button variant="ghost" onClick={() => removeObjectListItem(listField, index)}>
+                            Delete
+                        </Button>
+                    </Stack>
+                ))}
+            </Stack>
+            <Button
+                icon={<Plus size={15} />}
+                variant="ghost"
+                onClick={() => addObjectListItem(listField, visualKind === "task-list" ? { title: "New task", done: false, dueDate: "", owner: "" } : visualKind === "shopping-list" ? { name: "New item", quantity: "", purchased: false } : { title: "New section", items: [] })}
+            >
+                Add item
+            </Button>
+        </Stack>
+    )
+}
+
+type InlineStringListProps = {
+    title: string
+    items: string[]
+    onAdd: () => void
+    onChange: (index: number, value: string) => void
+    onRemove: (index: number) => void
+}
+
+function InlineStringList({ title, items, onAdd, onChange, onRemove }: InlineStringListProps) {
+    return (
+        <Stack gap="sm">
+            <Heading size="sm">{title}</Heading>
+            {items.map((item, index) => (
+                <Stack key={`${index}-${item}`} direction="horizontal" gap="sm" className={styles.wrapRow}>
+                    <TextField label={`${title} ${index + 1}`} value={item} onChange={event => onChange(index, event.target.value)} />
+                    <Button variant="ghost" onClick={() => onRemove(index)}>
+                        Remove
+                    </Button>
+                </Stack>
+            ))}
+            <Button icon={<Plus size={15} />} variant="ghost" onClick={onAdd}>
+                Add
+            </Button>
+        </Stack>
+    )
+}
+
+type InlineObjectItemsProps = {
+    items: Array<Record<string, unknown>>
+    onAdd: () => void
+    onChange: (index: number, patch: Record<string, unknown>) => void
+    onRemove: (index: number) => void
+}
+
+function InlineObjectItems({ items, onAdd, onChange, onRemove }: InlineObjectItemsProps) {
+    return (
+        <Stack gap="sm">
+            {items.map((item, index) => (
+                <Grid key={`${index}-${item.label}`} columns="two" gap="sm">
+                    <TextField label="Item" value={stringFrom(item.label)} onChange={event => onChange(index, { label: event.target.value })} />
+                    <Button variant={item.packed ? "primary" : "ghost"} onClick={() => onChange(index, { packed: !Boolean(item.packed) })}>
+                        {item.packed ? "Packed" : "Open"}
+                    </Button>
+                    <Button variant="ghost" onClick={() => onRemove(index)}>
+                        Remove
+                    </Button>
+                </Grid>
+            ))}
+            <Button icon={<Plus size={15} />} variant="ghost" onClick={onAdd}>
+                Add packed item
+            </Button>
+        </Stack>
     )
 }
 
@@ -1750,6 +2020,22 @@ const stringFrom = (value: unknown, fallback = "") => {
     return fallback
 }
 
+const numberFrom = (value: unknown, fallback = 0) => {
+    if (typeof value === "number" && Number.isFinite(value)) return value
+    if (typeof value === "string") {
+        const parsed = Number(value)
+        if (Number.isFinite(parsed)) return parsed
+    }
+
+    return fallback
+}
+
+const chartRowsFromData = (value: unknown): SimpleChartRow[] =>
+    objectArrayFrom(value).map((item, index) => ({
+        label: stringFrom(item.label, `Item ${index + 1}`),
+        value: numberFrom(item.value, 0),
+    }))
+
 const dateInputValue = (value: unknown) => {
     const date = stringFrom(value)
 
@@ -1765,6 +2051,18 @@ const timeInputValue = (value: unknown) => {
 const timelineScheduleText = (eventItem: Record<string, unknown>) => {
     const date = dateInputValue(eventItem.date)
     const time = timeInputValue(eventItem.time)
+    if (date && time) return `${date} at ${time}`
+    if (date) return date
+    if (time) return time
+
+    return "Unscheduled"
+}
+
+const calendarEventSchedule = (data: VisualBlockData) => {
+    const date = dateInputValue(data.date)
+    const start = timeInputValue(data.startTime)
+    const end = timeInputValue(data.endTime)
+    const time = start && end ? `${start}-${end}` : start || end
     if (date && time) return `${date} at ${time}`
     if (date) return date
     if (time) return time

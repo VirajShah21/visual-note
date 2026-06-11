@@ -3,11 +3,11 @@
 import { AnimatePresence, motion } from "motion/react"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState, type ChangeEvent, type ComponentProps, type KeyboardEvent, type ReactNode } from "react"
 import { Button } from "./button"
-import { SelectField } from "./form-controls"
 import { Card, Divider, Pill, Stack, Text } from "./primitives"
 import { cx } from "./class-name"
 import { articleBlockCanReceiveTextFocus, cryptoId, isListBlock, parseArticleContent, serializeArticleContent, type ArticleBlock } from "@/lib/visual-note/article-content"
 import type { DisplayInstance } from "@/lib/visual-note/types"
+import { defaultVisualBlockData, visualBlockKinds, visualBlockLabel, type VisualBlockData, type VisualBlockKind } from "@/lib/visual-note/visual-blocks"
 import styles from "./article-editor.module.css"
 
 type EditorField = "paragraph" | "heading" | "quote" | "callout" | "code" | "list-item"
@@ -26,10 +26,9 @@ type ArticleEditorCommand = {
 type ArticleEditorProps = {
     value: string
     displays: DisplayInstance[]
-    selectedDisplayForArticle: string
-    onChangeSelectedDisplay: (value: string) => void
     onChange: (next: string) => void
     renderDisplay?: (display: DisplayInstance, displayIndex: number) => ReactNode
+    renderVisualBlock?: (block: Extract<ArticleBlock, { kind: "visual" }>, onDataChange: (data: VisualBlockData) => void) => ReactNode
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +92,19 @@ const commandMatch = (command: ArticleEditorCommand, query: string) => {
 }
 
 const HEADING_LEVELS = [1, 2, 3, 4] as const
+const VISUAL_BLOCK_ALIASES: Record<VisualBlockKind, string[]> = {
+    "pull-request": ["github", "pr", "pull request", "github pull request"],
+    "calendar-event": ["calendar", "event", "meeting"],
+    "packing-list": ["packing", "trip", "travel"],
+    "contact-card": ["contact", "person", "people"],
+    "address-card": ["address", "location", "map"],
+    chart: ["chart", "graph", "visualization"],
+    recipe: ["recipe", "ingredients", "cooking"],
+    "task-list": ["task", "tasks", "todo", "to-do"],
+    "shopping-list": ["shopping", "shop", "grocery"],
+    timeline: ["timeline", "events", "schedule"],
+    poll: ["poll", "vote", "survey"],
+}
 
 const createCommandList = (selectedDisplayIndex: number, displays: DisplayInstance[]) => {
     const selectedDisplay = Math.max(0, Math.min(selectedDisplayIndex, Math.max(displays.length - 1, 0)))
@@ -188,14 +200,6 @@ const createCommandList = (selectedDisplayIndex: number, displays: DisplayInstan
             applyLine: () => ({ kind: "image", alt: "Image", url: "" }),
         },
         {
-            id: "toc",
-            label: "Table of contents",
-            description: "Insert table-of-contents token",
-            aliases: ["toc", "table of contents", "{{toc}}"],
-            mode: "line",
-            applyLine: () => ({ kind: "toc" }),
-        },
-        {
             id: "display",
             label: `Display ${selectedDisplay + 1}`,
             description: `Insert {{display:${selectedDisplay + 1}}}`,
@@ -203,6 +207,19 @@ const createCommandList = (selectedDisplayIndex: number, displays: DisplayInstan
             mode: "line",
             applyLine: () => ({ kind: "display", displayIndex: selectedDisplay }),
         },
+        ...visualBlockKinds.map(kind => ({
+            id: `visual-${kind}`,
+            label: visualBlockLabel(kind),
+            description: `Insert a visual ${kind} block`,
+            aliases: VISUAL_BLOCK_ALIASES[kind],
+            mode: "line" as const,
+            applyLine: () => ({
+                kind: "visual" as const,
+                visualKind: kind,
+                data: defaultVisualBlockData(kind),
+                raw: "",
+            }),
+        })),
         {
             id: "inline-bold",
             label: "Bold",
@@ -255,13 +272,6 @@ const createCommandList = (selectedDisplayIndex: number, displays: DisplayInstan
     })
 
     return commands
-}
-
-const selectedDisplayIndexFromState = (value: string, displayCount: number) => {
-    const parsed = Number.parseInt(value, 10)
-    if (!Number.isFinite(parsed) || parsed <= 0 || displayCount === 0) return 0
-
-    return Math.min(parsed - 1, displayCount - 1)
 }
 
 const getLineStart = (text: string, cursor: number) => {
@@ -420,7 +430,7 @@ function InlineLinkTextarea({ value, className, ...props }: BlockTextareaProps) 
 // Main component
 // ---------------------------------------------------------------------------
 
-export function ArticleEditor({ value, displays, selectedDisplayForArticle, onChangeSelectedDisplay, onChange, renderDisplay }: ArticleEditorProps) {
+export function ArticleEditor({ value, displays, onChange, renderDisplay, renderVisualBlock }: ArticleEditorProps) {
     const parsed = useMemo(() => parseArticleContent(value, displays.length), [value, displays.length])
     const editorRef = useRef<HTMLDivElement | null>(null)
     const commandRef = useRef<HTMLDivElement | null>(null)
@@ -435,22 +445,11 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
 
     const [{ commandState, commandQuery, selectedCommandIndex }, dispatchCommand] = useReducer(commandReducer, CLOSED_COMMAND_STATE)
 
-    const selectedDisplayIndex = useMemo(() => selectedDisplayIndexFromState(selectedDisplayForArticle, displays.length), [selectedDisplayForArticle, displays.length])
+    const selectedDisplayIndex = 0
 
     const commands = useMemo(() => createCommandList(selectedDisplayIndex, displays), [displays, selectedDisplayIndex])
     const commandItems = useMemo(() => commands.filter(command => commandMatch(command, commandQuery)), [commandQuery, commands])
     const boundedSelectedCommandIndex = Math.min(selectedCommandIndex, Math.max(commandItems.length - 1, 0))
-
-    const displayOptions = useMemo(
-        () =>
-            displays.length === 0
-                ? [{ label: "1", value: "1" }]
-                : displays.map((display, index) => ({
-                      label: `${index + 1}. ${display.name}`,
-                      value: `${index + 1}`,
-                  })),
-        [displays],
-    )
 
     useEffect(() => {
         if (!commandState) return
@@ -752,7 +751,7 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
                     nextBlocks.splice(blockIndex, 1)
 
                     let focusIndex = blockIndex - 1
-                    while (focusIndex >= 0 && (nextBlocks[focusIndex]?.kind === "divider" || nextBlocks[focusIndex]?.kind === "toc" || nextBlocks[focusIndex]?.kind === "display")) focusIndex -= 1
+                    while (focusIndex >= 0 && (nextBlocks[focusIndex]?.kind === "divider" || nextBlocks[focusIndex]?.kind === "display" || nextBlocks[focusIndex]?.kind === "visual")) focusIndex -= 1
 
                     if (focusIndex >= 0) setSplitFocus(focusIndex, null, Number.MAX_SAFE_INTEGER)
 
@@ -896,6 +895,18 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
         [parsed.blocks, writeBlocks],
     )
 
+    const updateVisualBlockData = useCallback(
+        (blockIndex: number, data: VisualBlockData) => {
+            const nextBlocks = [...parsed.blocks]
+            const current = nextBlocks[blockIndex]
+            if (!current || current.kind !== "visual") return
+
+            nextBlocks[blockIndex] = { ...current, data, raw: "", parseError: undefined }
+            writeBlocks(nextBlocks)
+        },
+        [parsed.blocks, writeBlocks],
+    )
+
     /** Shared callback for mutating a list block's items array. */
     const updateListItems = useCallback(
         (blockIndex: number, updater: (items: string[]) => string[]) => {
@@ -923,8 +934,6 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
     // ---------------------------------------------------------------------------
     // Render
     // ---------------------------------------------------------------------------
-
-    const selectedDisplayValue = `${selectedDisplayIndex + 1}`
 
     const renderBlock = (block: ArticleBlock, blockIndex: number) => {
         if (block.kind === "paragraph")
@@ -1048,33 +1057,15 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
 
         if (block.kind === "image")
             return (
-                <Stack key={blockIndex} gap="xs" className={styles.articleBlock}>
-                    <Text tone="muted" size="small">
-                        Image block
-                    </Text>
-                    <BlockTextarea
-                        className={cx(styles.blockInput, styles.blockInputImage)}
-                        data-block-index={blockIndex}
-                        value={block.alt}
-                        placeholder="Image alt"
-                        onChange={event => updateImageField(blockIndex, { alt: event.target.value })}
-                        onKeyDown={event => onInputKeyDown(blockIndex, "paragraph", undefined, event)}
-                    />
+                <Stack key={blockIndex} gap="xs" className={cx(styles.articleBlock, styles.imageUrlBlock)}>
                     <BlockTextarea
                         className={cx(styles.blockInput, styles.blockInputImage)}
                         data-block-index={blockIndex}
                         value={block.url}
-                        placeholder="Image url"
+                        placeholder="Paste image URL"
                         onChange={event => updateImageField(blockIndex, { url: event.target.value })}
                         onKeyDown={event => onInputKeyDown(blockIndex, "paragraph", undefined, event)}
                     />
-                </Stack>
-            )
-
-        if (block.kind === "toc")
-            return (
-                <Stack key={blockIndex} className={styles.articleBlock}>
-                    <Text className={styles.tocPlaceholder}>{"{{toc}}"}</Text>
                 </Stack>
             )
 
@@ -1093,15 +1084,20 @@ export function ArticleEditor({ value, displays, selectedDisplayForArticle, onCh
             )
         }
 
+        if (block.kind === "visual")
+            return (
+                <Stack key={blockIndex} gap="xs" className={styles.articleBlock}>
+                    <Stack className={styles.displayBlock} gap="sm">
+                        {renderVisualBlock?.(block, data => updateVisualBlockData(blockIndex, data)) ?? <Text size="small">{`visual:${block.visualKind}`}</Text>}
+                    </Stack>
+                </Stack>
+            )
+
         return null
     }
 
     return (
         <Stack className={styles.articleEditor} gap="sm" ref={editorRef}>
-            <Stack className={styles.articleHeader} direction="horizontal" gap="sm">
-                <SelectField label="Display" value={selectedDisplayValue} options={displayOptions} disabled={displays.length === 0} onValueChange={onChangeSelectedDisplay} />
-            </Stack>
-
             <Stack className={styles.blockList} gap="xs">
                 <AnimatePresence mode="popLayout">
                     {parsed.blocks.map((block, blockIndex) => (

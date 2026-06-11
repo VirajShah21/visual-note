@@ -1,0 +1,36 @@
+.chart {
+    width: 100%;
+    min-width: 0;
+}
+
+.svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+.axis {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.bar {
+    fill: var(--accent);
+}
+
+.line {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2.5;
+}
+
+.point {
+    fill: var(--surface);
+    stroke: var(--accent-strong);
+    stroke-width: 2;
+}
+
+.gridLine {
+    stroke: rgba(16, 24, 32, 0.1);
+}

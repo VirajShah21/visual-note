@@ -1,3 +1,5 @@
+import { isVisualBlockKind, parseVisualBlockBody, serializeVisualBlockBody, type VisualBlockData, type VisualBlockKind } from "./visual-blocks"
+
 export type ArticleBlock =
     | { kind: "heading"; level: 1 | 2 | 3 | 4; id: string; text: string }
     | { kind: "paragraph"; text: string }
@@ -9,7 +11,7 @@ export type ArticleBlock =
     | { kind: "callout"; tone: "note" | "tip" | "warning"; text: string }
     | { kind: "image"; alt: string; url: string }
     | { kind: "display"; displayIndex: number }
-    | { kind: "toc" }
+    | { kind: "visual"; visualKind: VisualBlockKind; data: VisualBlockData; raw: string; parseError?: string }
 
 export const cryptoId = () => {
     if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
@@ -58,7 +60,6 @@ const articleIsBlockStart = (line: string) => {
     if (!trimmed) return false
     if (/^#{1,4}\s+/.test(trimmed)) return true
     if (trimmed === "---") return true
-    if (/^\{\{toc\}\}$/i.test(trimmed)) return true
     if (/^\{\{display:\s*\d+\s*\}\}$/i.test(trimmed)) return true
     if (/^```/.test(trimmed)) return true
     if (/^:::/.test(trimmed)) return true
@@ -100,7 +101,6 @@ export const parseArticleContent = (source: string, displayCount: number): Parse
         }
 
         if (/^\{\{toc\}\}$/i.test(trimmedLine)) {
-            blocks.push({ kind: "toc" })
             index++
             continue
         }
@@ -113,7 +113,9 @@ export const parseArticleContent = (source: string, displayCount: number): Parse
         }
 
         if (/^```/.test(trimmedLine)) {
-            const language = trimmedLine.slice(3).trim() || "text"
+            const fenceInfo = trimmedLine.slice(3).trim()
+            const visualMatch = fenceInfo.match(/^visual:([a-z0-9-]+)$/i)
+            const language = fenceInfo || "text"
             const code: string[] = []
             index++
             while (index < lines.length && !/^```/.test(lines[index].trim())) {
@@ -121,6 +123,14 @@ export const parseArticleContent = (source: string, displayCount: number): Parse
                 index++
             }
             if (index < lines.length && /^```/.test(lines[index].trim())) index++
+
+            if (visualMatch && isVisualBlockKind(visualMatch[1])) {
+                const raw = code.join("\n")
+                const parsed = parseVisualBlockBody(raw)
+                blocks.push({ kind: "visual", visualKind: visualMatch[1], data: parsed.data, raw, parseError: parsed.error })
+                continue
+            }
+
             blocks.push({ kind: "code", language, code: code.join("\n") })
             continue
         }
@@ -256,8 +266,8 @@ export const serializeArticleContent = (blocks: ArticleBlock[]) => {
             return
         }
 
-        if (block.kind === "toc") {
-            chunks.push("{{toc}}")
+        if (block.kind === "visual") {
+            chunks.push(["```visual:" + block.visualKind, block.parseError ? block.raw : serializeVisualBlockBody(block.data), "```"].join("\n"))
             return
         }
     })

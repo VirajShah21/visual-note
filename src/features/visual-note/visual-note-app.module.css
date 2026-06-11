@@ -1,5 +1,6 @@
 .app {
-    min-height: 100vh;
+    min-height: 100dvh;
+    height: 100dvh;
     background: linear-gradient(120deg, rgba(47, 125, 92, 0.08), transparent 34%), linear-gradient(300deg, rgba(31, 91, 140, 0.08), transparent 38%), var(--background);
     color: var(--ink);
 }
@@ -25,13 +26,15 @@
 
 .workspace {
     display: grid;
-    min-height: 100vh;
+    height: 100%;
+    min-height: 100dvh;
     grid-template-columns: minmax(0, 1fr);
 }
 
 .contentGrid {
     display: grid;
     min-height: 0;
+    height: 100%;
     grid-template-columns: 230px minmax(0, 1fr);
 }
 
@@ -65,7 +68,13 @@
 }
 
 .content {
-    padding: 20px;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
 }
 
 .navButton {
@@ -103,18 +112,13 @@
     justify-content: space-between;
 }
 
-.viewHeader {
-    align-items: flex-start;
-    justify-content: space-between;
-}
-
-.viewActions {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-}
-
 .preview {
-    min-height: 220px;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .displayStack {
@@ -267,6 +271,37 @@
 .inlineDisplayEditor {
     border-top: 1px dashed rgba(139, 183, 162, 0.58);
     padding-top: 14px;
+}
+
+.visualBlock {
+    border-top: 1px solid rgba(139, 183, 162, 0.42);
+    border-bottom: 1px solid rgba(139, 183, 162, 0.24);
+    padding: 14px 0;
+}
+
+.visualBlockHeader {
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.visualBlockError {
+    border-left: 3px solid rgba(184, 45, 45, 0.7);
+    background: rgba(184, 45, 45, 0.06);
+    padding: 12px;
+}
+
+.pollOption {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+}
+
+.pollBar {
+    --poll-percent: 0%;
+    min-height: 26px;
+    justify-content: center;
+    border-radius: 6px;
+    background: linear-gradient(90deg, rgba(47, 125, 92, 0.2) var(--poll-percent), rgba(16, 24, 32, 0.05) var(--poll-percent));
+    padding: 4px 8px;
 }
 
 .timelineDisplay {
