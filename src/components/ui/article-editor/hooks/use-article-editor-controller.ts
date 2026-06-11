@@ -6,6 +6,7 @@ import { CLOSED_COMMAND_STATE, commandMatch, commandReducer, createCommandList }
 import { createInputKeyDownHandler } from "../utils/keyboard"
 import { normalizeParagraphText } from "../utils/text"
 import type { ArticleEditorCommand, ArticleEditorProps, EditorField } from "../types"
+import { useArticleBlockSelection } from "./use-article-block-selection"
 
 export const useArticleEditorController = ({ value, displays, onChange }: ArticleEditorProps) => {
     const parsed = useMemo(() => parseArticleContent(value, displays.length), [value, displays.length])
@@ -20,6 +21,7 @@ export const useArticleEditorController = ({ value, displays, onChange }: Articl
     const commands = useMemo(() => createCommandList(selectedDisplayIndex, displays), [displays])
     const commandItems = useMemo(() => commands.filter(command => commandMatch(command, commandQuery)), [commandQuery, commands])
     const boundedSelectedCommandIndex = Math.min(selectedCommandIndex, Math.max(commandItems.length - 1, 0))
+    const { selectedBlockRange, selectionHandlers } = useArticleBlockSelection(editorRef, value)
 
     useEffect(() => {
         if (!commandState) return
@@ -239,8 +241,10 @@ export const useArticleEditorController = ({ value, displays, onChange }: Articl
         editorRef,
         menuPosition,
         parsed,
+        selectedBlockRange,
         applyCommand,
         dismissCommand: () => dispatchCommand({ type: "close" }),
+        selectionHandlers,
         handlers: { onInputChange, onInputKeyDown, updateCalloutTone, addListItem, removeListItem, updateImageField, updateVisualBlockData },
     }
 }
