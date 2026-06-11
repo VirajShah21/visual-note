@@ -6,6 +6,7 @@ export type NotebookGalleryItem = {
     summary: string
     color: string
     href: string
+    createdAt: string
     updatedLabel: string
     pageCount: number
     topicCount: number

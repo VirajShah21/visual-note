@@ -48,6 +48,9 @@ export const defaultVisualBlockData = (kind: VisualBlockKind): VisualBlockData =
             number: "#12",
             author: "viraj",
             status: "Ready for review",
+            baseBranch: "main",
+            headBranch: "structured-article-blocks",
+            labels: ["editor", "article blocks"],
             reviewers: ["reviewer"],
             notes: ["Verify parser round trips", "Confirm inline rendering"],
         }

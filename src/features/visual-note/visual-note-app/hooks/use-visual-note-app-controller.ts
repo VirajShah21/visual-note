@@ -10,7 +10,6 @@ import { clearStoredUser, loadStoredUser, loadStoredWorkspace, storeUser, storeW
 import type { DisplayInstance, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
 import type { NotebookEditorSearchResult } from "@/components/ui"
 import { blankSelection, coerceSingleArticleViewPerTopic, createNotebookGalleryItems, deriveSelection, ensureSelectionHasArticleView } from "../utils/visual-note-app.utils"
-
 export const useVisualNoteAppController = (initialNotebookId: string) => {
     const router = useRouter()
     const [user, setUser] = useState<VisualUser | null>(null)
@@ -26,7 +25,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         setToastMessages(current => [...current.slice(-2), { id, title, description, tone }])
     }, [])
     const dismissToast = useCallback((id: string) => setToastMessages(current => current.filter(message => message.id !== id)), [])
-
     useEffect(() => {
         const restore = async () => {
             const storedUser = loadStoredUser()
@@ -43,10 +41,8 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
             setSelection(resolved.selection)
             setIsLoading(false)
         }
-
         void restore()
     }, [initialNotebookId])
-
     useEffect(() => {
         if (!user || !workspace) return
         storeWorkspace(user.id, workspace)
@@ -61,7 +57,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         const view = workspace?.views.find(item => item.id === currentSelection.viewId) ?? null
         return { currentSelection, notebook, page, topic, view }
     }, [selection, workspace])
-
     const openWorkspaceForUser = async (nextUser: VisualUser) => {
         storeUser(nextUser)
         setUser(nextUser)
@@ -91,7 +86,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
             setNotice(message)
             pushToast("Using demo auth", message, "info")
         }
-
         await openWorkspaceForUser(createLocalUser(email, name))
     }
 
@@ -108,7 +102,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
             setNotice(message)
             pushToast("Using demo registration", message, "info")
         }
-
         await openWorkspaceForUser(createLocalUser(email, name))
     }
 
@@ -237,6 +230,11 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const selectSearchResult = (result: NotebookEditorSearchResult) => {
         applySelection({ ...selected.currentSelection, pageId: result.pageId, topicId: result.topicId, viewId: result.viewId }, "An article view was added for this search result.")
     }
+    const selectNotebook = (notebookId: string) => {
+        applySelection({ ...blankSelection, notebookId }, "An article view was added for this notebook.")
+        router.push(`/notebook?id=${encodeURIComponent(notebookId)}`)
+    }
+    const openHome = () => router.push("/")
     const applySelection = (nextSelection: SelectionState, createdMessage: string) => {
         if (!workspace) return
         const next = ensureSelectionHasArticleView(workspace, nextSelection)
@@ -288,8 +286,10 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
             register,
             renameSection,
             renameTopic,
+            openHome,
             selectSection,
             selectSearchResult,
+            selectNotebook,
             selectTopic,
             signIn,
             signOut,

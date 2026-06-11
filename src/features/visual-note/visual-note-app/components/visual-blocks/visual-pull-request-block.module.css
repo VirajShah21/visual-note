@@ -1,0 +1,128 @@
+.pullRequestBlock {
+    border-top: 1px solid rgba(208, 215, 222, 0.9);
+    border-bottom: 1px solid rgba(208, 215, 222, 0.62);
+    padding: 14px 0;
+}
+
+.cardFrame {
+    overflow: hidden;
+    border: 1px solid rgba(208, 215, 222, 0.98);
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 12px 28px rgba(31, 35, 40, 0.06);
+    color: #24292f;
+}
+
+.cardFrame::before {
+    border-radius: inherit;
+}
+
+.card {
+    padding: 16px;
+}
+
+.cardHeader {
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.titleGroup {
+    min-width: 0;
+    flex: 1 1 auto;
+    align-items: flex-start;
+}
+
+.numberPill {
+    border-color: rgba(208, 215, 222, 0.95);
+    background: #f6f8fa;
+    color: #57606a;
+}
+
+.stateBadge {
+    display: inline-flex;
+    width: fit-content;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.32rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    color: #ffffff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.15;
+    padding: 0.32rem 0.58rem;
+}
+
+.open {
+    background: #1a7f37;
+}
+
+.merged {
+    background: #8250df;
+}
+
+.closed {
+    background: #cf222e;
+}
+
+.branchRow {
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.branchPill {
+    max-width: 100%;
+    border-color: rgba(208, 215, 222, 0.95);
+    background: #f6f8fa;
+    color: #57606a;
+    font-family: var(--font-geist-mono), monospace;
+}
+
+.labels {
+    flex-wrap: wrap;
+}
+
+.labelPill {
+    border-color: rgba(9, 105, 218, 0.22);
+    background: #ddf4ff;
+    color: #0969da;
+}
+
+.noteList {
+    border: 1px solid rgba(208, 215, 222, 0.82);
+    border-radius: 8px;
+    background: #f6f8fa;
+    padding: 10px;
+}
+
+.noteItem {
+    align-items: flex-start;
+    color: #57606a;
+}
+
+.noteItem svg {
+    flex: 0 0 auto;
+    margin-top: 0.18rem;
+    color: #6e7781;
+}
+
+.reviewers {
+    align-items: center;
+    flex-wrap: wrap;
+    border-top: 1px solid rgba(208, 215, 222, 0.75);
+    padding-top: 12px;
+}
+
+.editor {
+    border: 1px dashed rgba(87, 96, 106, 0.34);
+    border-radius: 8px;
+    background: rgba(246, 248, 250, 0.62);
+    padding: 14px;
+}
+
+@media (max-width: 720px) {
+    .cardHeader {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}

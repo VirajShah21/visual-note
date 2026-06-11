@@ -57,11 +57,15 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
         <Stack className={styles.app} gap="none">
             <Grid className={styles.workspace} gap="none">
                 <NotebookEditorNavbar
+                    currentNotebookId={selected.currentSelection.notebookId}
                     notebookTitle={selected.notebook?.title}
+                    recentNotebooks={galleryItems}
                     searchQuery={searchQuery}
                     searchResults={searchResults}
                     sidebarOpen={isSidebarOpen}
                     onExport={() => setIsExportOpen(true)}
+                    onHomeSelect={actions.openHome}
+                    onNotebookSelect={actions.selectNotebook}
                     onSearchChange={setSearchQuery}
                     onSearchResultSelect={actions.selectSearchResult}
                     onToggleSidebar={() => setIsSidebarOpen(current => !current)}

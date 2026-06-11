@@ -1,6 +1,6 @@
 "use client"
 
-import { CalendarDays, Code2, Contact, ExternalLink as ExternalLinkIcon, GitPullRequest, MapPin, Plus, Sparkles } from "lucide-react"
+import { CalendarDays, Code2, Contact, MapPin, Plus, Sparkles } from "lucide-react"
 import type { ReactNode } from "react"
 import { Button, DateField, ExternalLink, Grid, Heading, Pill, SelectField, SimpleChart, Stack, Text, TextAreaField, TextField, TimeField } from "@/components/ui"
 import type { VisualBlockDisplayProps } from "../types/visual-note-app.types"
@@ -19,6 +19,7 @@ import styles from "../../visual-note-app.module.css"
 import { InlineStringList } from "./inline-string-list"
 import { VisualBlockListDisplay } from "./visual-blocks/visual-block-list-display"
 import { VisualImageBlock } from "./visual-blocks/visual-image-block"
+import { VisualPullRequestBlock } from "./visual-blocks/visual-pull-request-block"
 
 export function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }: VisualBlockDisplayProps) {
     const updateField = (field: string, value: unknown) => onDataChange({ ...data, [field]: value })
@@ -65,48 +66,7 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataCh
     )
         return <VisualBlockListDisplay visualKind={visualKind} data={data} onDataChange={onDataChange} />
 
-    if (visualKind === "pull-request")
-        return (
-            <Stack className={styles.visualBlock} gap="md">
-                {header(
-                    <GitPullRequest size={13} />,
-                    "GitHub Pull Request",
-                    stringFrom(data.url) ? (
-                        <ExternalLink href={stringFrom(data.url)}>
-                            <ExternalLinkIcon size={14} />
-                            Open
-                        </ExternalLink>
-                    ) : null,
-                )}
-                <Stack className={styles.heroPanel} gap="sm">
-                    <Pill>{stringFrom(data.number, "PR")}</Pill>
-                    <Heading size="md">{stringFrom(data.title, "Pull request title")}</Heading>
-                    <Text>{arrayFrom(data.notes).join(" ") || "No notes provided."}</Text>
-                </Stack>
-                <Grid columns="two" gap="sm">
-                    <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
-                    <TextField label="URL" value={stringFrom(data.url)} onChange={event => updateField("url", event.target.value)} />
-                    <TextField label="Number" value={stringFrom(data.number)} onChange={event => updateField("number", event.target.value)} />
-                    <TextField label="Status" value={stringFrom(data.status)} onChange={event => updateField("status", event.target.value)} />
-                    <TextField label="Author" value={stringFrom(data.author)} onChange={event => updateField("author", event.target.value)} />
-                    <TextField label="Source" value={stringFrom(data.source)} onChange={event => updateField("source", event.target.value)} />
-                </Grid>
-                <InlineStringList
-                    title="Reviewers"
-                    items={arrayFrom(data.reviewers)}
-                    onAdd={() => addStringListItem("reviewers", "Reviewer")}
-                    onChange={(index, value) => updateStringList("reviewers", index, value)}
-                    onRemove={index => removeStringListItem("reviewers", index)}
-                />
-                <InlineStringList
-                    title="Notes"
-                    items={arrayFrom(data.notes)}
-                    onAdd={() => addStringListItem("notes", "New note")}
-                    onChange={(index, value) => updateStringList("notes", index, value)}
-                    onRemove={index => removeStringListItem("notes", index)}
-                />
-            </Stack>
-        )
+    if (visualKind === "pull-request") return <VisualPullRequestBlock data={data} onDataChange={onDataChange} />
 
     if (visualKind === "calendar-event")
         return (

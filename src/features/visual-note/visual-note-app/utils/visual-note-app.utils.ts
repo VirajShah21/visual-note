@@ -107,6 +107,7 @@ export const createNotebookGalleryItems = (workspace: VisualNoteWorkspace, noteb
             summary: notebook.summary,
             color: notebook.color,
             href: `/notebook?id=${encodeURIComponent(notebook.id)}`,
+            createdAt: notebook.createdAt,
             updatedLabel,
             pageCount: pages.length,
             topicCount: topics.length,

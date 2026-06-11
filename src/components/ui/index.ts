@@ -1,5 +1,6 @@
 export * from "./button"
 export * from "./context-menu"
+export * from "./editable-frame"
 export * from "./feedback"
 export * from "./article-editor"
 export * from "./form-controls"
