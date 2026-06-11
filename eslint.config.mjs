@@ -3,11 +3,6 @@ import nextVitals from "eslint-config-next/core-web-vitals"
 import nextTs from "eslint-config-next/typescript"
 import prettierConfig from "eslint-config-prettier"
 
-const maxLenOptions = {
-    ignoreUrls: true,
-    tabWidth: 4,
-}
-
 const eslintConfig = defineConfig([
     ...nextVitals,
     ...nextTs,
@@ -21,23 +16,18 @@ const eslintConfig = defineConfig([
                 "error",
                 {
                     code: 180,
-                    ...maxLenOptions,
+                    ignoreUrls: true,
+                    tabWidth: 4,
+                },
+            ],
+            "max-lines": [
+                "error",
+                {
+                    max: 300,
                 },
             ],
             "no-tabs": "error",
             semi: ["error", "never"],
-        },
-    },
-    {
-        files: ["**/*.{ts,tsx}"],
-        rules: {
-            "max-len": [
-                "error",
-                {
-                    code: 300,
-                    ...maxLenOptions,
-                },
-            ],
         },
     },
     // Override default ignores of eslint-config-next.
