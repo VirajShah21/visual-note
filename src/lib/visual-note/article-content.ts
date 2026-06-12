@@ -2,6 +2,7 @@ import { isVisualBlockKind, parseVisualBlockBody, serializeVisualBlockBody, type
 
 export type ArticleBlock =
     | { kind: "heading"; level: 1 | 2 | 3 | 4; id: string; text: string }
+    | { kind: "subtitle"; text: string }
     | { kind: "paragraph"; text: string }
     | { kind: "bulletList"; items: string[] }
     | { kind: "orderedList"; items: string[] }
@@ -23,7 +24,13 @@ export const isListBlock = (block: ArticleBlock): block is Extract<ArticleBlock,
     block.kind === "bulletList" || block.kind === "orderedList"
 
 export const articleBlockCanReceiveTextFocus = (block: ArticleBlock) =>
-    block.kind === "paragraph" || block.kind === "heading" || block.kind === "quote" || block.kind === "callout" || block.kind === "code" || isListBlock(block)
+    block.kind === "paragraph" ||
+    block.kind === "heading" ||
+    block.kind === "subtitle" ||
+    block.kind === "quote" ||
+    block.kind === "callout" ||
+    block.kind === "code" ||
+    isListBlock(block)
 
 export type ArticleHeadingIndex = {
     id: string
@@ -137,20 +144,27 @@ export const parseArticleContent = (source: string, displayCount: number): Parse
             continue
         }
 
-        const calloutMatch = trimmedLine.match(/^:::(note|tip|warning)$/i)
-        if (calloutMatch) {
-            const tone = calloutMatch[1].toLowerCase() as "note" | "tip" | "warning"
-            const linesInCallout: string[] = []
+        const containerMatch = trimmedLine.match(/^:::(note|tip|warning|subtitle)$/i)
+        if (containerMatch) {
+            const containerKind = containerMatch[1].toLowerCase()
+            const linesInContainer: string[] = []
             index++
             while (index < lines.length && lines[index].trim() !== ":::") {
-                linesInCallout.push(lines[index])
+                linesInContainer.push(lines[index])
                 index++
             }
             if (index < lines.length && lines[index].trim() === ":::") index++
+
+            if (containerKind === "subtitle") {
+                blocks.push({ kind: "subtitle", text: linesInContainer.join("\n") })
+                continue
+            }
+
+            const tone = containerKind as "note" | "tip" | "warning"
             blocks.push({
                 kind: "callout",
                 tone,
-                text: linesInCallout.join("\n").trim() || `${tone} note content`,
+                text: linesInContainer.join("\n").trim() || `${tone} note content`,
             })
             continue
         }
@@ -224,6 +238,11 @@ export const serializeArticleContent = (blocks: ArticleBlock[]) => {
 
         if (block.kind === "paragraph") {
             chunks.push(block.text)
+            return
+        }
+
+        if (block.kind === "subtitle") {
+            chunks.push(block.text ? [":::subtitle", block.text, ":::"].join("\n") : [":::subtitle", ":::"].join("\n"))
             return
         }
 

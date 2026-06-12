@@ -52,6 +52,21 @@ export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, re
             </Stack>
         )
 
+    if (block.kind === "subtitle")
+        return (
+            <Stack gap="xs" className={styles.articleBlock}>
+                <InlineLinkTextarea
+                    className={cx(styles.blockInput, styles.blockInputSubtitle)}
+                    data-block-index={blockIndex}
+                    value={block.text}
+                    aria-label="Page subtitle"
+                    placeholder="Add a subtitle"
+                    onChange={event => handlers.onInputChange(blockIndex, "subtitle", undefined, event)}
+                    onKeyDown={event => handlers.onInputKeyDown(blockIndex, "subtitle", undefined, event)}
+                />
+            </Stack>
+        )
+
     if (block.kind === "quote")
         return (
             <Stack gap="xs" className={styles.articleBlock}>

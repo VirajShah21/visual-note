@@ -1,6 +1,7 @@
 import type { KeyboardEvent } from "react"
 import { cryptoId, isListBlock, type ArticleBlock } from "@/lib/visual-note/article-content"
 import type { ArticleEditorCommand, CommandState, EditorField } from "../types"
+import { handleSubtitleShortcut } from "./keyboard-subtitle"
 import { EMPTY_PARAGRAPH_TEXT, getLineEnd, getLineStart, isBlockEmpty, normalizeParagraphText } from "./text"
 
 type KeyboardHandlerOptions = {
@@ -111,7 +112,7 @@ const handleBackspace = ({
         const nextBlocks = [...blocks]
         nextBlocks.splice(blockIndex, 1)
 
-        let focusIndex = blockIndex - 1
+        let focusIndex = block.kind === "subtitle" && blockIndex === 1 ? 0 : blockIndex - 1
         while (focusIndex >= 0 && isNonTextBlock(nextBlocks[focusIndex])) focusIndex -= 1
         if (focusIndex >= 0) setSplitFocus(focusIndex, null, Number.MAX_SAFE_INTEGER)
 
@@ -142,10 +143,22 @@ const handleEnter = ({
     writeBlocks: KeyboardHandlerOptions["writeBlocks"]
 }) => {
     if (field === "heading" && block?.kind === "heading") {
+        if (handleSubtitleShortcut({ block, blockIndex, blocks, event, setSplitFocus, writeBlocks })) return true
+
         event.preventDefault()
         const { beforeText, afterText } = splitTextareaValue(event)
         const nextBlocks = [...blocks]
         nextBlocks.splice(blockIndex, 1, { ...block, text: beforeText || block.text }, { kind: "paragraph", text: normalizeParagraphText(afterText) })
+        setSplitFocus(blockIndex + 1, null, 0)
+        writeBlocks(nextBlocks)
+        return true
+    }
+
+    if (field === "subtitle" && block?.kind === "subtitle") {
+        event.preventDefault()
+        const { beforeText, afterText } = splitTextareaValue(event)
+        const nextBlocks = [...blocks]
+        nextBlocks.splice(blockIndex, 1, { ...block, text: beforeText }, { kind: "paragraph", text: normalizeParagraphText(afterText) })
         setSplitFocus(blockIndex + 1, null, 0)
         writeBlocks(nextBlocks)
         return true

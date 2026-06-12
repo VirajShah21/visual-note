@@ -79,6 +79,7 @@ export const useArticleEditorController = ({ value, displays, onChange }: Articl
             if (listIndex !== undefined) return listIndex >= 0 && isListBlock(block) ? (block.items[listIndex] ?? "") : null
             if (field === "paragraph" && block.kind === "paragraph") return block.text
             if (field === "heading" && block.kind === "heading") return block.text
+            if (field === "subtitle" && block.kind === "subtitle") return block.text
             if (field === "quote" && block.kind === "quote") return block.lines.join("\n")
             if (field === "callout" && block.kind === "callout") return block.text
             if (field === "code" && block.kind === "code") return block.code
@@ -104,6 +105,7 @@ export const useArticleEditorController = ({ value, displays, onChange }: Articl
 
             if (block.kind === "paragraph") nextBlocks[blockIndex] = { ...block, text: normalizeParagraphText(next) }
             else if (block.kind === "heading") nextBlocks[blockIndex] = { ...block, text: next }
+            else if (block.kind === "subtitle") nextBlocks[blockIndex] = { ...block, text: next }
             else if (block.kind === "quote") nextBlocks[blockIndex] = { ...block, lines: next.split("\n") }
             else if (block.kind === "callout") nextBlocks[blockIndex] = { ...block, text: next }
             else if (block.kind === "code") nextBlocks[blockIndex] = { ...block, code: next }

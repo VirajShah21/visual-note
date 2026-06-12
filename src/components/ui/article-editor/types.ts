@@ -3,7 +3,7 @@ import type { ArticleBlock } from "@/lib/visual-note/article-content"
 import type { DisplayInstance } from "@/lib/visual-note/types"
 import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
 
-export type EditorField = "paragraph" | "heading" | "quote" | "callout" | "code" | "list-item"
+export type EditorField = "paragraph" | "heading" | "subtitle" | "quote" | "callout" | "code" | "list-item"
 
 export type ArticleEditorCommand = {
     id: string

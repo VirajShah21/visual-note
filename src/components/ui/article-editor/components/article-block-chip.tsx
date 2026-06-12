@@ -18,6 +18,7 @@ const previewText = (value: string, fallback: string) => {
 
 const chipContent = (block: ArticleBlock) => {
     if (block.kind === "heading") return { label: `Heading ${block.level}`, detail: "" }
+    if (block.kind === "subtitle") return { label: "Subtitle", detail: previewText(block.text, "Empty") }
     if (block.kind === "image") return { label: "Image", detail: `URL: ${previewText(block.url, "Empty")} Alt: ${previewText(block.alt, "Empty")}` }
     if (block.kind === "paragraph") return { label: "Paragraph", detail: previewText(block.text, "Empty") }
     if (block.kind === "bulletList") return { label: "Bullets", detail: `${block.items.length} item${block.items.length === 1 ? "" : "s"}` }

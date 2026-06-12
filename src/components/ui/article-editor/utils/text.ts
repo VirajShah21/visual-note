@@ -19,6 +19,7 @@ export const denormalizeParagraphText = (text: string) => (text === EMPTY_PARAGR
 export const getBlockTextLength = (block: ArticleBlock): number => {
     if (block.kind === "heading") return block.text.length
     if (block.kind === "paragraph") return block.text.length
+    if (block.kind === "subtitle") return block.text.length
     if (block.kind === "quote") return block.lines.join("\n").length
     if (block.kind === "callout") return block.text.length
     if (block.kind === "code") return block.code.length
@@ -27,7 +28,8 @@ export const getBlockTextLength = (block: ArticleBlock): number => {
 }
 
 export const isBlockEmpty = (block: ArticleBlock, textValue: string): boolean => {
-    if (block.kind === "paragraph" || block.kind === "heading" || block.kind === "callout" || block.kind === "quote" || block.kind === "code") return textValue.trim() === ""
+    if (block.kind === "paragraph" || block.kind === "heading" || block.kind === "subtitle" || block.kind === "callout" || block.kind === "quote" || block.kind === "code")
+        return textValue.trim() === ""
     if (block.kind === "image") return block.alt.trim() === "" && block.url.trim() === ""
     if (isListBlock(block)) return block.items.every(item => item.trim() === "")
     return false
