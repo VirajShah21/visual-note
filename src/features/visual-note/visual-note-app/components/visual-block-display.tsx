@@ -1,6 +1,6 @@
 "use client"
 
-import { CalendarDays, Code2, Contact, MapPin, Sparkles } from "lucide-react"
+import { CalendarDays, Code2, Contact, MapPin } from "lucide-react"
 import type { ReactNode } from "react"
 import { ChartDataSheet, DateField, EditableVisualBlock, Grid, Heading, Pill, SelectField, SimpleChart, Stack, Text, TextAreaField, TextField, TimeField } from "@/components/ui"
 import type { VisualBlockDisplayProps } from "../types/visual-note-app.types"
