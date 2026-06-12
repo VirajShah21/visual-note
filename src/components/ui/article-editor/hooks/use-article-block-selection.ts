@@ -34,17 +34,21 @@ export const useArticleBlockSelection = (editorRef: RefObject<HTMLDivElement | n
               }
             : null
 
+    const clearSelection = useCallback(() => {
+        dragRef.current = null
+        setSelection(null)
+    }, [])
+
     useEffect(() => {
         const dismissSelection = (event: globalThis.KeyboardEvent) => {
             if (event.key !== "Escape") return
 
-            dragRef.current = null
-            setSelection(null)
+            clearSelection()
         }
 
         document.addEventListener("keydown", dismissSelection)
         return () => document.removeEventListener("keydown", dismissSelection)
-    }, [])
+    }, [clearSelection])
 
     useEffect(() => {
         dragRef.current = null
@@ -81,30 +85,31 @@ export const useArticleBlockSelection = (editorRef: RefObject<HTMLDivElement | n
         if (document.activeElement instanceof HTMLTextAreaElement) document.activeElement.blur()
     }, [])
 
-    const onPointerDown = useCallback((event: PointerEvent<HTMLElement>) => {
-        if (event.button !== 0) return
+    const onPointerDown = useCallback(
+        (event: PointerEvent<HTMLElement>) => {
+            if (event.button !== 0) return
 
-        const target = event.target as HTMLElement
-        if (target.closest("button, a, input, select")) {
-            dragRef.current = null
+            const target = event.target as HTMLElement
+            if (target.closest("button, a, input, select")) {
+                clearSelection()
+                return
+            }
+
+            const row = target.closest<HTMLElement>("[data-article-block-index]")
+            if (!row) {
+                clearSelection()
+                return
+            }
+
+            const blockIndex = Number(row.dataset.articleBlockIndex)
+            if (!Number.isFinite(blockIndex)) return
+
+            dragRef.current = { anchorIndex: blockIndex, pointerId: event.pointerId }
             setSelection(null)
-            return
-        }
-
-        const row = target.closest<HTMLElement>("[data-article-block-index]")
-        if (!row) {
-            dragRef.current = null
-            setSelection(null)
-            return
-        }
-
-        const blockIndex = Number(row.dataset.articleBlockIndex)
-        if (!Number.isFinite(blockIndex)) return
-
-        dragRef.current = { anchorIndex: blockIndex, pointerId: event.pointerId }
-        setSelection(null)
-        event.currentTarget.setPointerCapture(event.pointerId)
-    }, [])
+            event.currentTarget.setPointerCapture(event.pointerId)
+        },
+        [clearSelection],
+    )
 
     const onPointerMove = useCallback(
         (event: PointerEvent<HTMLElement>) => {
@@ -135,5 +140,5 @@ export const useArticleBlockSelection = (editorRef: RefObject<HTMLDivElement | n
         onPointerUp,
     }
 
-    return { selectedBlockRange, selectionHandlers }
+    return { selectedBlockRange, selectionHandlers, clearSelection }
 }
