@@ -36,7 +36,7 @@ export function EditableVisualBlock({
     )
 
     return (
-        <Stack className={cx(styles.block, readOnly && styles.readOnlyBlock, className)} gap="md">
+        <Stack className={cx(readOnly && styles.readOnlyBlock, className)} gap="md">
             {readOnly ? (
                 <Stack className={cx(styles.previewFrame, styles.readOnlyPreviewFrame, previewClassName)} gap="none">
                     {previewContent}
