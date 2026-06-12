@@ -14,15 +14,14 @@
     width: fit-content;
     max-width: 100%;
     align-items: center;
-    border: 1px solid color-mix(in srgb, var(--surface-border, #d7dce3) 72%, transparent);
+    border: 1px solid color-mix(in srgb, var(--surface-border, #d7dce3) 42%, transparent);
     border-radius: 999px;
-    background: color-mix(in srgb, var(--surface, #fff) 82%, transparent);
-    color: color-mix(in srgb, var(--ink, #101828) 78%, var(--muted, #667085));
-    font-size: 0.72rem;
-    font-weight: 700;
+    background: color-mix(in srgb, var(--muted, #667085) 4%, transparent);
+    color: color-mix(in srgb, var(--muted, #667085) 72%, transparent);
+    font-size: 0.68rem;
+    font-weight: 650;
     line-height: 1.2;
-    padding: 0.28rem 0.5rem;
-    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+    padding: 0.24rem 0.46rem;
     white-space: nowrap;
 }
 
@@ -30,7 +29,7 @@
     display: block;
     max-width: 100%;
     margin-top: 0.2rem;
-    color: var(--muted, #667085);
+    color: color-mix(in srgb, var(--muted, #667085) 56%, transparent);
     font-size: 0.7rem;
     line-height: 1.25;
     overflow: hidden;
