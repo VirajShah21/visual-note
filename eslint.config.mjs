@@ -4,10 +4,26 @@ import nextVitals from "eslint-config-next/core-web-vitals"
 import nextTs from "eslint-config-next/typescript"
 import prettierConfig from "eslint-config-prettier"
 import prettierRecommended from "eslint-plugin-prettier/recommended"
+import react from "eslint-plugin-react"
+import reactHooks from "eslint-plugin-react-hooks"
+
+const codeFiles = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"]
 
 const eslintConfig = defineConfig([
     ...nextVitals,
     ...nextTs,
+    {
+        ...react.configs.flat.recommended,
+        files: codeFiles,
+    },
+    {
+        ...react.configs.flat["jsx-runtime"],
+        files: codeFiles,
+    },
+    {
+        ...reactHooks.configs.flat["recommended-latest"],
+        files: codeFiles,
+    },
     prettierConfig,
     prettierRecommended,
     {
@@ -18,7 +34,12 @@ const eslintConfig = defineConfig([
         },
     },
     {
-        files: ["**/*.{js,jsx,mjs,cjs,ts,tsx}"],
+        files: codeFiles,
+        settings: {
+            react: {
+                version: "detect",
+            },
+        },
         rules: {
             "arrow-parens": ["error", "as-needed"],
             curly: ["error", "multi"],
@@ -37,6 +58,19 @@ const eslintConfig = defineConfig([
                 },
             ],
             "no-tabs": "error",
+            "react-hooks/exhaustive-deps": "error",
+            "react-hooks/memo-dependencies": "error",
+            "react-hooks/memoized-effect-dependencies": "error",
+            "react/jsx-no-bind": [
+                "error",
+                {
+                    allowArrowFunctions: false,
+                    allowBind: false,
+                    allowFunctions: false,
+                    ignoreDOMComponents: false,
+                    ignoreRefs: false,
+                },
+            ],
             semi: ["error", "never"],
         },
     },
