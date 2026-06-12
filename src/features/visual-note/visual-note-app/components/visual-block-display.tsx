@@ -1,11 +1,12 @@
 "use client"
 
-import { CalendarDays, Code2, Contact, MapPin, Plus, Sparkles } from "lucide-react"
+import { CalendarDays, Code2, Contact, MapPin, Sparkles } from "lucide-react"
 import type { ReactNode } from "react"
-import { Button, DateField, EditableVisualBlock, Grid, Heading, Pill, SelectField, SimpleChart, Stack, Text, TextAreaField, TextField, TimeField } from "@/components/ui"
+import { ChartDataSheet, DateField, EditableVisualBlock, Grid, Heading, Pill, SelectField, SimpleChart, Stack, Text, TextAreaField, TextField, TimeField } from "@/components/ui"
 import type { VisualBlockDisplayProps } from "../types/visual-note-app.types"
 import { calendarPreviewText, joinedPreviewText } from "../utils/visual-block-preview"
-import { arrayFrom, chartRowsFromData, dateInputValue, objectArrayFrom, replaceObjectAt, replaceStringAt, stringFrom, timeInputValue } from "../utils/visual-note-app.utils"
+import { chartDataLayoutFrom, chartDatasetFromSheet, chartSheetFromData } from "../utils/chart-data"
+import { arrayFrom, dateInputValue, replaceStringAt, stringFrom, timeInputValue } from "../utils/visual-note-app.utils"
 import styles from "../../visual-note-app.module.css"
 import { InlineStringList } from "./inline-string-list"
 import { VisualBlockListDisplay } from "./visual-blocks/visual-block-list-display"
@@ -21,8 +22,6 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOn
             field,
             arrayFrom(data[field]).filter((_, itemIndex) => itemIndex !== index),
         )
-    const updateObjectList = (field: string, index: number, patch: Record<string, unknown>) => updateField(field, replaceObjectAt(objectArrayFrom(data[field]), index, patch))
-    const addObjectListItem = (field: string, value: Record<string, unknown>) => updateField(field, [...objectArrayFrom(data[field]), value])
     const header = (icon: ReactNode, title: string, action?: ReactNode) => (
         <Stack className={styles.visualBlockHeader} direction="horizontal" gap="sm">
             <Pill>
@@ -154,8 +153,19 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOn
             </EditableVisualBlock>
         )
 
-    const rows = chartRowsFromData(data.data)
+    const chartLayout = chartDataLayoutFrom(data.dataLayout)
+    const chartSheet = chartSheetFromData(data)
+    const chartDataset = chartDatasetFromSheet(chartSheet, chartLayout)
     const chartType = stringFrom(data.type, "bar") === "line" ? "line" : "bar"
+    const chartDataWithoutLegacyFields = () => {
+        const nextData = { ...data }
+        delete nextData.data
+        delete nextData.sheet
+
+        return nextData
+    }
+    const updateChartSheet = (sheet: string[][]) => onDataChange({ ...chartDataWithoutLegacyFields(), dataLayout: chartLayout, dataSheet: sheet })
+    const updateChartLayout = (dataLayout: string) => onDataChange({ ...chartDataWithoutLegacyFields(), dataLayout: chartDataLayoutFrom(dataLayout), dataSheet: chartSheet })
 
     return (
         <EditableVisualBlock
@@ -163,13 +173,19 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOn
             preview={
                 <>
                     {header(<Sparkles size={13} />, "Chart")}
-                    <SimpleChart title={stringFrom(data.title, "Chart")} type={chartType} rows={rows} xLabel={stringFrom(data.xLabel)} yLabel={stringFrom(data.yLabel)} />
+                    <SimpleChart
+                        title={stringFrom(data.title, "Chart")}
+                        type={chartType}
+                        dataset={chartDataset}
+                        xLabel={stringFrom(data.xLabel)}
+                        yLabel={stringFrom(data.yLabel)}
+                    />
                 </>
             }
         >
-            <Grid columns="two" gap="sm">
-                <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
+            <Stack className={styles.chartMetadataRow} direction="horizontal" gap="sm">
                 <SelectField
+                    className={styles.chartTypeSelect}
                     label="Type"
                     value={chartType}
                     options={[
@@ -178,25 +194,24 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOn
                     ]}
                     onValueChange={value => updateField("type", value)}
                 />
+                <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
+            </Stack>
+            <Grid columns="three" gap="sm">
+                <SelectField
+                    label="Axes"
+                    value={chartLayout}
+                    options={[
+                        { label: "X↓ Y→", value: "columns" },
+                        { label: "X→ Y↓", value: "rows" },
+                    ]}
+                    onValueChange={updateChartLayout}
+                />
                 <TextField label="X label" value={stringFrom(data.xLabel)} onChange={event => updateField("xLabel", event.target.value)} />
                 <TextField label="Y label" value={stringFrom(data.yLabel)} onChange={event => updateField("yLabel", event.target.value)} />
             </Grid>
             <Stack gap="sm">
                 <Heading size="sm">Data</Heading>
-                {rows.map((row, index) => (
-                    <Grid key={`${index}-${row.label}`} columns="two" gap="sm">
-                        <TextField label="Label" value={row.label} onChange={event => updateObjectList("data", index, { label: event.target.value })} />
-                        <TextField
-                            label="Value"
-                            type="number"
-                            value={String(row.value)}
-                            onChange={event => updateObjectList("data", index, { value: Number(event.target.value) })}
-                        />
-                    </Grid>
-                ))}
-                <Button icon={<Plus size={15} />} variant="ghost" onClick={() => addObjectListItem("data", { label: "New", value: 1 })}>
-                    Add point
-                </Button>
+                <ChartDataSheet sheet={chartSheet} onSheetChange={updateChartSheet} />
             </Stack>
         </EditableVisualBlock>
     )

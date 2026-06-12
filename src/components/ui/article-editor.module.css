@@ -42,6 +42,16 @@
     gap: 0.45rem;
 }
 
+.articleSelectionMarquee {
+    position: absolute;
+    z-index: 10;
+    pointer-events: none;
+    border: 1px solid color-mix(in srgb, var(--accent, #0b57d0) 62%, transparent);
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--accent, #0b57d0) 12%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, #ffffff 60%, transparent) inset;
+}
+
 .articleBlockRow {
     display: grid;
     grid-template-columns: minmax(var(--article-chip-width), 1fr) minmax(0, var(--article-paper-width));

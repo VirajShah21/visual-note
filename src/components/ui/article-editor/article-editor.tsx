@@ -28,6 +28,7 @@ export function ArticleEditor({
         menuPosition,
         parsed,
         selectedBlockRange,
+        selectionRect,
         applyCommand,
         dismissCommand,
         handlers,
@@ -46,6 +47,18 @@ export function ArticleEditor({
 
     return (
         <Stack className={`${styles.articleEditor} ${isReaderMode ? styles.articleEditorReader : ""}`} gap="sm" ref={editorRef} {...activeSelectionHandlers}>
+            {selectionRect ? (
+                <motion.div
+                    aria-hidden="true"
+                    className={styles.articleSelectionMarquee}
+                    style={{
+                        height: selectionRect.height,
+                        left: selectionRect.left,
+                        top: selectionRect.top,
+                        width: selectionRect.width,
+                    }}
+                />
+            ) : null}
             <Stack className={styles.blockList} gap="xs">
                 <AnimatePresence mode="popLayout">
                     {parsed.blocks.map((block, blockIndex) => {

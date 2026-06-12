@@ -22,7 +22,7 @@ export const useArticleEditorController = ({ value, displays, onChange }: Articl
     const commands = useMemo(() => createCommandList(selectedDisplayIndex, displays), [displays])
     const commandItems = useMemo(() => commands.filter(command => commandMatch(command, commandQuery)), [commandQuery, commands])
     const boundedSelectedCommandIndex = Math.min(selectedCommandIndex, Math.max(commandItems.length - 1, 0))
-    const { selectedBlockRange, selectionHandlers, clearSelection } = useArticleBlockSelection(editorRef, value)
+    const { selectedBlockRange, selectionHandlers, selectionRect, clearSelection } = useArticleBlockSelection(editorRef, value)
 
     useEffect(() => {
         if (!commandState) return
@@ -247,6 +247,7 @@ export const useArticleEditorController = ({ value, displays, onChange }: Articl
         menuPosition,
         parsed,
         selectedBlockRange,
+        selectionRect,
         applyCommand,
         dismissCommand: () => dispatchCommand({ type: "close" }),
         selectionHandlers,

@@ -104,10 +104,12 @@ export const defaultVisualBlockData = (kind: VisualBlockKind): VisualBlockData =
             type: "bar",
             xLabel: "Day",
             yLabel: "Blocks",
-            data: [
-                { label: "Mon", value: 4 },
-                { label: "Tue", value: 7 },
-                { label: "Wed", value: 5 },
+            dataLayout: "columns",
+            dataSheet: [
+                ["", "Blocks", "Target"],
+                ["Mon", "4", "6"],
+                ["Tue", "7", "8"],
+                ["Wed", "5", "6"],
             ],
         }
 

@@ -1,4 +1,4 @@
-import type { NotebookGalleryItem, SimpleChartRow } from "@/components/ui"
+import type { NotebookGalleryItem } from "@/components/ui"
 import { createView } from "@/lib/visual-note/factories"
 import type { ComponentKind, NotebookView, SelectionState, VisualNoteWorkspace } from "@/lib/visual-note/types"
 import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
@@ -190,9 +190,6 @@ export const numberFrom = (value: unknown, fallback = 0) => {
     }
     return fallback
 }
-
-export const chartRowsFromData = (value: unknown): SimpleChartRow[] =>
-    objectArrayFrom(value).map((item, index) => ({ label: stringFrom(item.label, `Item ${index + 1}`), value: numberFrom(item.value, 0) }))
 
 export const dateInputValue = (value: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(stringFrom(value)) ? stringFrom(value) : "")
 

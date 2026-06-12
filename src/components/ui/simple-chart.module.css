@@ -16,21 +16,42 @@
 }
 
 .bar {
-    fill: var(--accent);
+    shape-rendering: geometricPrecision;
 }
 
 .line {
     fill: none;
-    stroke: var(--accent);
     stroke-width: 2.5;
 }
 
 .point {
     fill: var(--surface);
-    stroke: var(--accent-strong);
     stroke-width: 2;
 }
 
 .gridLine {
     stroke: rgba(16, 24, 32, 0.1);
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    align-items: center;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.legendItem {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.legendSwatch {
+    width: 10px;
+    height: 10px;
+    flex: 0 0 auto;
+    border-radius: 999px;
 }

@@ -289,6 +289,14 @@
     justify-content: space-between;
 }
 
+.chartMetadataRow {
+    align-items: end;
+}
+
+.chartTypeSelect {
+    width: 112px;
+}
+
 .visualBlockError {
     border-left: 3px solid rgba(184, 45, 45, 0.7);
     background: rgba(184, 45, 45, 0.06);
