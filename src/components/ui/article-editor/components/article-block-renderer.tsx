@@ -9,20 +9,35 @@ import type { ArticleBlockHandlers, ArticleEditorProps } from "../types"
 import { articleHeadingTargetId } from "../utils/heading-target"
 import { denormalizeParagraphText, headingLevelClassName } from "../utils/text"
 import styles from "../../article-editor.module.css"
+import { DisplayBlock } from "./article-display-block"
 import { BlockTextarea } from "./block-textarea"
 import { InlineLinkTextarea } from "./inline-link-textarea"
 import { MarkdownImageBlock } from "./markdown-image-block"
+import { ReadableArticleBlock } from "./readable-article-block"
 
 type ArticleBlockRendererProps = {
     block: ArticleBlock
     blockIndex: number
     displays: DisplayInstance[]
     handlers: ArticleBlockHandlers
+    readOnly?: boolean
     renderDisplay?: ArticleEditorProps["renderDisplay"]
     renderVisualBlock?: ArticleEditorProps["renderVisualBlock"]
 }
 
-export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, renderDisplay, renderVisualBlock }: ArticleBlockRendererProps) {
+export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, readOnly = false, renderDisplay, renderVisualBlock }: ArticleBlockRendererProps) {
+    if (readOnly)
+        return (
+            <ReadableArticleBlock
+                block={block}
+                blockIndex={blockIndex}
+                displays={displays}
+                renderDisplay={renderDisplay}
+                renderVisualBlock={renderVisualBlock}
+                handlers={handlers}
+            />
+        )
+
     if (block.kind === "paragraph")
         return (
             <Stack gap="xs" className={styles.articleBlock}>
@@ -176,29 +191,4 @@ export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, re
         )
 
     return null
-}
-
-function DisplayBlock({
-    block,
-    displays,
-    renderDisplay,
-}: {
-    block: Extract<ArticleBlock, { kind: "display" }>
-    blockIndex: number
-    displays: DisplayInstance[]
-    renderDisplay?: ArticleEditorProps["renderDisplay"]
-}) {
-    const display = displays[block.displayIndex]
-
-    return (
-        <Stack gap="xs" className={styles.articleBlock}>
-            {display ? (
-                <Stack className={styles.displayBlock} gap="sm">
-                    {renderDisplay?.(display, block.displayIndex)}
-                </Stack>
-            ) : (
-                <Text size="small">{"{{display:" + String(block.displayIndex + 1) + "}"}</Text>
-            )}
-        </Stack>
-    )
 }

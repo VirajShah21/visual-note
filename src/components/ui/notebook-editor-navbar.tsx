@@ -1,11 +1,13 @@
 "use client"
 
 import { Popover } from "@base-ui/react/popover"
-import { BookOpenText, Download, Home, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react"
+import { BookOpen, BookOpenText, Braces, Download, Eye, FileCode2, Home, Info, ListTree, PanelLeftClose, PanelLeftOpen, PencilLine, Search, Settings } from "lucide-react"
 import { useMemo, useState, type ChangeEventHandler } from "react"
+import type { ArticleBlockInfoMode, ArticleContentsMode, ArticleEditorMode, NotebookEditorSettings } from "@/lib/visual-note/types"
 import { Button } from "./button"
 import { cx } from "./class-name"
 import styles from "./notebook-editor-navbar.module.css"
+import { ToolbarMenu, type ToolbarMenuGroup } from "./toolbar-menu"
 
 export type NotebookEditorSearchResult = {
     id: string
@@ -31,6 +33,7 @@ export type NotebookEditorNavbarProps = {
     searchQuery: string
     searchResults: NotebookEditorSearchResult[]
     sidebarOpen: boolean
+    editorSettings: NotebookEditorSettings
     currentNotebookId?: string
     notebookTitle?: string
     onExport: () => void
@@ -38,6 +41,7 @@ export type NotebookEditorNavbarProps = {
     onNotebookSelect: (notebookId: string) => void
     onSearchChange: (query: string) => void
     onSearchResultSelect: (result: NotebookEditorSearchResult) => void
+    onSettingsChange: (settings: Partial<NotebookEditorSettings>) => void
     onToggleSidebar: () => void
     recentNotebooks?: NotebookEditorRecentNotebook[]
 }
@@ -46,6 +50,7 @@ export function NotebookEditorNavbar({
     searchQuery,
     searchResults,
     sidebarOpen,
+    editorSettings,
     currentNotebookId = "",
     notebookTitle = "Visual Note",
     onExport,
@@ -53,6 +58,7 @@ export function NotebookEditorNavbar({
     onNotebookSelect,
     onSearchChange,
     onSearchResultSelect,
+    onSettingsChange,
     onToggleSidebar,
     recentNotebooks = [],
 }: NotebookEditorNavbarProps) {
@@ -75,6 +81,44 @@ export function NotebookEditorNavbar({
         setIsNotebookSwitcherOpen(false)
         onNotebookSelect(notebookId)
     }
+    const settingsGroups: ToolbarMenuGroup[] = [
+        {
+            id: "block-info",
+            label: "Block Info",
+            icon: <Info size={15} />,
+            value: editorSettings.blockInfo,
+            onValueChange: value => onSettingsChange({ blockInfo: value as ArticleBlockInfoMode }),
+            options: [
+                { label: "Show", value: "show", icon: <Eye size={14} /> },
+                { label: "Show Type Only", value: "type-only", icon: <Braces size={14} /> },
+                { label: "Show Metadata Only", value: "metadata-only", icon: <Info size={14} /> },
+            ],
+        },
+        {
+            id: "outline",
+            label: "Outline",
+            icon: <ListTree size={15} />,
+            value: editorSettings.contents,
+            onValueChange: value => onSettingsChange({ contents: value as ArticleContentsMode }),
+            options: [
+                { label: "Show", value: "show", icon: <Eye size={14} /> },
+                { label: "Hide Title", value: "hide-title", icon: <ListTree size={14} /> },
+                { label: "Hide", value: "hide", icon: <PanelLeftClose size={14} /> },
+            ],
+        },
+        {
+            id: "mode",
+            label: "Mode",
+            icon: <PencilLine size={15} />,
+            value: editorSettings.mode,
+            onValueChange: value => onSettingsChange({ mode: value as ArticleEditorMode }),
+            options: [
+                { label: "Editing", value: "editing", icon: <PencilLine size={14} /> },
+                { label: "Source Code", value: "source", icon: <FileCode2 size={14} /> },
+                { label: "Reader", value: "reader", icon: <BookOpen size={14} /> },
+            ],
+        },
+    ]
 
     return (
         <div className={styles.navbar}>
@@ -154,9 +198,12 @@ export function NotebookEditorNavbar({
                     </div>
                 ) : null}
             </div>
-            <Button icon={<Download size={15} />} variant="secondary" onClick={onExport}>
-                Export
-            </Button>
+            <div className={styles.rightGroup}>
+                <ToolbarMenu label="Notebook editor settings" icon={<Settings size={16} />} groups={settingsGroups} />
+                <Button icon={<Download size={15} />} variant="secondary" onClick={onExport}>
+                    Export
+                </Button>
+            </div>
         </div>
     )
 }

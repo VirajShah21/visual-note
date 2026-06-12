@@ -1,4 +1,17 @@
-import type { ComponentKind, DisplayInstance, Notebook, NotebookPage, NotebookView, Topic, ViewMode, VisualComponent, VisualNoteWorkspace, VisualUser } from "./types"
+import {
+    defaultNotebookEditorSettings,
+    type ComponentKind,
+    type DisplayInstance,
+    type Notebook,
+    type NotebookEditorSettings,
+    type NotebookPage,
+    type NotebookView,
+    type Topic,
+    type ViewMode,
+    type VisualComponent,
+    type VisualNoteWorkspace,
+    type VisualUser,
+} from "./types"
 
 const createId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
 
@@ -25,6 +38,7 @@ export const createNotebook = (userId: string, title: string): Notebook => ({
     summary: "A structured web notebook with sections, topics, views, components, and data.",
     color: "#2f7d5c",
     createdAt: now(),
+    editorSettings: defaultNotebookEditorSettings,
 })
 
 export const createPage = (notebookId: string, title: string, position: number): NotebookPage => ({
@@ -185,11 +199,21 @@ export const defaultDisplayName = (kind: ComponentKind) => {
     return kind.charAt(0).toUpperCase() + kind.slice(1)
 }
 
+export const normalizeNotebookEditorSettings = (settings?: Partial<NotebookEditorSettings>): NotebookEditorSettings => ({
+    blockInfo:
+        settings?.blockInfo === "type-only" || settings?.blockInfo === "metadata-only" || settings?.blockInfo === "show"
+            ? settings.blockInfo
+            : defaultNotebookEditorSettings.blockInfo,
+    contents: settings?.contents === "hide-title" || settings?.contents === "hide" || settings?.contents === "show" ? settings.contents : defaultNotebookEditorSettings.contents,
+    mode: settings?.mode === "source" || settings?.mode === "reader" || settings?.mode === "editing" ? settings.mode : defaultNotebookEditorSettings.mode,
+})
+
 export const normalizeWorkspace = (workspace: VisualNoteWorkspace): VisualNoteWorkspace => {
     const legacyComponents = workspace.components ?? []
 
     return {
         ...workspace,
+        notebooks: workspace.notebooks.map(notebook => ({ ...notebook, editorSettings: normalizeNotebookEditorSettings(notebook.editorSettings) })),
         views: workspace.views.map(view => {
             if (Array.isArray(view.displays))
                 return {

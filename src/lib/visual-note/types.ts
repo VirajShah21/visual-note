@@ -1,6 +1,21 @@
 export type ComponentKind = "data-card" | "checklist" | "timeline" | "dashboard" | "work-logs" | "bugs-list" | "shopping-list" | "pull-request" | "url" | "code-block"
 
 export type ViewMode = "article" | "structured" | "dashboard"
+export type ArticleBlockInfoMode = "show" | "type-only" | "metadata-only"
+export type ArticleContentsMode = "show" | "hide-title" | "hide"
+export type ArticleEditorMode = "editing" | "source" | "reader"
+
+export type NotebookEditorSettings = {
+    blockInfo: ArticleBlockInfoMode
+    contents: ArticleContentsMode
+    mode: ArticleEditorMode
+}
+
+export const defaultNotebookEditorSettings: NotebookEditorSettings = {
+    blockInfo: "show",
+    contents: "show",
+    mode: "editing",
+}
 
 export type VisualUser = {
     id: string
@@ -16,6 +31,7 @@ export type Notebook = {
     summary: string
     color: string
     createdAt: string
+    editorSettings?: NotebookEditorSettings
 }
 
 export type NotebookPage = {

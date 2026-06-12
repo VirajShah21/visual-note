@@ -6,6 +6,7 @@ import styles from "./article-table-of-contents.module.css"
 
 type ArticleTableOfContentsProps = {
     headings: ArticleHeadingIndex[]
+    hideTitle?: boolean
 }
 
 const focusHeading = (id: string) => {
@@ -17,12 +18,12 @@ const focusHeading = (id: string) => {
     editable?.focus({ preventScroll: true })
 }
 
-export function ArticleTableOfContents({ headings }: ArticleTableOfContentsProps) {
+export function ArticleTableOfContents({ headings, hideTitle = false }: ArticleTableOfContentsProps) {
     if (headings.length === 0) return null
 
     return (
         <aside className={styles.toc} aria-label="Article table of contents">
-            <p className={styles.title}>Contents</p>
+            {hideTitle ? null : <p className={styles.title}>Contents</p>}
             <div className={styles.list}>
                 {headings.map(heading => (
                     <button key={heading.id} type="button" className={`${styles.item} ${styles[`level${heading.level}`]}`} onClick={() => focusHeading(heading.id)}>

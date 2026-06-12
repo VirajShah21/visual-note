@@ -1,13 +1,24 @@
 "use client"
 
 import { AnimatePresence, motion } from "motion/react"
+import { MarkdownSourceEditor } from "../markdown-source-editor"
 import { Stack } from "../primitives"
 import styles from "../article-editor.module.css"
 import { ArticleBlockChip, ArticleBlockRenderer, ArticleTableOfContents, CommandMenu } from "./components"
 import { useArticleEditorController } from "./hooks/use-article-editor-controller"
 import type { ArticleEditorProps } from "./types"
 
-export function ArticleEditor({ value, displays, onChange, renderDisplay, renderVisualBlock }: ArticleEditorProps) {
+export function ArticleEditor({
+    value,
+    displays,
+    onChange,
+    blockInfoMode = "show",
+    contentsMode = "show",
+    editorMode = "editing",
+    readOnly = false,
+    renderDisplay,
+    renderVisualBlock,
+}: ArticleEditorProps) {
     const {
         boundedSelectedCommandIndex,
         commandItems,
@@ -22,13 +33,23 @@ export function ArticleEditor({ value, displays, onChange, renderDisplay, render
         handlers,
         selectionHandlers,
     } = useArticleEditorController({ value, displays, onChange, renderDisplay, renderVisualBlock })
+    const isSourceMode = editorMode === "source"
+    const isReaderMode = readOnly || editorMode === "reader"
+    const activeSelectionHandlers = isSourceMode || isReaderMode ? {} : selectionHandlers
+
+    if (isSourceMode)
+        return (
+            <Stack className={styles.articleEditorSource} gap="none" ref={editorRef}>
+                <MarkdownSourceEditor value={value} onChange={onChange} />
+            </Stack>
+        )
 
     return (
-        <Stack className={styles.articleEditor} gap="sm" ref={editorRef} {...selectionHandlers}>
+        <Stack className={`${styles.articleEditor} ${isReaderMode ? styles.articleEditorReader : ""}`} gap="sm" ref={editorRef} {...activeSelectionHandlers}>
             <Stack className={styles.blockList} gap="xs">
                 <AnimatePresence mode="popLayout">
                     {parsed.blocks.map((block, blockIndex) => {
-                        const isSelected = selectedBlockRange ? blockIndex >= selectedBlockRange.start && blockIndex <= selectedBlockRange.end : false
+                        const isSelected = !isReaderMode && selectedBlockRange ? blockIndex >= selectedBlockRange.start && blockIndex <= selectedBlockRange.end : false
 
                         return (
                             <motion.div
@@ -41,13 +62,14 @@ export function ArticleEditor({ value, displays, onChange, renderDisplay, render
                                 data-article-block-index={blockIndex}
                                 layout
                             >
-                                <ArticleBlockChip block={block} />
+                                <ArticleBlockChip block={block} mode={blockInfoMode} />
                                 <Stack className={styles.articleBlockContent} gap="sm">
                                     <ArticleBlockRenderer
                                         block={block}
                                         blockIndex={blockIndex}
                                         displays={displays}
                                         handlers={handlers}
+                                        readOnly={isReaderMode}
                                         renderDisplay={renderDisplay}
                                         renderVisualBlock={renderVisualBlock}
                                     />
@@ -57,9 +79,9 @@ export function ArticleEditor({ value, displays, onChange, renderDisplay, render
                     })}
                 </AnimatePresence>
             </Stack>
-            <ArticleTableOfContents headings={parsed.headings} />
+            {contentsMode === "hide" ? null : <ArticleTableOfContents headings={parsed.headings} hideTitle={contentsMode === "hide-title"} />}
 
-            {commandState ? (
+            {commandState && !isReaderMode ? (
                 <CommandMenu
                     commandRef={commandRef}
                     items={commandItems}

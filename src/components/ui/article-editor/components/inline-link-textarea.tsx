@@ -48,6 +48,10 @@ const renderInlineMedia = (text: string) => {
     return parts
 }
 
+export function ReadableInlineContent({ text }: { text: string }) {
+    return <>{renderInlineMedia(text)}</>
+}
+
 export function InlineLinkTextarea({ value, className, ...props }: BlockTextareaProps) {
     const [isEditing, setIsEditing] = useReducer((_: boolean, next: boolean) => next, false)
     const shouldDisplayLinks = !isEditing && hasMarkdownInlineMedia(value)

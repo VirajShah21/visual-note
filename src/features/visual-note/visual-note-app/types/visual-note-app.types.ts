@@ -1,4 +1,4 @@
-import type { DisplayInstance, NotebookSection, NotebookView, VisualNoteWorkspace } from "@/lib/visual-note/types"
+import type { DisplayInstance, NotebookEditorSettings, NotebookSection, NotebookView, VisualNoteWorkspace } from "@/lib/visual-note/types"
 import type { VisualBlockData, VisualBlockKind } from "@/lib/visual-note/visual-blocks"
 
 export type VisualNoteAppProps = {
@@ -30,12 +30,14 @@ export type SectionSidebarProps = {
 
 export type ViewWorkspaceProps = {
     view: NotebookView | null
+    editorSettings: NotebookEditorSettings
     onUpdateView: (view: NotebookView) => void
     onUpdateDisplay: (display: DisplayInstance) => void
 }
 
 export type ArticleWorkspaceProps = {
     view: NotebookView
+    editorSettings: NotebookEditorSettings
     onUpdateView: (view: NotebookView) => void
     onUpdateDisplay: (display: DisplayInstance) => void
 }
@@ -45,6 +47,7 @@ export type VisualBlockDisplayProps = {
     data: VisualBlockData
     raw: string
     parseError?: string
+    isReadOnly?: boolean
     onDataChange: (data: VisualBlockData) => void
 }
 

@@ -9,6 +9,7 @@ import styles from "./visual-pull-request-block.module.css"
 
 type VisualPullRequestBlockProps = {
     data: VisualBlockData
+    isReadOnly?: boolean
     onDataChange: (data: VisualBlockData) => void
 }
 
@@ -19,7 +20,7 @@ const statusTone = (status: string) => {
     return "open"
 }
 
-export function VisualPullRequestBlock({ data, onDataChange }: VisualPullRequestBlockProps) {
+export function VisualPullRequestBlock({ data, isReadOnly = false, onDataChange }: VisualPullRequestBlockProps) {
     const url = stringFrom(data.url)
     const status = stringFrom(data.status, "Open")
     const tone = statusTone(status)
@@ -100,7 +101,7 @@ export function VisualPullRequestBlock({ data, onDataChange }: VisualPullRequest
     )
 
     return (
-        <EditableVisualBlock preview={preview} previewClassName={styles.cardFrame} previewPadding="none">
+        <EditableVisualBlock preview={preview} previewClassName={styles.cardFrame} previewPadding="none" readOnly={isReadOnly}>
             <Grid columns="two" gap="sm">
                 <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
                 <TextField label="URL" value={url} onChange={event => updateField("url", event.target.value)} />

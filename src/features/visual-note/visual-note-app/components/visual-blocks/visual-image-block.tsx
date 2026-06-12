@@ -8,6 +8,7 @@ import styles from "../../../visual-note-app.module.css"
 
 type VisualImageBlockProps = {
     data: VisualBlockData
+    isReadOnly?: boolean
     onDataChange: (data: VisualBlockData) => void
 }
 
@@ -32,7 +33,7 @@ const numberFrom = (value: unknown, fallback: number) => {
     return fallback
 }
 
-export function VisualImageBlock({ data, onDataChange }: VisualImageBlockProps) {
+export function VisualImageBlock({ data, isReadOnly = false, onDataChange }: VisualImageBlockProps) {
     const updateField = (field: string, value: unknown) => onDataChange({ ...data, [field]: value })
     const size = sizeFrom(data.size)
     const borderRadius = numberFrom(data.borderRadius, 12)
@@ -59,7 +60,7 @@ export function VisualImageBlock({ data, onDataChange }: VisualImageBlockProps) 
     )
 
     return (
-        <EditableVisualBlock preview={preview}>
+        <EditableVisualBlock preview={preview} readOnly={isReadOnly}>
             <Grid columns="two" gap="sm">
                 <TextField label="Image URL" value={stringFrom(data.url)} onChange={event => updateField("url", event.target.value)} />
                 <TextField label="Alt text" value={stringFrom(data.alt)} onChange={event => updateField("alt", event.target.value)} />

@@ -7,9 +7,18 @@ import { getSupabaseBrowserClient, getSupabaseStatus } from "@/lib/supabase/clie
 import { loadSupabaseWorkspace, saveSupabaseWorkspace } from "@/lib/supabase/workspace"
 import { createLocalUser, createNotebook, createPage, createSeedWorkspace, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
 import { clearStoredUser, loadStoredUser, loadStoredWorkspace, storeUser, storeWorkspace } from "@/lib/visual-note/storage"
-import type { DisplayInstance, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
+import type { DisplayInstance, NotebookEditorSettings, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
 import type { NotebookEditorSearchResult } from "@/components/ui"
-import { blankSelection, coerceSingleArticleViewPerTopic, createNotebookGalleryItems, deriveSelection, ensureSelectionHasArticleView } from "../utils/visual-note-app.utils"
+import { updateWorkspaceNotebookEditorSettings } from "../utils/notebook-editor-settings"
+import {
+    blankSelection,
+    coerceSingleArticleViewPerTopic,
+    createNotebookGalleryItems,
+    deleteSectionFromWorkspace,
+    deleteTopicFromWorkspace,
+    deriveSelection,
+    ensureSelectionHasArticleView,
+} from "../utils/visual-note-app.utils"
 export const useVisualNoteAppController = (initialNotebookId: string) => {
     const router = useRouter()
     const [user, setUser] = useState<VisualUser | null>(null)
@@ -19,7 +28,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const [notice, setNotice] = useState("")
     const [toastMessages, setToastMessages] = useState<ToastMessage[]>([])
     const supabaseStatus = getSupabaseStatus()
-
     const pushToast = useCallback((title: string, description?: string, tone: ToastTone = "success") => {
         const id = globalThis.crypto?.randomUUID() ?? `${Date.now()}-${Math.random()}`
         setToastMessages(current => [...current.slice(-2), { id, title, description, tone }])
@@ -32,7 +40,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
                 setIsLoading(false)
                 return
             }
-
             setUser(storedUser)
             const remoteWorkspace = await loadSupabaseWorkspace(storedUser.id)
             const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? loadStoredWorkspace(storedUser.id) ?? createSeedWorkspace(storedUser)))
@@ -48,7 +55,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         storeWorkspace(user.id, workspace)
         void saveSupabaseWorkspace(user.id, workspace)
     }, [user, workspace])
-
     const selected = useMemo(() => {
         const currentSelection = deriveSelection(workspace, selection)
         const notebook = workspace?.notebooks.find(item => item.id === currentSelection.notebookId) ?? null
@@ -72,7 +78,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         )
         pushToast("Workspace opened", supabaseStatus === "configured" ? "Changes will sync to Supabase." : "Changes will be saved locally in demo mode.", "info")
     }
-
     const signIn = async (email: string, password: string, name?: string) => {
         const supabase = getSupabaseBrowserClient()
         if (supabase) {
@@ -81,14 +86,12 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
                 await openWorkspaceForUser({ id: data.user.id, email: data.user.email ?? email, name: data.user.user_metadata.name ?? name ?? email })
                 return
             }
-
             const message = error?.message ?? "Falling back to local demo auth."
             setNotice(message)
             pushToast("Using demo auth", message, "info")
         }
         await openWorkspaceForUser(createLocalUser(email, name))
     }
-
     const register = async (email: string, password: string, name: string) => {
         const supabase = getSupabaseBrowserClient()
         if (supabase) {
@@ -176,31 +179,18 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     }
 
     const deleteSection = (sectionId: string) => {
-        const section = sections.find(item => item.id === sectionId)
-        if (!section) {
+        if (!workspace) return false
+        const deleted = deleteSectionFromWorkspace(workspace, sectionId)
+        if (!deleted) {
             pushToast("Section not found", "Choose an existing section before deleting.", "error")
             return false
         }
 
-        updateWorkspace(current => {
-            const deletedTopicIds = current.topics.filter(topic => topic.pageId === sectionId).map(topic => topic.id)
-            const remainingPages = current.pages.filter(item => item.id !== sectionId)
-            const normalizedNotebookPages = remainingPages
-                .filter(item => item.notebookId === section.notebookId)
-                .sort((a, b) => a.position - b.position)
-                .map((item, index) => ({ ...item, position: index }))
-            const nextWorkspace = {
-                ...current,
-                pages: [...remainingPages.filter(item => item.notebookId !== section.notebookId), ...normalizedNotebookPages],
-                topics: current.topics.filter(topic => topic.pageId !== sectionId),
-                views: current.views.filter(view => !deletedTopicIds.includes(view.topicId)),
-            }
-            setSelection(currentSelection =>
-                deriveSelection(nextWorkspace, currentSelection.pageId === sectionId ? { ...currentSelection, pageId: "", topicId: "", viewId: "" } : currentSelection),
-            )
-            return nextWorkspace
-        })
-        pushToast("Section deleted", `${section.title} and its topics and views were removed.`, "info")
+        setWorkspace(deleted.workspace)
+        setSelection(currentSelection =>
+            deriveSelection(deleted.workspace, currentSelection.pageId === sectionId ? { ...currentSelection, pageId: "", topicId: "", viewId: "" } : currentSelection),
+        )
+        pushToast("Section deleted", `${deleted.section.title} and its topics and views were removed.`, "info")
         return true
     }
     const addTopic = (sectionId: string, title: string) => {
@@ -246,21 +236,29 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     }
     const deleteTopic = (topicId: string) => {
         if (!workspace) return false
-        const topic = workspace.topics.find(item => item.id === topicId)
-        if (!topic) {
+        const deleted = deleteTopicFromWorkspace(workspace, topicId)
+        if (!deleted) {
             pushToast("Item not found", "Choose an existing item before deleting.", "error")
             return false
         }
 
-        const nextWorkspace = { ...workspace, topics: workspace.topics.filter(item => item.id !== topicId), views: workspace.views.filter(view => view.topicId !== topicId) }
-        setWorkspace(nextWorkspace)
+        setWorkspace(deleted.workspace)
         setSelection(
-            deriveSelection(nextWorkspace, selected.currentSelection.topicId === topicId ? { ...selected.currentSelection, topicId: "", viewId: "" } : selected.currentSelection),
+            deriveSelection(
+                deleted.workspace,
+                selected.currentSelection.topicId === topicId ? { ...selected.currentSelection, topicId: "", viewId: "" } : selected.currentSelection,
+            ),
         )
-        pushToast("Item deleted", `${topic.title} and its article were removed.`, "info")
+        pushToast("Item deleted", `${deleted.topic.title} and its article were removed.`, "info")
         return true
     }
     const updateView = (view: NotebookView) => updateWorkspace(current => ({ ...current, views: current.views.map(item => (item.id === view.id ? view : item)) }))
+    const updateNotebookEditorSettings = (settings: Partial<NotebookEditorSettings>) => {
+        const notebookId = selected.currentSelection.notebookId
+        if (!notebookId) return
+
+        updateWorkspace(current => updateWorkspaceNotebookEditorSettings(current, notebookId, settings))
+    }
     const updateDisplay = (display: DisplayInstance) => {
         if (!selected.view) return
         updateView({ ...selected.view, displays: selected.view.displays.map(item => (item.id === display.id ? display : item)) })
@@ -294,6 +292,7 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
             signIn,
             signOut,
             updateDisplay,
+            updateNotebookEditorSettings,
             updateView,
         },
     }

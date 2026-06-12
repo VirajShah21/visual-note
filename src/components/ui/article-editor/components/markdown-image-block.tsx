@@ -11,15 +11,16 @@ type MarkdownImageBlockProps = {
     alt: string
     url: string
     handlers: ArticleBlockHandlers
+    readOnly?: boolean
 }
 
-export function MarkdownImageBlock({ blockIndex, alt, url, handlers }: MarkdownImageBlockProps) {
+export function MarkdownImageBlock({ blockIndex, alt, url, handlers, readOnly = false }: MarkdownImageBlockProps) {
     const [isEditingDetails, setIsEditingDetails] = useState(false)
 
     return (
         <div className={styles.markdownImageBlock}>
-            <ImageBlockFigure url={url} alt={alt} borderRadius={8} isEditing={isEditingDetails} onEdit={() => setIsEditingDetails(true)} />
-            {isEditingDetails ? (
+            <ImageBlockFigure url={url} alt={alt} borderRadius={8} isEditing={isEditingDetails} onEdit={readOnly ? undefined : () => setIsEditingDetails(true)} />
+            {isEditingDetails && !readOnly ? (
                 <div className={styles.imageFieldGrid}>
                     <TextField
                         label="Image URL"

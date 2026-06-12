@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { Card, Grid, MarkdownPreviewDialog, NotebookEditorNavbar, NotebookHome, ScrollArea, Stack, Text, ToastShelf } from "@/components/ui"
+import { defaultNotebookEditorSettings } from "@/lib/visual-note/types"
 import type { VisualNoteAppProps } from "./types/visual-note-app.types"
 import { AuthPanel } from "./components/auth-panel"
 import { SectionSidebar } from "./components/section-sidebar"
@@ -21,6 +22,7 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
         [searchQuery, selected.currentSelection, workspace],
     )
     const markdownSource = selected.view ? stringFrom(selected.view.content) : ""
+    const editorSettings = selected.notebook?.editorSettings ?? defaultNotebookEditorSettings
 
     if (isLoading)
         return (
@@ -63,11 +65,13 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                     searchQuery={searchQuery}
                     searchResults={searchResults}
                     sidebarOpen={isSidebarOpen}
+                    editorSettings={editorSettings}
                     onExport={() => setIsExportOpen(true)}
                     onHomeSelect={actions.openHome}
                     onNotebookSelect={actions.selectNotebook}
                     onSearchChange={setSearchQuery}
                     onSearchResultSelect={actions.selectSearchResult}
+                    onSettingsChange={actions.updateNotebookEditorSettings}
                     onToggleSidebar={() => setIsSidebarOpen(current => !current)}
                 />
                 <Grid
@@ -92,7 +96,7 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                         />
                     ) : null}
                     <ScrollArea className={styles.content}>
-                        <ViewWorkspace view={selected.view} onUpdateView={actions.updateView} onUpdateDisplay={actions.updateDisplay} />
+                        <ViewWorkspace view={selected.view} editorSettings={editorSettings} onUpdateView={actions.updateView} onUpdateDisplay={actions.updateDisplay} />
                     </ScrollArea>
                 </Grid>
             </Grid>

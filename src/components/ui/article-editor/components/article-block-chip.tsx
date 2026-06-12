@@ -1,11 +1,13 @@
 "use client"
 
 import type { ArticleBlock } from "@/lib/visual-note/article-content"
+import type { ArticleBlockInfoMode } from "@/lib/visual-note/types"
 import { visualBlockLabel } from "@/lib/visual-note/visual-blocks"
 import styles from "./article-block-chip.module.css"
 
 type ArticleBlockChipProps = {
     block: ArticleBlock
+    mode?: ArticleBlockInfoMode
 }
 
 const previewText = (value: string, fallback: string) => {
@@ -32,13 +34,17 @@ const chipContent = (block: ArticleBlock) => {
     return { label: "Divider", detail: "" }
 }
 
-export function ArticleBlockChip({ block }: ArticleBlockChipProps) {
+export function ArticleBlockChip({ block, mode = "show" }: ArticleBlockChipProps) {
     const { label, detail } = chipContent(block)
+    const showLabel = mode === "show" || mode === "type-only"
+    const showDetail = Boolean(detail) && (mode === "show" || mode === "metadata-only")
+
+    if (!showLabel && !showDetail) return <span aria-hidden="true" />
 
     return (
         <div className={styles.meta} aria-label={detail ? `${label}: ${detail}` : label}>
-            <span className={styles.chip}>{label}</span>
-            {detail ? <span className={styles.detail}>{detail}</span> : null}
+            {showLabel ? <span className={styles.chip}>{label}</span> : null}
+            {showDetail ? <span className={styles.detail}>{detail}</span> : null}
         </div>
     )
 }

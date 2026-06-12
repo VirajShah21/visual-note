@@ -13,10 +13,11 @@ import { VisualBlockRecipeDisplay } from "./visual-block-recipe-display"
 type VisualBlockListDisplayProps = {
     visualKind: Extract<VisualBlockKind, "recipe" | "timeline" | "poll" | "packing-list" | "shopping-list" | "task-list">
     data: VisualBlockData
+    isReadOnly?: boolean
     onDataChange: (data: VisualBlockData) => void
 }
 
-export function VisualBlockListDisplay({ visualKind, data, onDataChange }: VisualBlockListDisplayProps) {
+export function VisualBlockListDisplay({ visualKind, data, isReadOnly = false, onDataChange }: VisualBlockListDisplayProps) {
     const updateField = (field: string, value: unknown) => onDataChange({ ...data, [field]: value })
     const updateObjectList = (field: string, index: number, patch: Record<string, unknown>) => updateField(field, replaceObjectAt(objectArrayFrom(data[field]), index, patch))
     const addObjectListItem = (field: string, value: Record<string, unknown>) => updateField(field, [...objectArrayFrom(data[field]), value])
@@ -34,7 +35,7 @@ export function VisualBlockListDisplay({ visualKind, data, onDataChange }: Visua
         </Stack>
     )
 
-    if (visualKind === "recipe") return <VisualBlockRecipeDisplay data={data} onDataChange={onDataChange} header={header} />
+    if (visualKind === "recipe") return <VisualBlockRecipeDisplay data={data} isReadOnly={isReadOnly} onDataChange={onDataChange} header={header} />
 
     if (visualKind === "timeline")
         return (
@@ -45,6 +46,7 @@ export function VisualBlockListDisplay({ visualKind, data, onDataChange }: Visua
                 onAddObjectListItem={addObjectListItem}
                 onRemoveObjectListItem={removeObjectListItem}
                 header={header}
+                isReadOnly={isReadOnly}
             />
         )
 
@@ -57,6 +59,7 @@ export function VisualBlockListDisplay({ visualKind, data, onDataChange }: Visua
                 onAddObjectListItem={addObjectListItem}
                 onRemoveObjectListItem={removeObjectListItem}
                 header={header}
+                isReadOnly={isReadOnly}
             />
         )
 
@@ -69,6 +72,7 @@ export function VisualBlockListDisplay({ visualKind, data, onDataChange }: Visua
             onAddObjectListItem={addObjectListItem}
             onRemoveObjectListItem={removeObjectListItem}
             header={header}
+            isReadOnly={isReadOnly}
         />
     )
 }
@@ -79,9 +83,18 @@ type ObjectListHandlers = {
     onAddObjectListItem: (field: string, value: Record<string, unknown>) => void
     onRemoveObjectListItem: (field: string, index: number) => void
     header: (icon: ReactNode, title: string) => ReactNode
+    isReadOnly: boolean
 }
 
-function TimelineVisualBlock({ data, onUpdateField, onUpdateObjectList, onAddObjectListItem, onRemoveObjectListItem, header }: { data: VisualBlockData } & ObjectListHandlers) {
+function TimelineVisualBlock({
+    data,
+    onUpdateField,
+    onUpdateObjectList,
+    onAddObjectListItem,
+    onRemoveObjectListItem,
+    header,
+    isReadOnly,
+}: { data: VisualBlockData } & ObjectListHandlers) {
     const preview = (
         <>
             {header(<Clock size={13} />, "Timeline")}
@@ -93,7 +106,7 @@ function TimelineVisualBlock({ data, onUpdateField, onUpdateObjectList, onAddObj
     )
 
     return (
-        <EditableVisualBlock preview={preview}>
+        <EditableVisualBlock preview={preview} readOnly={isReadOnly}>
             <TextField label="Title" value={stringFrom(data.title)} onChange={event => onUpdateField("title", event.target.value)} />
             <Stack className={styles.timelineTrack} gap="none">
                 {timelineEventsFromData(data.events).map((eventItem, index) => (
@@ -116,7 +129,15 @@ function TimelineVisualBlock({ data, onUpdateField, onUpdateObjectList, onAddObj
     )
 }
 
-function PollVisualBlock({ data, onUpdateField, onUpdateObjectList, onAddObjectListItem, onRemoveObjectListItem, header }: { data: VisualBlockData } & ObjectListHandlers) {
+function PollVisualBlock({
+    data,
+    onUpdateField,
+    onUpdateObjectList,
+    onAddObjectListItem,
+    onRemoveObjectListItem,
+    header,
+    isReadOnly,
+}: { data: VisualBlockData } & ObjectListHandlers) {
     const options = objectArrayFrom(data.options)
     const totalVotes = options.reduce((total, option) => total + numberFrom(option.votes, 0), 0)
     const preview = (
@@ -130,7 +151,7 @@ function PollVisualBlock({ data, onUpdateField, onUpdateObjectList, onAddObjectL
     )
 
     return (
-        <EditableVisualBlock preview={preview}>
+        <EditableVisualBlock preview={preview} readOnly={isReadOnly}>
             <TextField label="Question" value={stringFrom(data.question)} onChange={event => onUpdateField("question", event.target.value)} />
             <Stack gap="sm">
                 {options.map((option, index) => {
@@ -182,6 +203,7 @@ function ChecklistVisualBlock({
     onAddObjectListItem,
     onRemoveObjectListItem,
     header,
+    isReadOnly,
 }: { visualKind: VisualBlockListDisplayProps["visualKind"]; data: VisualBlockData } & ObjectListHandlers) {
     const listField = visualKind === "packing-list" ? "sections" : visualKind === "shopping-list" ? "items" : "tasks"
     const listItems = objectArrayFrom(data[listField])
@@ -202,7 +224,7 @@ function ChecklistVisualBlock({
     )
 
     return (
-        <EditableVisualBlock preview={preview}>
+        <EditableVisualBlock preview={preview} readOnly={isReadOnly}>
             <TextField label="Title" value={stringFrom(data.title)} onChange={event => onUpdateField("title", event.target.value)} />
             <Stack gap="sm">
                 {listItems.map((item, index) => (

@@ -11,11 +11,12 @@ import { InlineStringList } from "../inline-string-list"
 
 type VisualBlockRecipeDisplayProps = {
     data: VisualBlockData
+    isReadOnly?: boolean
     onDataChange: (data: VisualBlockData) => void
     header: (icon: ReactNode, title: string) => ReactNode
 }
 
-export function VisualBlockRecipeDisplay({ data, onDataChange, header }: VisualBlockRecipeDisplayProps) {
+export function VisualBlockRecipeDisplay({ data, isReadOnly = false, onDataChange, header }: VisualBlockRecipeDisplayProps) {
     const [recipePortions, setRecipePortions] = useState(() => numberFrom(data.basePortions, 2))
     const updateField = (field: string, value: unknown) => onDataChange({ ...data, [field]: value })
     const updateStringList = (field: string, index: number, value: string) => updateField(field, replaceStringAt(arrayFrom(data[field]), index, value))
@@ -42,7 +43,7 @@ export function VisualBlockRecipeDisplay({ data, onDataChange, header }: VisualB
     )
 
     return (
-        <EditableVisualBlock preview={preview}>
+        <EditableVisualBlock preview={preview} readOnly={isReadOnly}>
             <Grid columns="two" gap="sm">
                 <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
                 <TextField label="Base portions" type="number" value={String(basePortions)} onChange={event => updateField("basePortions", Number(event.target.value))} />

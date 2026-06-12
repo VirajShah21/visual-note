@@ -90,6 +90,42 @@ export const deriveSelection = (workspace: VisualNoteWorkspace | null, selection
     }
 }
 
+export const deleteTopicFromWorkspace = (workspace: VisualNoteWorkspace, topicId: string) => {
+    const topic = workspace.topics.find(item => item.id === topicId)
+    if (!topic) return null
+
+    return {
+        topic,
+        workspace: {
+            ...workspace,
+            topics: workspace.topics.filter(item => item.id !== topicId),
+            views: workspace.views.filter(view => view.topicId !== topicId),
+        },
+    }
+}
+
+export const deleteSectionFromWorkspace = (workspace: VisualNoteWorkspace, sectionId: string) => {
+    const section = workspace.pages.find(item => item.id === sectionId)
+    if (!section) return null
+
+    const deletedTopicIds = workspace.topics.filter(topic => topic.pageId === sectionId).map(topic => topic.id)
+    const remainingPages = workspace.pages.filter(item => item.id !== sectionId)
+    const normalizedNotebookPages = remainingPages
+        .filter(item => item.notebookId === section.notebookId)
+        .sort((a, b) => a.position - b.position)
+        .map((item, index) => ({ ...item, position: index }))
+
+    return {
+        section,
+        workspace: {
+            ...workspace,
+            pages: [...remainingPages.filter(item => item.notebookId !== section.notebookId), ...normalizedNotebookPages],
+            topics: workspace.topics.filter(topic => topic.pageId !== sectionId),
+            views: workspace.views.filter(view => !deletedTopicIds.includes(view.topicId)),
+        },
+    }
+}
+
 export const createNotebookGalleryItems = (workspace: VisualNoteWorkspace, notebooks: VisualNoteWorkspace["notebooks"]): NotebookGalleryItem[] =>
     notebooks.map(notebook => {
         const pages = workspace.pages.filter(page => page.notebookId === notebook.id).sort((a, b) => a.position - b.position)

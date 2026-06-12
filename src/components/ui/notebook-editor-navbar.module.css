@@ -28,6 +28,13 @@
     gap: 10px;
 }
 
+.rightGroup {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
 .brandButton {
     gap: 9px;
     border: 0;

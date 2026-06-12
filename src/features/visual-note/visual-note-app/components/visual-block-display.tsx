@@ -12,7 +12,7 @@ import { VisualBlockListDisplay } from "./visual-blocks/visual-block-list-displa
 import { VisualImageBlock } from "./visual-blocks/visual-image-block"
 import { VisualPullRequestBlock } from "./visual-blocks/visual-pull-request-block"
 
-export function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataChange }: VisualBlockDisplayProps) {
+export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOnly = false, onDataChange }: VisualBlockDisplayProps) {
     const updateField = (field: string, value: unknown) => onDataChange({ ...data, [field]: value })
     const updateStringList = (field: string, index: number, value: string) => updateField(field, replaceStringAt(arrayFrom(data[field]), index, value))
     const addStringListItem = (field: string, value: string) => updateField(field, [...arrayFrom(data[field]), value])
@@ -45,7 +45,7 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataCh
             </Stack>
         )
 
-    if (visualKind === "image") return <VisualImageBlock data={data} onDataChange={onDataChange} />
+    if (visualKind === "image") return <VisualImageBlock data={data} isReadOnly={isReadOnly} onDataChange={onDataChange} />
 
     if (
         visualKind === "recipe" ||
@@ -55,13 +55,14 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataCh
         visualKind === "shopping-list" ||
         visualKind === "task-list"
     )
-        return <VisualBlockListDisplay visualKind={visualKind} data={data} onDataChange={onDataChange} />
+        return <VisualBlockListDisplay visualKind={visualKind} data={data} isReadOnly={isReadOnly} onDataChange={onDataChange} />
 
-    if (visualKind === "pull-request") return <VisualPullRequestBlock data={data} onDataChange={onDataChange} />
+    if (visualKind === "pull-request") return <VisualPullRequestBlock data={data} isReadOnly={isReadOnly} onDataChange={onDataChange} />
 
     if (visualKind === "calendar-event")
         return (
             <EditableVisualBlock
+                readOnly={isReadOnly}
                 preview={
                     <>
                         {header(<CalendarDays size={13} />, "Calendar Event")}
@@ -93,6 +94,7 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataCh
     if (visualKind === "contact-card")
         return (
             <EditableVisualBlock
+                readOnly={isReadOnly}
                 preview={
                     <>
                         {header(<Contact size={13} />, "Contact Card")}
@@ -128,6 +130,7 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataCh
     if (visualKind === "address-card")
         return (
             <EditableVisualBlock
+                readOnly={isReadOnly}
                 preview={
                     <>
                         {header(<MapPin size={13} />, "Address Card")}
@@ -156,6 +159,7 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataCh
 
     return (
         <EditableVisualBlock
+            readOnly={isReadOnly}
             preview={
                 <>
                     {header(<Sparkles size={13} />, "Chart")}

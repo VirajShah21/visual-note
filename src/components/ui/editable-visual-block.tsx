@@ -15,6 +15,7 @@ type EditableVisualBlockProps = {
     previewPadding?: "normal" | "none"
     editLabel?: string
     doneLabel?: string
+    readOnly?: boolean
 }
 
 export function EditableVisualBlock({
@@ -25,17 +26,27 @@ export function EditableVisualBlock({
     previewPadding = "normal",
     editLabel = "Click to edit",
     doneLabel = "Done",
+    readOnly = false,
 }: EditableVisualBlockProps) {
     const [isEditing, setIsEditing] = useState(false)
+    const previewContent = (
+        <Stack className={cx(styles.previewContent, previewPadding === "none" && styles.previewContentFlush)} gap="md">
+            {preview}
+        </Stack>
+    )
 
     return (
-        <Stack className={cx(styles.block, className)} gap="md">
-            <EditableFrame className={cx(styles.previewFrame, previewClassName)} editLabel={editLabel} isEditing={isEditing} onClick={() => setIsEditing(true)}>
-                <Stack className={cx(styles.previewContent, previewPadding === "none" && styles.previewContentFlush)} gap="md">
-                    {preview}
+        <Stack className={cx(styles.block, readOnly && styles.readOnlyBlock, className)} gap="md">
+            {readOnly ? (
+                <Stack className={cx(styles.previewFrame, styles.readOnlyPreviewFrame, previewClassName)} gap="none">
+                    {previewContent}
                 </Stack>
-            </EditableFrame>
-            {isEditing ? (
+            ) : (
+                <EditableFrame className={cx(styles.previewFrame, previewClassName)} editLabel={editLabel} isEditing={isEditing} onClick={() => setIsEditing(true)}>
+                    {previewContent}
+                </EditableFrame>
+            )}
+            {isEditing && !readOnly ? (
                 <Stack className={styles.editorPanel} gap="md">
                     {children}
                     <Stack className={styles.editorActions} direction="horizontal" gap="sm">

@@ -1,6 +1,6 @@
 import type { ChangeEvent, KeyboardEvent, ReactNode } from "react"
 import type { ArticleBlock } from "@/lib/visual-note/article-content"
-import type { DisplayInstance } from "@/lib/visual-note/types"
+import type { ArticleBlockInfoMode, ArticleContentsMode, ArticleEditorMode, DisplayInstance } from "@/lib/visual-note/types"
 import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
 
 export type EditorField = "paragraph" | "heading" | "subtitle" | "quote" | "callout" | "code" | "list-item"
@@ -19,6 +19,10 @@ export type ArticleEditorProps = {
     value: string
     displays: DisplayInstance[]
     onChange: (next: string) => void
+    blockInfoMode?: ArticleBlockInfoMode
+    contentsMode?: ArticleContentsMode
+    editorMode?: ArticleEditorMode
+    readOnly?: boolean
     renderDisplay?: (display: DisplayInstance, displayIndex: number) => ReactNode
     renderVisualBlock?: (block: Extract<ArticleBlock, { kind: "visual" }>, onDataChange: (data: VisualBlockData) => void) => ReactNode
 }
