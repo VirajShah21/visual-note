@@ -2,8 +2,9 @@
 
 import { ListChecks, Plus } from "lucide-react"
 import { useState, type ReactNode } from "react"
-import { Button, Grid, Heading, Stack, Text, TextField } from "@/components/ui"
+import { Button, EditableVisualBlock, Grid, Heading, Stack, Text, TextField } from "@/components/ui"
 import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
+import { countLabel, joinedPreviewText } from "../../utils/visual-block-preview"
 import { arrayFrom, numberFrom, objectArrayFrom, replaceObjectAt, replaceStringAt, stringFrom } from "../../utils/visual-note-app.utils"
 import styles from "../../../visual-note-app.module.css"
 import { InlineStringList } from "../inline-string-list"
@@ -29,14 +30,19 @@ export function VisualBlockRecipeDisplay({ data, onDataChange, header }: VisualB
     const basePortions = numberFrom(data.basePortions, 1)
     const portionScale = basePortions > 0 ? recipePortions / basePortions : 1
     const ingredients = objectArrayFrom(data.ingredients)
-
-    return (
-        <Stack className={styles.visualBlock} gap="md">
+    const steps = arrayFrom(data.steps)
+    const preview = (
+        <>
             {header(<ListChecks size={13} />, "Recipe")}
             <Stack className={styles.heroPanel} gap="sm">
                 <Heading size="md">{stringFrom(data.title, "Recipe")}</Heading>
-                <Text>{`Portions: ${recipePortions}`}</Text>
+                <Text>{joinedPreviewText([`Portions: ${recipePortions}`, countLabel(ingredients.length, "ingredient"), countLabel(steps.length, "step")], "Recipe details")}</Text>
             </Stack>
+        </>
+    )
+
+    return (
+        <EditableVisualBlock preview={preview}>
             <Grid columns="two" gap="sm">
                 <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
                 <TextField label="Base portions" type="number" value={String(basePortions)} onChange={event => updateField("basePortions", Number(event.target.value))} />
@@ -62,11 +68,11 @@ export function VisualBlockRecipeDisplay({ data, onDataChange, header }: VisualB
             </Stack>
             <InlineStringList
                 title="Cooking steps"
-                items={arrayFrom(data.steps)}
+                items={steps}
                 onAdd={() => addStringListItem("steps", "New step")}
                 onChange={(index, value) => updateStringList("steps", index, value)}
                 onRemove={index => removeStringListItem("steps", index)}
             />
-        </Stack>
+        </EditableVisualBlock>
     )
 }

@@ -2,8 +2,9 @@
 
 import { CheckCircle2, Clock, Plus, ShoppingCart, Vote } from "lucide-react"
 import { type CSSProperties, type ReactNode } from "react"
-import { Button, DateField, Grid, Pill, Stack, Text, TextField, TimeField } from "@/components/ui"
+import { Button, DateField, EditableVisualBlock, Grid, Heading, Pill, Stack, Text, TextField, TimeField } from "@/components/ui"
 import type { VisualBlockData, VisualBlockKind } from "@/lib/visual-note/visual-blocks"
+import { listCompletionText, packingListSummary, pollPreviewText, timelinePreviewText } from "../../utils/visual-block-preview"
 import { dateInputValue, numberFrom, objectArrayFrom, replaceObjectAt, stringFrom, timeInputValue, timelineEventsFromData } from "../../utils/visual-note-app.utils"
 import styles from "../../../visual-note-app.module.css"
 import { InlineObjectItems } from "../inline-object-items"
@@ -81,9 +82,18 @@ type ObjectListHandlers = {
 }
 
 function TimelineVisualBlock({ data, onUpdateField, onUpdateObjectList, onAddObjectListItem, onRemoveObjectListItem, header }: { data: VisualBlockData } & ObjectListHandlers) {
-    return (
-        <Stack className={styles.visualBlock} gap="md">
+    const preview = (
+        <>
             {header(<Clock size={13} />, "Timeline")}
+            <Stack className={styles.heroPanel} gap="xs">
+                <Heading size="md">{stringFrom(data.title, "Timeline")}</Heading>
+                <Text>{timelinePreviewText(data)}</Text>
+            </Stack>
+        </>
+    )
+
+    return (
+        <EditableVisualBlock preview={preview}>
             <TextField label="Title" value={stringFrom(data.title)} onChange={event => onUpdateField("title", event.target.value)} />
             <Stack className={styles.timelineTrack} gap="none">
                 {timelineEventsFromData(data.events).map((eventItem, index) => (
@@ -102,17 +112,25 @@ function TimelineVisualBlock({ data, onUpdateField, onUpdateObjectList, onAddObj
             <Button icon={<Plus size={15} />} variant="ghost" onClick={() => onAddObjectListItem("events", { label: "New event", date: "", time: "" })}>
                 Add event
             </Button>
-        </Stack>
+        </EditableVisualBlock>
     )
 }
 
 function PollVisualBlock({ data, onUpdateField, onUpdateObjectList, onAddObjectListItem, onRemoveObjectListItem, header }: { data: VisualBlockData } & ObjectListHandlers) {
     const options = objectArrayFrom(data.options)
     const totalVotes = options.reduce((total, option) => total + numberFrom(option.votes, 0), 0)
+    const preview = (
+        <>
+            {header(<Vote size={13} />, "Poll")}
+            <Stack className={styles.heroPanel} gap="xs">
+                <Heading size="md">{stringFrom(data.question, "Poll question")}</Heading>
+                <Text>{pollPreviewText(data)}</Text>
+            </Stack>
+        </>
+    )
 
     return (
-        <Stack className={styles.visualBlock} gap="md">
-            {header(<Vote size={13} />, "Poll")}
+        <EditableVisualBlock preview={preview}>
             <TextField label="Question" value={stringFrom(data.question)} onChange={event => onUpdateField("question", event.target.value)} />
             <Stack gap="sm">
                 {options.map((option, index) => {
@@ -152,7 +170,7 @@ function PollVisualBlock({ data, onUpdateField, onUpdateObjectList, onAddObjectL
             <Button icon={<Plus size={15} />} variant="ghost" onClick={() => onAddObjectListItem("options", { label: "New option", votes: 0 })}>
                 Add option
             </Button>
-        </Stack>
+        </EditableVisualBlock>
     )
 }
 
@@ -167,13 +185,24 @@ function ChecklistVisualBlock({
 }: { visualKind: VisualBlockListDisplayProps["visualKind"]; data: VisualBlockData } & ObjectListHandlers) {
     const listField = visualKind === "packing-list" ? "sections" : visualKind === "shopping-list" ? "items" : "tasks"
     const listItems = objectArrayFrom(data[listField])
+    const title = visualKind === "packing-list" ? "Packing List" : visualKind === "shopping-list" ? "Shopping List" : "Task List"
+    const icon = visualKind === "shopping-list" ? <ShoppingCart size={13} /> : <CheckCircle2 size={13} />
+    const summary =
+        visualKind === "packing-list"
+            ? packingListSummary(data)
+            : listCompletionText(listItems, visualKind === "task-list" ? "done" : "purchased", visualKind === "task-list" ? "task" : "item")
+    const preview = (
+        <>
+            {header(icon, title)}
+            <Stack className={styles.heroPanel} gap="xs">
+                <Heading size="md">{stringFrom(data.title, title)}</Heading>
+                <Text>{summary}</Text>
+            </Stack>
+        </>
+    )
 
     return (
-        <Stack className={styles.visualBlock} gap="md">
-            {header(
-                visualKind === "shopping-list" ? <ShoppingCart size={13} /> : <CheckCircle2 size={13} />,
-                visualKind === "packing-list" ? "Packing List" : visualKind === "shopping-list" ? "Shopping List" : "Task List",
-            )}
+        <EditableVisualBlock preview={preview}>
             <TextField label="Title" value={stringFrom(data.title)} onChange={event => onUpdateField("title", event.target.value)} />
             <Stack gap="sm">
                 {listItems.map((item, index) => (
@@ -188,7 +217,7 @@ function ChecklistVisualBlock({
             <Button icon={<Plus size={15} />} variant="ghost" onClick={() => onAddObjectListItem(listField, defaultVisualListItem(visualKind))}>
                 Add item
             </Button>
-        </Stack>
+        </EditableVisualBlock>
     )
 }
 

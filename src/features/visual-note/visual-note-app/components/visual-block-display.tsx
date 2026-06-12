@@ -2,19 +2,10 @@
 
 import { CalendarDays, Code2, Contact, MapPin, Plus, Sparkles } from "lucide-react"
 import type { ReactNode } from "react"
-import { Button, DateField, ExternalLink, Grid, Heading, Pill, SelectField, SimpleChart, Stack, Text, TextAreaField, TextField, TimeField } from "@/components/ui"
+import { Button, DateField, EditableVisualBlock, Grid, Heading, Pill, SelectField, SimpleChart, Stack, Text, TextAreaField, TextField, TimeField } from "@/components/ui"
 import type { VisualBlockDisplayProps } from "../types/visual-note-app.types"
-import {
-    arrayFrom,
-    calendarEventSchedule,
-    chartRowsFromData,
-    dateInputValue,
-    objectArrayFrom,
-    replaceObjectAt,
-    replaceStringAt,
-    stringFrom,
-    timeInputValue,
-} from "../utils/visual-note-app.utils"
+import { calendarPreviewText, joinedPreviewText } from "../utils/visual-block-preview"
+import { arrayFrom, chartRowsFromData, dateInputValue, objectArrayFrom, replaceObjectAt, replaceStringAt, stringFrom, timeInputValue } from "../utils/visual-note-app.utils"
 import styles from "../../visual-note-app.module.css"
 import { InlineStringList } from "./inline-string-list"
 import { VisualBlockListDisplay } from "./visual-blocks/visual-block-list-display"
@@ -70,18 +61,17 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataCh
 
     if (visualKind === "calendar-event")
         return (
-            <Stack className={styles.visualBlock} gap="md">
-                {header(<CalendarDays size={13} />, "Calendar Event")}
-                <Stack className={styles.itemHeader} direction="horizontal" gap="sm">
-                    <Stack gap="xs">
-                        <Heading size="md">{stringFrom(data.title, "Event")}</Heading>
-                        <Text>{calendarEventSchedule(data)}</Text>
-                    </Stack>
-                    <Pill>
-                        <MapPin size={13} />
-                        {stringFrom(data.location, "Location")}
-                    </Pill>
-                </Stack>
+            <EditableVisualBlock
+                preview={
+                    <>
+                        {header(<CalendarDays size={13} />, "Calendar Event")}
+                        <Stack className={styles.heroPanel} gap="xs">
+                            <Heading size="md">{stringFrom(data.title, "Event")}</Heading>
+                            <Text>{calendarPreviewText(data)}</Text>
+                        </Stack>
+                    </>
+                }
+            >
                 <Grid columns="two" gap="sm">
                     <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
                     <DateField label="Date" value={dateInputValue(data.date)} onChange={event => updateField("date", event.target.value)} />
@@ -97,17 +87,27 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataCh
                     onChange={(index, value) => updateStringList("attendees", index, value)}
                     onRemove={index => removeStringListItem("attendees", index)}
                 />
-            </Stack>
+            </EditableVisualBlock>
         )
 
     if (visualKind === "contact-card")
         return (
-            <Stack className={styles.visualBlock} gap="md">
-                {header(<Contact size={13} />, "Contact Card")}
-                <Stack className={styles.heroPanel} gap="xs">
-                    <Heading size="md">{stringFrom(data.name, "Contact")}</Heading>
-                    <Text>{[stringFrom(data.role), stringFrom(data.company)].filter(Boolean).join(" at ") || "Contact details"}</Text>
-                </Stack>
+            <EditableVisualBlock
+                preview={
+                    <>
+                        {header(<Contact size={13} />, "Contact Card")}
+                        <Stack className={styles.heroPanel} gap="xs">
+                            <Heading size="md">{stringFrom(data.name, "Contact")}</Heading>
+                            <Text>
+                                {joinedPreviewText(
+                                    [joinedPreviewText([stringFrom(data.role), stringFrom(data.company)], "Contact details"), stringFrom(data.email), stringFrom(data.phone)],
+                                    "Contact details",
+                                )}
+                            </Text>
+                        </Stack>
+                    </>
+                }
+            >
                 <Grid columns="two" gap="sm">
                     <TextField label="Name" value={stringFrom(data.name)} onChange={event => updateField("name", event.target.value)} />
                     <TextField label="Role" value={stringFrom(data.role)} onChange={event => updateField("role", event.target.value)} />
@@ -122,17 +122,22 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataCh
                     onChange={(index, value) => updateStringList("links", index, value)}
                     onRemove={index => removeStringListItem("links", index)}
                 />
-            </Stack>
+            </EditableVisualBlock>
         )
 
     if (visualKind === "address-card")
         return (
-            <Stack className={styles.visualBlock} gap="md">
-                {header(<MapPin size={13} />, "Address Card", stringFrom(data.mapUrl) ? <ExternalLink href={stringFrom(data.mapUrl)}>Map</ExternalLink> : null)}
-                <Stack className={styles.heroPanel} gap="xs">
-                    <Heading size="md">{stringFrom(data.label, "Address")}</Heading>
-                    <Text>{arrayFrom(data.lines).join(", ")}</Text>
-                </Stack>
+            <EditableVisualBlock
+                preview={
+                    <>
+                        {header(<MapPin size={13} />, "Address Card")}
+                        <Stack className={styles.heroPanel} gap="xs">
+                            <Heading size="md">{stringFrom(data.label, "Address")}</Heading>
+                            <Text>{joinedPreviewText([arrayFrom(data.lines).join(", "), stringFrom(data.notes)], "Address details")}</Text>
+                        </Stack>
+                    </>
+                }
+            >
                 <TextField label="Label" value={stringFrom(data.label)} onChange={event => updateField("label", event.target.value)} />
                 <InlineStringList
                     title="Address lines"
@@ -143,16 +148,21 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataCh
                 />
                 <TextField label="Map URL" value={stringFrom(data.mapUrl)} onChange={event => updateField("mapUrl", event.target.value)} />
                 <TextAreaField label="Notes" value={stringFrom(data.notes)} onChange={event => updateField("notes", event.target.value)} />
-            </Stack>
+            </EditableVisualBlock>
         )
 
     const rows = chartRowsFromData(data.data)
     const chartType = stringFrom(data.type, "bar") === "line" ? "line" : "bar"
 
     return (
-        <Stack className={styles.visualBlock} gap="md">
-            {header(<Sparkles size={13} />, "Chart")}
-            <SimpleChart title={stringFrom(data.title, "Chart")} type={chartType} rows={rows} xLabel={stringFrom(data.xLabel)} yLabel={stringFrom(data.yLabel)} />
+        <EditableVisualBlock
+            preview={
+                <>
+                    {header(<Sparkles size={13} />, "Chart")}
+                    <SimpleChart title={stringFrom(data.title, "Chart")} type={chartType} rows={rows} xLabel={stringFrom(data.xLabel)} yLabel={stringFrom(data.yLabel)} />
+                </>
+            }
+        >
             <Grid columns="two" gap="sm">
                 <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
                 <SelectField
@@ -184,6 +194,6 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, onDataCh
                     Add point
                 </Button>
             </Stack>
-        </Stack>
+        </EditableVisualBlock>
     )
 }
