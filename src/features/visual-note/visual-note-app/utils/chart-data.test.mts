@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { chartDataLayoutFrom, chartDatasetFromSheet, chartSheetFromData } from "./chart-data.ts"
+import { chartDataLayoutFrom, chartDatasetFromSheet, chartSheetFromData, chartTypeFrom } from "./chart-data.ts"
 
 test("normalizes legacy label/value chart data into a columns sheet", () => {
     const sheet = chartSheetFromData({
@@ -64,4 +64,13 @@ test("parses chart layout dropdown values", () => {
     assert.equal(chartDataLayoutFrom("rows"), "rows")
     assert.equal(chartDataLayoutFrom("columns"), "columns")
     assert.equal(chartDataLayoutFrom("unexpected"), "columns")
+})
+
+test("parses chart type dropdown values", () => {
+    assert.equal(chartTypeFrom("bar"), "bar")
+    assert.equal(chartTypeFrom("line"), "line")
+    assert.equal(chartTypeFrom("area"), "area")
+    assert.equal(chartTypeFrom("scatter"), "scatter")
+    assert.equal(chartTypeFrom("pie"), "pie")
+    assert.equal(chartTypeFrom("unexpected"), "bar")
 })

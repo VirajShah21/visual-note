@@ -5,7 +5,7 @@ import type { ReactNode } from "react"
 import { ChartDataSheet, DateField, EditableVisualBlock, Grid, Heading, Pill, SelectField, SimpleChart, Stack, Text, TextAreaField, TextField, TimeField } from "@/components/ui"
 import type { VisualBlockDisplayProps } from "../types/visual-note-app.types"
 import { calendarPreviewText, joinedPreviewText } from "../utils/visual-block-preview"
-import { chartDataLayoutFrom, chartDatasetFromSheet, chartSheetFromData } from "../utils/chart-data"
+import { chartDataLayoutFrom, chartDatasetFromSheet, chartSheetFromData, chartTypeFrom } from "../utils/chart-data"
 import { arrayFrom, dateInputValue, replaceStringAt, stringFrom, timeInputValue } from "../utils/visual-note-app.utils"
 import styles from "../../visual-note-app.module.css"
 import { InlineStringList } from "./inline-string-list"
@@ -156,7 +156,7 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOn
     const chartLayout = chartDataLayoutFrom(data.dataLayout)
     const chartSheet = chartSheetFromData(data)
     const chartDataset = chartDatasetFromSheet(chartSheet, chartLayout)
-    const chartType = stringFrom(data.type, "bar") === "line" ? "line" : "bar"
+    const chartType = chartTypeFrom(data.type)
     const chartDataWithoutLegacyFields = () => {
         const nextData = { ...data }
         delete nextData.data
@@ -172,7 +172,6 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOn
             readOnly={isReadOnly}
             preview={
                 <>
-                    {header(<Sparkles size={13} />, "Chart")}
                     <SimpleChart
                         title={stringFrom(data.title, "Chart")}
                         type={chartType}
@@ -191,6 +190,9 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOn
                     options={[
                         { label: "Bar", value: "bar" },
                         { label: "Line", value: "line" },
+                        { label: "Area", value: "area" },
+                        { label: "Scatter", value: "scatter" },
+                        { label: "Pie", value: "pie" },
                     ]}
                     onValueChange={value => updateField("type", value)}
                 />

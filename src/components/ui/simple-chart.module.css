@@ -24,9 +24,30 @@
     stroke-width: 2.5;
 }
 
+.area {
+    opacity: 0.16;
+}
+
 .point {
     fill: var(--surface);
     stroke-width: 2;
+}
+
+.pieSlice {
+    stroke: var(--surface);
+    stroke-width: 2;
+}
+
+.pieTitle {
+    fill: var(--foreground);
+    font-size: 12px;
+    font-weight: 650;
+}
+
+.emptyPie {
+    fill: rgba(16, 24, 32, 0.04);
+    stroke: rgba(16, 24, 32, 0.14);
+    stroke-width: 1.5;
 }
 
 .gridLine {

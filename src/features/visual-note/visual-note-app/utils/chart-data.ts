@@ -1,9 +1,14 @@
-import type { ChartDataLayout, SimpleChartDataset } from "@/components/ui"
+import type { ChartDataLayout, SimpleChartDataset, SimpleChartType } from "@/components/ui"
 
 const minimumChartRows = 5
 const minimumChartColumns = 4
 
 export const chartDataLayoutFrom = (value: unknown): ChartDataLayout => (value === "rows" ? "rows" : "columns")
+
+export const chartTypeFrom = (value: unknown): SimpleChartType => {
+    if (value === "line" || value === "area" || value === "scatter" || value === "pie") return value
+    return "bar"
+}
 
 const objectArrayFrom = (value: unknown) => {
     if (Array.isArray(value)) return value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
