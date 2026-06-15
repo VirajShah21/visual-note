@@ -1,11 +1,14 @@
 "use client"
 
+import { type ChangeEvent, type KeyboardEvent, useCallback } from "react"
 import { Button } from "../../button"
 import { cx } from "../../class-name"
 import { Divider, Pill, Stack, Text } from "../../primitives"
 import { isListBlock, type ArticleBlock } from "@/lib/visual-note/article-content"
 import type { DisplayInstance } from "@/lib/visual-note/types"
+import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
 import type { ArticleBlockHandlers, ArticleEditorProps } from "../types"
+import type { EditorField } from "../types"
 import { articleHeadingTargetId } from "../utils/heading-target"
 import { denormalizeParagraphText, headingLevelClassName } from "../utils/text"
 import styles from "../../article-editor.module.css"
@@ -41,14 +44,13 @@ export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, re
     if (block.kind === "paragraph")
         return (
             <Stack gap="xs" className={styles.articleBlock}>
-                <InlineLinkTextarea
+                <ArticleInlineInput
                     className={cx(styles.blockInput, styles.blockInputParagraph)}
                     value={denormalizeParagraphText(block.text)}
-                    data-block-index={blockIndex}
-                    data-editor-field="paragraph"
+                    blockIndex={blockIndex}
+                    field="paragraph"
                     placeholder="Start typing"
-                    onChange={event => handlers.onInputChange(blockIndex, "paragraph", undefined, event)}
-                    onKeyDown={event => handlers.onInputKeyDown(blockIndex, "paragraph", undefined, event)}
+                    handlers={handlers}
                 />
             </Stack>
         )
@@ -56,13 +58,13 @@ export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, re
     if (block.kind === "heading")
         return (
             <Stack id={articleHeadingTargetId(block.id)} gap="xs" className={styles.articleBlock}>
-                <InlineLinkTextarea
+                <ArticleInlineInput
                     className={cx(styles.blockInput, styles.blockInputHeading, styles[headingLevelClassName(block.level)])}
-                    data-block-index={blockIndex}
+                    blockIndex={blockIndex}
+                    field="heading"
                     value={block.text}
                     aria-label={`Heading ${block.level}`}
-                    onChange={event => handlers.onInputChange(blockIndex, "heading", undefined, event)}
-                    onKeyDown={event => handlers.onInputKeyDown(blockIndex, "heading", undefined, event)}
+                    handlers={handlers}
                 />
             </Stack>
         )
@@ -70,14 +72,14 @@ export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, re
     if (block.kind === "subtitle")
         return (
             <Stack gap="xs" className={styles.articleBlock}>
-                <InlineLinkTextarea
+                <ArticleInlineInput
                     className={cx(styles.blockInput, styles.blockInputSubtitle)}
-                    data-block-index={blockIndex}
+                    blockIndex={blockIndex}
+                    field="subtitle"
                     value={block.text}
                     aria-label="Page subtitle"
                     placeholder="Add a subtitle"
-                    onChange={event => handlers.onInputChange(blockIndex, "subtitle", undefined, event)}
-                    onKeyDown={event => handlers.onInputKeyDown(blockIndex, "subtitle", undefined, event)}
+                    handlers={handlers}
                 />
             </Stack>
         )
@@ -85,13 +87,13 @@ export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, re
     if (block.kind === "quote")
         return (
             <Stack gap="xs" className={styles.articleBlock}>
-                <InlineLinkTextarea
+                <ArticleInlineInput
                     className={cx(styles.blockInput, styles.blockInputQuote)}
-                    data-block-index={blockIndex}
+                    blockIndex={blockIndex}
+                    field="quote"
                     value={block.lines.join("\n")}
                     placeholder="Quote text"
-                    onChange={event => handlers.onInputChange(blockIndex, "quote", undefined, event)}
-                    onKeyDown={event => handlers.onInputKeyDown(blockIndex, "quote", undefined, event)}
+                    handlers={handlers}
                 />
             </Stack>
         )
@@ -101,23 +103,17 @@ export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, re
             <Stack gap="xs" className={cx(styles.articleBlock, styles.calloutBlock)}>
                 <Stack className={styles.blockLabelRow} direction="horizontal" gap="sm">
                     <Pill>{block.tone}</Pill>
-                    <Button variant="ghost" onClick={() => handlers.updateCalloutTone(blockIndex, "note")}>
+                    <CalloutToneButton blockIndex={blockIndex} tone="note" handlers={handlers}>
                         Note
-                    </Button>
-                    <Button variant="ghost" onClick={() => handlers.updateCalloutTone(blockIndex, "tip")}>
+                    </CalloutToneButton>
+                    <CalloutToneButton blockIndex={blockIndex} tone="tip" handlers={handlers}>
                         Tip
-                    </Button>
-                    <Button variant="ghost" onClick={() => handlers.updateCalloutTone(blockIndex, "warning")}>
+                    </CalloutToneButton>
+                    <CalloutToneButton blockIndex={blockIndex} tone="warning" handlers={handlers}>
                         Warning
-                    </Button>
+                    </CalloutToneButton>
                 </Stack>
-                <InlineLinkTextarea
-                    className={cx(styles.blockInput, styles.blockInputCallout)}
-                    data-block-index={blockIndex}
-                    value={block.text}
-                    onChange={event => handlers.onInputChange(blockIndex, "callout", undefined, event)}
-                    onKeyDown={event => handlers.onInputKeyDown(blockIndex, "callout", undefined, event)}
-                />
+                <ArticleInlineInput className={cx(styles.blockInput, styles.blockInputCallout)} blockIndex={blockIndex} field="callout" value={block.text} handlers={handlers} />
             </Stack>
         )
 
@@ -125,13 +121,12 @@ export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, re
         return (
             <Stack gap="xs" className={cx(styles.articleBlock, styles.codeBlock)}>
                 <Text tone="muted" size="small">{`Code block (${block.language})`}</Text>
-                <BlockTextarea
+                <ArticleCodeInput
                     className={cx(styles.blockInput, styles.blockInputCode)}
-                    data-block-index={blockIndex}
+                    blockIndex={blockIndex}
                     value={block.code}
                     placeholder="Enter code"
-                    onChange={event => handlers.onInputChange(blockIndex, "code", undefined, event)}
-                    onKeyDown={event => handlers.onInputKeyDown(blockIndex, "code", undefined, event)}
+                    handlers={handlers}
                 />
             </Stack>
         )
@@ -141,26 +136,13 @@ export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, re
             <Stack gap="xs" className={styles.articleBlock}>
                 <Stack gap="xs">
                     {block.items.map((item, itemIndex) => (
-                        <Stack key={`${blockIndex}-${itemIndex}`} className={styles.listRow} direction="horizontal" gap="sm">
-                            <Text size="small">{block.kind === "bulletList" ? "•" : `${itemIndex + 1}.`}</Text>
-                            <InlineLinkTextarea
-                                className={cx(styles.blockInput, block.kind === "orderedList" ? styles.blockInputOrderedList : styles.blockInputBulletList)}
-                                data-block-index={blockIndex}
-                                data-list-index={itemIndex}
-                                value={item}
-                                onChange={event => handlers.onInputChange(blockIndex, "list-item", itemIndex, event)}
-                                onKeyDown={event => handlers.onInputKeyDown(blockIndex, "list-item", itemIndex, event)}
-                            />
-                            <Button variant="ghost" onClick={() => handlers.removeListItem(blockIndex, itemIndex)}>
-                                Remove
-                            </Button>
-                        </Stack>
+                        <ArticleListItem key={`${blockIndex}-${itemIndex}`} blockKind={block.kind} blockIndex={blockIndex} item={item} itemIndex={itemIndex} handlers={handlers} />
                     ))}
                 </Stack>
                 <Stack className={styles.blockActions} direction="horizontal" gap="sm">
-                    <Button variant="ghost" onClick={() => handlers.addListItem(blockIndex)}>
+                    <AddListItemButton blockIndex={blockIndex} handlers={handlers}>
                         Add item
-                    </Button>
+                    </AddListItemButton>
                 </Stack>
             </Stack>
         )
@@ -185,10 +167,128 @@ export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, re
         return (
             <Stack gap="xs" className={styles.articleBlock}>
                 <Stack className={styles.displayBlock} gap="sm">
-                    {renderVisualBlock?.(block, data => handlers.updateVisualBlockData(blockIndex, data)) ?? <Text size="small">{`visual:${block.visualKind}`}</Text>}
+                    <RenderedVisualBlock block={block} blockIndex={blockIndex} handlers={handlers} renderVisualBlock={renderVisualBlock} />
                 </Stack>
             </Stack>
         )
 
     return null
+}
+
+type ArticleInputProps = {
+    className: string
+    blockIndex: number
+    field: EditorField
+    value: string
+    placeholder?: string
+    "aria-label"?: string
+    handlers: ArticleBlockHandlers
+}
+
+function ArticleInlineInput({ className, blockIndex, field, value, placeholder, "aria-label": ariaLabel, handlers }: ArticleInputProps) {
+    const handleChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => handlers.onInputChange(blockIndex, field, undefined, event), [blockIndex, field, handlers])
+    const handleKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => handlers.onInputKeyDown(blockIndex, field, undefined, event), [blockIndex, field, handlers])
+
+    return (
+        <InlineLinkTextarea
+            className={className}
+            data-block-index={blockIndex}
+            data-editor-field={field}
+            value={value}
+            placeholder={placeholder}
+            aria-label={ariaLabel}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+        />
+    )
+}
+
+function ArticleCodeInput({ className, blockIndex, value, placeholder, handlers }: Omit<ArticleInputProps, "field" | "aria-label">) {
+    const handleChange = useCallback((event: ChangeEvent<HTMLTextAreaElement>) => handlers.onInputChange(blockIndex, "code", undefined, event), [blockIndex, handlers])
+    const handleKeyDown = useCallback((event: KeyboardEvent<HTMLTextAreaElement>) => handlers.onInputKeyDown(blockIndex, "code", undefined, event), [blockIndex, handlers])
+
+    return <BlockTextarea className={className} data-block-index={blockIndex} value={value} placeholder={placeholder} onChange={handleChange} onKeyDown={handleKeyDown} />
+}
+
+type CalloutToneButtonProps = {
+    blockIndex: number
+    tone: "note" | "tip" | "warning"
+    handlers: ArticleBlockHandlers
+    children: string
+}
+
+function CalloutToneButton({ blockIndex, tone, handlers, children }: CalloutToneButtonProps) {
+    const handleClick = useCallback(() => handlers.updateCalloutTone(blockIndex, tone), [blockIndex, handlers, tone])
+
+    return (
+        <Button variant="ghost" onClick={handleClick}>
+            {children}
+        </Button>
+    )
+}
+
+type ArticleListItemProps = {
+    blockKind: "bulletList" | "orderedList"
+    blockIndex: number
+    item: string
+    itemIndex: number
+    handlers: ArticleBlockHandlers
+}
+
+function ArticleListItem({ blockKind, blockIndex, item, itemIndex, handlers }: ArticleListItemProps) {
+    const handleChange = useCallback(
+        (event: ChangeEvent<HTMLTextAreaElement>) => handlers.onInputChange(blockIndex, "list-item", itemIndex, event),
+        [blockIndex, handlers, itemIndex],
+    )
+    const handleKeyDown = useCallback(
+        (event: KeyboardEvent<HTMLTextAreaElement>) => handlers.onInputKeyDown(blockIndex, "list-item", itemIndex, event),
+        [blockIndex, handlers, itemIndex],
+    )
+    const handleRemove = useCallback(() => handlers.removeListItem(blockIndex, itemIndex), [blockIndex, handlers, itemIndex])
+
+    return (
+        <Stack className={styles.listRow} direction="horizontal" gap="sm">
+            <Text size="small">{blockKind === "bulletList" ? "•" : `${itemIndex + 1}.`}</Text>
+            <InlineLinkTextarea
+                className={cx(styles.blockInput, blockKind === "orderedList" ? styles.blockInputOrderedList : styles.blockInputBulletList)}
+                data-block-index={blockIndex}
+                data-list-index={itemIndex}
+                value={item}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+            />
+            <Button variant="ghost" onClick={handleRemove}>
+                Remove
+            </Button>
+        </Stack>
+    )
+}
+
+type AddListItemButtonProps = {
+    blockIndex: number
+    handlers: ArticleBlockHandlers
+    children: string
+}
+
+function AddListItemButton({ blockIndex, handlers, children }: AddListItemButtonProps) {
+    const handleClick = useCallback(() => handlers.addListItem(blockIndex), [blockIndex, handlers])
+
+    return (
+        <Button variant="ghost" onClick={handleClick}>
+            {children}
+        </Button>
+    )
+}
+
+type RenderedVisualBlockProps = {
+    block: Extract<ArticleBlock, { kind: "visual" }>
+    blockIndex: number
+    handlers: ArticleBlockHandlers
+    renderVisualBlock?: ArticleEditorProps["renderVisualBlock"]
+}
+
+function RenderedVisualBlock({ block, blockIndex, handlers, renderVisualBlock }: RenderedVisualBlockProps) {
+    const handleDataChange = useCallback((data: VisualBlockData) => handlers.updateVisualBlockData(blockIndex, data), [blockIndex, handlers])
+
+    return renderVisualBlock?.(block, handleDataChange) ?? <Text size="small">{`visual:${block.visualKind}`}</Text>
 }

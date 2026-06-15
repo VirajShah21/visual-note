@@ -1,13 +1,14 @@
 "use client"
 
-import { ListChecks, Plus } from "lucide-react"
-import { useState, type ReactNode } from "react"
-import { Button, EditableVisualBlock, Grid, Heading, Stack, Text, TextField } from "@/components/ui"
+import { ListChecks } from "lucide-react"
+import { type ChangeEvent, type ReactNode, useCallback, useState } from "react"
+import { EditableVisualBlock, Grid, Heading, Stack, Text, TextField } from "@/components/ui"
 import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
 import { countLabel, joinedPreviewText } from "../../utils/visual-block-preview"
 import { arrayFrom, numberFrom, objectArrayFrom, replaceObjectAt, replaceStringAt, stringFrom } from "../../utils/visual-note-app.utils"
 import styles from "../../../visual-note-app.module.css"
-import { InlineStringList } from "../inline-string-list"
+import { InlineStringListForField, VisualDataNumberField, VisualDataTextField } from "../visual-block-display-controls"
+import { ObjectListAddButton, ObjectListNumberField, ObjectListTextField } from "./visual-block-list-controls"
 
 type VisualBlockRecipeDisplayProps = {
     data: VisualBlockData
@@ -18,16 +19,25 @@ type VisualBlockRecipeDisplayProps = {
 
 export function VisualBlockRecipeDisplay({ data, isReadOnly = false, onDataChange, header }: VisualBlockRecipeDisplayProps) {
     const [recipePortions, setRecipePortions] = useState(() => numberFrom(data.basePortions, 2))
-    const updateField = (field: string, value: unknown) => onDataChange({ ...data, [field]: value })
-    const updateStringList = (field: string, index: number, value: string) => updateField(field, replaceStringAt(arrayFrom(data[field]), index, value))
-    const addStringListItem = (field: string, value: string) => updateField(field, [...arrayFrom(data[field]), value])
-    const removeStringListItem = (field: string, index: number) =>
-        updateField(
-            field,
-            arrayFrom(data[field]).filter((_, itemIndex) => itemIndex !== index),
-        )
-    const updateObjectList = (field: string, index: number, patch: Record<string, unknown>) => updateField(field, replaceObjectAt(objectArrayFrom(data[field]), index, patch))
-    const addObjectListItem = (field: string, value: Record<string, unknown>) => updateField(field, [...objectArrayFrom(data[field]), value])
+    const updateField = useCallback((field: string, value: unknown) => onDataChange({ ...data, [field]: value }), [data, onDataChange])
+    const updateStringList = useCallback(
+        (field: string, index: number, value: string) => updateField(field, replaceStringAt(arrayFrom(data[field]), index, value)),
+        [data, updateField],
+    )
+    const addStringListItem = useCallback((field: string, value: string) => updateField(field, [...arrayFrom(data[field]), value]), [data, updateField])
+    const removeStringListItem = useCallback(
+        (field: string, index: number) =>
+            updateField(
+                field,
+                arrayFrom(data[field]).filter((_, itemIndex) => itemIndex !== index),
+            ),
+        [data, updateField],
+    )
+    const updateObjectList = useCallback(
+        (field: string, index: number, patch: Record<string, unknown>) => updateField(field, replaceObjectAt(objectArrayFrom(data[field]), index, patch)),
+        [data, updateField],
+    )
+    const addObjectListItem = useCallback((field: string, value: Record<string, unknown>) => updateField(field, [...objectArrayFrom(data[field]), value]), [data, updateField])
     const basePortions = numberFrom(data.basePortions, 1)
     const portionScale = basePortions > 0 ? recipePortions / basePortions : 1
     const ingredients = objectArrayFrom(data.ingredients)
@@ -45,35 +55,76 @@ export function VisualBlockRecipeDisplay({ data, isReadOnly = false, onDataChang
     return (
         <EditableVisualBlock preview={preview} readOnly={isReadOnly}>
             <Grid columns="two" gap="sm">
-                <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
-                <TextField label="Base portions" type="number" value={String(basePortions)} onChange={event => updateField("basePortions", Number(event.target.value))} />
-                <TextField label="Display portions" type="number" value={String(recipePortions)} onChange={event => setRecipePortions(Number(event.target.value) || 1)} />
+                <VisualDataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={updateField} />
+                <VisualDataNumberField label="Base portions" field="basePortions" value={String(basePortions)} onUpdateField={updateField} />
+                <RecipePortionsField value={String(recipePortions)} onChange={setRecipePortions} />
             </Grid>
             <Stack gap="sm">
                 <Heading size="sm">Ingredients</Heading>
                 {ingredients.map((ingredient, index) => (
                     <Grid key={`${index}-${ingredient.name}`} columns="three" gap="sm">
-                        <TextField label="Name" value={stringFrom(ingredient.name)} onChange={event => updateObjectList("ingredients", index, { name: event.target.value })} />
-                        <TextField
-                            label="Quantity"
-                            type="number"
-                            value={String(numberFrom(ingredient.quantity, 0) * portionScale)}
-                            onChange={event => updateObjectList("ingredients", index, { quantity: Number(event.target.value) / portionScale })}
+                        <ObjectListTextField
+                            label="Name"
+                            field="ingredients"
+                            index={index}
+                            itemKey="name"
+                            value={stringFrom(ingredient.name)}
+                            onUpdateObjectList={updateObjectList}
                         />
-                        <TextField label="Unit" value={stringFrom(ingredient.unit)} onChange={event => updateObjectList("ingredients", index, { unit: event.target.value })} />
+                        <IngredientQuantityField
+                            index={index}
+                            value={String(numberFrom(ingredient.quantity, 0) * portionScale)}
+                            portionScale={portionScale}
+                            onUpdateObjectList={updateObjectList}
+                        />
+                        <ObjectListTextField
+                            label="Unit"
+                            field="ingredients"
+                            index={index}
+                            itemKey="unit"
+                            value={stringFrom(ingredient.unit)}
+                            onUpdateObjectList={updateObjectList}
+                        />
                     </Grid>
                 ))}
-                <Button icon={<Plus size={15} />} variant="ghost" onClick={() => addObjectListItem("ingredients", { name: "Ingredient", quantity: 1, unit: "" })}>
+                <ObjectListAddButton field="ingredients" value={{ name: "Ingredient", quantity: 1, unit: "" }} onAddObjectListItem={addObjectListItem}>
                     Add ingredient
-                </Button>
+                </ObjectListAddButton>
             </Stack>
-            <InlineStringList
+            <InlineStringListForField
                 title="Cooking steps"
                 items={steps}
-                onAdd={() => addStringListItem("steps", "New step")}
-                onChange={(index, value) => updateStringList("steps", index, value)}
-                onRemove={index => removeStringListItem("steps", index)}
+                field="steps"
+                newItem="New step"
+                onAddStringListItem={addStringListItem}
+                onUpdateStringList={updateStringList}
+                onRemoveStringListItem={removeStringListItem}
             />
         </EditableVisualBlock>
     )
+}
+
+function RecipePortionsField({ value, onChange }: { value: string; onChange: (value: number) => void }) {
+    const handleChange = useCallback((event: ChangeEvent<HTMLInputElement>) => onChange(Number(event.target.value) || 1), [onChange])
+
+    return <TextField label="Display portions" type="number" value={value} onChange={handleChange} />
+}
+
+function IngredientQuantityField({
+    index,
+    value,
+    portionScale,
+    onUpdateObjectList,
+}: {
+    index: number
+    value: string
+    portionScale: number
+    onUpdateObjectList: (field: string, index: number, patch: Record<string, unknown>) => void
+}) {
+    const handleUpdate = useCallback(
+        (field: string, itemIndex: number, patch: Record<string, unknown>) => onUpdateObjectList(field, itemIndex, { quantity: Number(patch.quantity) / portionScale }),
+        [onUpdateObjectList, portionScale],
+    )
+
+    return <ObjectListNumberField label="Quantity" field="ingredients" index={index} itemKey="quantity" value={value} onUpdateObjectList={handleUpdate} />
 }

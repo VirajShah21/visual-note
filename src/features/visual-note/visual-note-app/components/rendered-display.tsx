@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { type ReactNode, useCallback } from "react"
 import { Stack } from "@/components/ui"
 import type { ComponentKind } from "@/lib/visual-note/types"
 import type { RenderedDisplayProps } from "../types/visual-note-app.types"
@@ -13,14 +13,17 @@ import { TimelineRenderedDisplay } from "./rendered-display/timeline-rendered-di
 import { WorkLogsRenderedDisplay } from "./rendered-display/work-logs-rendered-display"
 
 export function RenderedDisplay({ display, onUpdate, isReadOnly = false }: RenderedDisplayProps) {
-    const updateData = (nextData: Record<string, unknown>) => onUpdate({ ...display, data: nextData })
+    const updateData = useCallback((nextData: Record<string, unknown>) => onUpdate({ ...display, data: nextData }), [display, onUpdate])
     const editor = isReadOnly ? null : (
         <Stack className={styles.inlineDisplayEditor} gap="md">
             <DisplayDataEditor display={display} onDataChange={updateData} />
         </Stack>
     )
-    const displayHeader = (icon: ReactNode, action?: ReactNode) => (
-        <DetailRenderedDisplay.Header icon={icon} title={display.name} kindLabel={readableKind(display.kind as ComponentKind)} action={action} />
+    const displayHeader = useCallback(
+        (icon: ReactNode, action?: ReactNode) => (
+            <DetailRenderedDisplay.Header icon={icon} title={display.name} kindLabel={readableKind(display.kind as ComponentKind)} action={action} />
+        ),
+        [display.kind, display.name],
     )
 
     if (display.kind === "data-card") return <DataCardRenderedDisplay data={display.data} display={display} isReadOnly={isReadOnly} onDataChange={updateData} />

@@ -2,7 +2,7 @@
 
 import { Input } from "@base-ui/react/input"
 import { motion, type HTMLMotionProps } from "motion/react"
-import { createElement } from "react"
+import { createElement, useCallback } from "react"
 import type { ChangeEventHandler, ComponentProps, ReactNode } from "react"
 import { cx } from "./class-name"
 import styles from "./form-controls.module.css"
@@ -104,7 +104,7 @@ type SelectFieldProps = Omit<HTMLMotionProps<"select">, "onChange"> & {
 }
 
 export function SelectField({ className, label, hint, error, options, onValueChange, ...props }: SelectFieldProps) {
-    const handleChange: ChangeEventHandler<HTMLSelectElement> = event => onValueChange(event.target.value)
+    const handleChange: ChangeEventHandler<HTMLSelectElement> = useCallback(event => onValueChange(event.target.value), [onValueChange])
 
     return (
         <FieldShell label={label} hint={hint} error={error}>

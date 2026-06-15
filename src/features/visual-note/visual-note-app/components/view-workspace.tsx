@@ -1,4 +1,8 @@
 import { ArticleEditor, Card, Heading, Stack, Text } from "@/components/ui"
+import { useCallback } from "react"
+import type { ArticleBlock } from "@/lib/visual-note/article-content"
+import type { DisplayInstance } from "@/lib/visual-note/types"
+import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
 import type { ArticleWorkspaceProps, ViewWorkspaceProps } from "../types/visual-note-app.types"
 import { stringFrom } from "../utils/visual-note-app.utils"
 import styles from "../../visual-note-app.module.css"
@@ -25,6 +29,24 @@ export function ViewWorkspace({ view, editorSettings, onUpdateView, onUpdateDisp
 
 export function ArticleWorkspace({ view, editorSettings, onUpdateView, onUpdateDisplay }: ArticleWorkspaceProps) {
     const isReaderMode = editorSettings.mode === "reader"
+    const updateContent = useCallback((content: string) => onUpdateView({ ...view, content }), [onUpdateView, view])
+    const renderDisplay = useCallback(
+        (display: DisplayInstance) => <RenderedDisplay display={display} onUpdate={onUpdateDisplay} isReadOnly={isReaderMode} />,
+        [isReaderMode, onUpdateDisplay],
+    )
+    const renderVisualBlock = useCallback(
+        (block: Extract<ArticleBlock, { kind: "visual" }>, onDataChange: (data: VisualBlockData) => void) => (
+            <VisualBlockDisplay
+                visualKind={block.visualKind}
+                data={block.data}
+                raw={block.raw}
+                parseError={block.parseError}
+                isReadOnly={isReaderMode}
+                onDataChange={onDataChange}
+            />
+        ),
+        [isReaderMode],
+    )
 
     return (
         <ArticleEditor
@@ -34,18 +56,9 @@ export function ArticleWorkspace({ view, editorSettings, onUpdateView, onUpdateD
             contentsMode={editorSettings.contents}
             editorMode={editorSettings.mode}
             readOnly={isReaderMode}
-            onChange={content => onUpdateView({ ...view, content })}
-            renderDisplay={display => <RenderedDisplay display={display} onUpdate={onUpdateDisplay} isReadOnly={isReaderMode} />}
-            renderVisualBlock={(block, onDataChange) => (
-                <VisualBlockDisplay
-                    visualKind={block.visualKind}
-                    data={block.data}
-                    raw={block.raw}
-                    parseError={block.parseError}
-                    isReadOnly={isReaderMode}
-                    onDataChange={onDataChange}
-                />
-            )}
+            onChange={updateContent}
+            renderDisplay={renderDisplay}
+            renderVisualBlock={renderVisualBlock}
         />
     )
 }

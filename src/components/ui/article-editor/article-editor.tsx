@@ -1,6 +1,7 @@
 "use client"
 
 import { AnimatePresence, motion } from "motion/react"
+import { useCallback } from "react"
 import { MarkdownSourceEditor } from "../markdown-source-editor"
 import { Stack } from "../primitives"
 import styles from "../article-editor.module.css"
@@ -37,6 +38,14 @@ export function ArticleEditor({
     const isSourceMode = editorMode === "source"
     const isReaderMode = readOnly || editorMode === "reader"
     const activeSelectionHandlers = isSourceMode || isReaderMode ? {} : selectionHandlers
+    const applyActiveCommand = useCallback(
+        (command: (typeof commandItems)[number]) => {
+            if (!commandState) return
+
+            applyCommand(commandState.blockIndex, commandState.field, commandState.listIndex, command)
+        },
+        [applyCommand, commandState],
+    )
 
     if (isSourceMode)
         return (
@@ -100,7 +109,7 @@ export function ArticleEditor({
                     items={commandItems}
                     selectedIndex={boundedSelectedCommandIndex}
                     position={menuPosition}
-                    onApply={command => applyCommand(commandState.blockIndex, commandState.field, commandState.listIndex, command)}
+                    onApply={applyActiveCommand}
                     onDismiss={dismissCommand}
                 />
             ) : null}

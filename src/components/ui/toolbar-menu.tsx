@@ -2,7 +2,7 @@
 
 import { Menu } from "@base-ui/react/menu"
 import { Check, ChevronRight } from "lucide-react"
-import type { ReactNode } from "react"
+import { type ReactNode, useCallback } from "react"
 import { cx } from "./class-name"
 import styles from "./toolbar-menu.module.css"
 
@@ -48,6 +48,8 @@ export function ToolbarMenu({ label, icon, groups, className }: ToolbarMenuProps
 }
 
 function ToolbarSubmenu({ group }: { group: ToolbarMenuGroup }) {
+    const handleValueChange = useCallback((value: string) => group.onValueChange(value), [group])
+
     return (
         <Menu.SubmenuRoot>
             <Menu.SubmenuTrigger className={styles.item}>
@@ -59,7 +61,7 @@ function ToolbarSubmenu({ group }: { group: ToolbarMenuGroup }) {
             <Menu.Portal>
                 <Menu.Positioner className={styles.positioner} side="right" align="start" sideOffset={6} collisionPadding={12}>
                     <Menu.Popup className={styles.popup}>
-                        <Menu.RadioGroup value={group.value} onValueChange={value => group.onValueChange(value)}>
+                        <Menu.RadioGroup value={group.value} onValueChange={handleValueChange}>
                             {group.options.map(option => (
                                 <Menu.RadioItem key={option.value} className={styles.item} closeOnClick value={option.value}>
                                     <span className={styles.itemIcon}>{option.icon}</span>

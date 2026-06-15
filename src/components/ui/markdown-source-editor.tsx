@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic"
 import type { OnChange, OnMount } from "@monaco-editor/react"
+import { useCallback } from "react"
 import { Text } from "./primitives"
 import styles from "./markdown-source-editor.module.css"
 
@@ -17,8 +18,8 @@ type MarkdownSourceEditorProps = {
 }
 
 export function MarkdownSourceEditor({ value, readOnly = false, onChange }: MarkdownSourceEditorProps) {
-    const handleChange: OnChange = nextValue => onChange(nextValue ?? "")
-    const handleMount: OnMount = editor => editor.focus()
+    const handleChange: OnChange = useCallback(nextValue => onChange(nextValue ?? ""), [onChange])
+    const handleMount: OnMount = useCallback(editor => editor.focus(), [])
 
     return (
         <div className={styles.sourceEditor}>

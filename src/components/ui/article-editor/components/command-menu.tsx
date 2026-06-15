@@ -1,6 +1,6 @@
 "use client"
 
-import type { RefObject } from "react"
+import { type MouseEvent, type RefObject, useCallback } from "react"
 import { Button } from "../../button"
 import { cx } from "../../class-name"
 import { Card, Stack, Text } from "../../primitives"
@@ -27,24 +27,7 @@ export function CommandMenu({ commandRef, items, selectedIndex, position, onAppl
                     {items.length === 0 ? (
                         <Text size="small">No matching command</Text>
                     ) : (
-                        items.map((command, index) => {
-                            const isActive = index === selectedIndex
-
-                            return (
-                                <Button
-                                    key={command.id}
-                                    variant="ghost"
-                                    className={cx(styles.commandButton, isActive && styles.commandButtonActive)}
-                                    onMouseDown={event => {
-                                        event.preventDefault()
-                                        onApply(command)
-                                    }}
-                                >
-                                    <Text tone={isActive ? "strong" : "muted"}>{command.label}</Text>
-                                    <Text size="small">{command.description}</Text>
-                                </Button>
-                            )
-                        })
+                        items.map((command, index) => <CommandMenuItem key={command.id} command={command} isActive={index === selectedIndex} onApply={onApply} />)
                     )}
                 </Stack>
                 <Button variant="ghost" onClick={onDismiss}>
@@ -52,5 +35,22 @@ export function CommandMenu({ commandRef, items, selectedIndex, position, onAppl
                 </Button>
             </Stack>
         </Card>
+    )
+}
+
+function CommandMenuItem({ command, isActive, onApply }: { command: ArticleEditorCommand; isActive: boolean; onApply: (command: ArticleEditorCommand) => void }) {
+    const handleMouseDown = useCallback(
+        (event: MouseEvent<HTMLButtonElement>) => {
+            event.preventDefault()
+            onApply(command)
+        },
+        [command, onApply],
+    )
+
+    return (
+        <Button variant="ghost" className={cx(styles.commandButton, isActive && styles.commandButtonActive)} onMouseDown={handleMouseDown}>
+            <Text tone={isActive ? "strong" : "muted"}>{command.label}</Text>
+            <Text size="small">{command.description}</Text>
+        </Button>
     )
 }

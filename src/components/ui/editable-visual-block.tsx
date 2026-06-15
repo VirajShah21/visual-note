@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ReactNode } from "react"
+import { useCallback, useState, type ReactNode } from "react"
 import { Button } from "./button"
 import { cx } from "./class-name"
 import { EditableFrame } from "./editable-frame"
@@ -29,6 +29,8 @@ export function EditableVisualBlock({
     readOnly = false,
 }: EditableVisualBlockProps) {
     const [isEditing, setIsEditing] = useState(false)
+    const startEditing = useCallback(() => setIsEditing(true), [])
+    const stopEditing = useCallback(() => setIsEditing(false), [])
     const previewContent = (
         <Stack className={cx(styles.previewContent, previewPadding === "none" && styles.previewContentFlush)} gap="md">
             {preview}
@@ -42,7 +44,7 @@ export function EditableVisualBlock({
                     {previewContent}
                 </Stack>
             ) : (
-                <EditableFrame className={cx(styles.previewFrame, previewClassName)} editLabel={editLabel} isEditing={isEditing} onClick={() => setIsEditing(true)}>
+                <EditableFrame className={cx(styles.previewFrame, previewClassName)} editLabel={editLabel} isEditing={isEditing} onClick={startEditing}>
                     {previewContent}
                 </EditableFrame>
             )}
@@ -50,7 +52,7 @@ export function EditableVisualBlock({
                 <Stack className={styles.editorPanel} gap="md">
                     {children}
                     <Stack className={styles.editorActions} direction="horizontal" gap="sm">
-                        <Button variant="ghost" onClick={() => setIsEditing(false)}>
+                        <Button variant="ghost" onClick={stopEditing}>
                             {doneLabel}
                         </Button>
                     </Stack>

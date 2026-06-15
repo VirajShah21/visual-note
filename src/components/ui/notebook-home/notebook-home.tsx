@@ -1,7 +1,7 @@
 "use client"
 
 import { Plus } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { Stack } from "../primitives"
 import { Button } from "../button"
 import { ModalDialog } from "../overlays"
@@ -22,18 +22,19 @@ export function NotebookHome({ userLabel, storageLabel, notebooks, onCreateNoteb
         )
     }, [notebooks, query])
 
-    const createNotebook = () => {
+    const createNotebook = useCallback(() => {
         if (!onCreateNotebook(title)) return
 
         setTitle("New web notebook")
         setIsCreateOpen(false)
-    }
+    }, [onCreateNotebook, title])
+    const openCreateDialog = useCallback(() => setIsCreateOpen(true), [])
 
     return (
         <NotebookHomeShell>
             <NotebookNavigationRail userLabel={userLabel} storageLabel={storageLabel} onSignOut={onSignOut} />
             <NotebookHomeContent>
-                <NotebookTopBar query={query} onQueryChange={setQuery} onCreate={() => setIsCreateOpen(true)} />
+                <NotebookTopBar query={query} onQueryChange={setQuery} onCreate={openCreateDialog} />
                 <NotebookGallery notebooks={filteredNotebooks} />
             </NotebookHomeContent>
             <ModalDialog open={isCreateOpen} title="Create notebook" description="Start a structured notebook website." onOpenChange={setIsCreateOpen}>

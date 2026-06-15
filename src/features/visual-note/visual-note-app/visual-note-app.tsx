@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { Card, Grid, MarkdownPreviewDialog, NotebookEditorNavbar, NotebookHome, ScrollArea, Stack, Text, ToastShelf } from "@/components/ui"
 import { defaultNotebookEditorSettings } from "@/lib/visual-note/types"
 import type { VisualNoteAppProps } from "./types/visual-note-app.types"
@@ -23,6 +23,8 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     )
     const markdownSource = selected.view ? stringFrom(selected.view.content) : ""
     const editorSettings = selected.notebook?.editorSettings ?? defaultNotebookEditorSettings
+    const openExportDialog = useCallback(() => setIsExportOpen(true), [])
+    const toggleSidebar = useCallback(() => setIsSidebarOpen(current => !current), [])
 
     if (isLoading)
         return (
@@ -66,13 +68,13 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                     searchResults={searchResults}
                     sidebarOpen={isSidebarOpen}
                     editorSettings={editorSettings}
-                    onExport={() => setIsExportOpen(true)}
+                    onExport={openExportDialog}
                     onHomeSelect={actions.openHome}
                     onNotebookSelect={actions.selectNotebook}
                     onSearchChange={setSearchQuery}
                     onSearchResultSelect={actions.selectSearchResult}
                     onSettingsChange={actions.updateNotebookEditorSettings}
-                    onToggleSidebar={() => setIsSidebarOpen(current => !current)}
+                    onToggleSidebar={toggleSidebar}
                 />
                 <Grid
                     className={`${styles.contentGrid} ${isSidebarOpen ? "" : styles.contentGridSidebarClosed}`}

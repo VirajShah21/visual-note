@@ -1,10 +1,11 @@
 "use client"
 
 import { CheckCircle2, CircleDot, GitBranch, GitPullRequest, XCircle } from "lucide-react"
-import { EditableVisualBlock, Grid, Heading, Pill, Stack, Text, TextField } from "@/components/ui"
+import { useCallback } from "react"
+import { EditableVisualBlock, Grid, Heading, Pill, Stack, Text } from "@/components/ui"
 import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
 import { arrayFrom, replaceStringAt, stringFrom } from "../../utils/visual-note-app.utils"
-import { InlineStringList } from "../inline-string-list"
+import { InlineStringListForField, VisualDataTextField } from "../visual-block-display-controls"
 import styles from "./visual-pull-request-block.module.css"
 
 type VisualPullRequestBlockProps = {
@@ -29,14 +30,20 @@ export function VisualPullRequestBlock({ data, isReadOnly = false, onDataChange 
     const notes = arrayFrom(data.notes)
     const baseBranch = stringFrom(data.baseBranch, "base")
     const headBranch = stringFrom(data.headBranch, "branch")
-    const updateField = (field: string, value: unknown) => onDataChange({ ...data, [field]: value })
-    const updateStringList = (field: string, index: number, value: string) => updateField(field, replaceStringAt(arrayFrom(data[field]), index, value))
-    const addStringListItem = (field: string, value: string) => updateField(field, [...arrayFrom(data[field]), value])
-    const removeStringListItem = (field: string, index: number) =>
-        updateField(
-            field,
-            arrayFrom(data[field]).filter((_, itemIndex) => itemIndex !== index),
-        )
+    const updateField = useCallback((field: string, value: unknown) => onDataChange({ ...data, [field]: value }), [data, onDataChange])
+    const updateStringList = useCallback(
+        (field: string, index: number, value: string) => updateField(field, replaceStringAt(arrayFrom(data[field]), index, value)),
+        [data, updateField],
+    )
+    const addStringListItem = useCallback((field: string, value: string) => updateField(field, [...arrayFrom(data[field]), value]), [data, updateField])
+    const removeStringListItem = useCallback(
+        (field: string, index: number) =>
+            updateField(
+                field,
+                arrayFrom(data[field]).filter((_, itemIndex) => itemIndex !== index),
+            ),
+        [data, updateField],
+    )
     const preview = (
         <Stack className={styles.card} gap="md">
             <Stack className={styles.cardHeader} direction="horizontal" gap="sm">
@@ -103,35 +110,41 @@ export function VisualPullRequestBlock({ data, isReadOnly = false, onDataChange 
     return (
         <EditableVisualBlock preview={preview} previewClassName={styles.cardFrame} previewPadding="none" readOnly={isReadOnly}>
             <Grid columns="two" gap="sm">
-                <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
-                <TextField label="URL" value={url} onChange={event => updateField("url", event.target.value)} />
-                <TextField label="Number" value={stringFrom(data.number)} onChange={event => updateField("number", event.target.value)} />
-                <TextField label="Status" value={stringFrom(data.status)} onChange={event => updateField("status", event.target.value)} />
-                <TextField label="Author" value={stringFrom(data.author)} onChange={event => updateField("author", event.target.value)} />
-                <TextField label="Base branch" value={stringFrom(data.baseBranch)} onChange={event => updateField("baseBranch", event.target.value)} />
-                <TextField label="PR branch" value={stringFrom(data.headBranch)} onChange={event => updateField("headBranch", event.target.value)} />
-                <TextField label="Source" value={stringFrom(data.source)} onChange={event => updateField("source", event.target.value)} />
+                <VisualDataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={updateField} />
+                <VisualDataTextField label="URL" field="url" value={url} onUpdateField={updateField} />
+                <VisualDataTextField label="Number" field="number" value={stringFrom(data.number)} onUpdateField={updateField} />
+                <VisualDataTextField label="Status" field="status" value={stringFrom(data.status)} onUpdateField={updateField} />
+                <VisualDataTextField label="Author" field="author" value={stringFrom(data.author)} onUpdateField={updateField} />
+                <VisualDataTextField label="Base branch" field="baseBranch" value={stringFrom(data.baseBranch)} onUpdateField={updateField} />
+                <VisualDataTextField label="PR branch" field="headBranch" value={stringFrom(data.headBranch)} onUpdateField={updateField} />
+                <VisualDataTextField label="Source" field="source" value={stringFrom(data.source)} onUpdateField={updateField} />
             </Grid>
-            <InlineStringList
+            <InlineStringListForField
                 title="Labels"
                 items={labels}
-                onAdd={() => addStringListItem("labels", "label")}
-                onChange={(index, value) => updateStringList("labels", index, value)}
-                onRemove={index => removeStringListItem("labels", index)}
+                field="labels"
+                newItem="label"
+                onAddStringListItem={addStringListItem}
+                onUpdateStringList={updateStringList}
+                onRemoveStringListItem={removeStringListItem}
             />
-            <InlineStringList
+            <InlineStringListForField
                 title="Reviewers"
                 items={reviewers}
-                onAdd={() => addStringListItem("reviewers", "Reviewer")}
-                onChange={(index, value) => updateStringList("reviewers", index, value)}
-                onRemove={index => removeStringListItem("reviewers", index)}
+                field="reviewers"
+                newItem="Reviewer"
+                onAddStringListItem={addStringListItem}
+                onUpdateStringList={updateStringList}
+                onRemoveStringListItem={removeStringListItem}
             />
-            <InlineStringList
+            <InlineStringListForField
                 title="Notes"
                 items={notes}
-                onAdd={() => addStringListItem("notes", "New note")}
-                onChange={(index, value) => updateStringList("notes", index, value)}
-                onRemove={index => removeStringListItem("notes", index)}
+                field="notes"
+                newItem="New note"
+                onAddStringListItem={addStringListItem}
+                onUpdateStringList={updateStringList}
+                onRemoveStringListItem={removeStringListItem}
             />
         </EditableVisualBlock>
     )

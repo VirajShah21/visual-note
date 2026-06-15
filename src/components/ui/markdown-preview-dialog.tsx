@@ -3,7 +3,7 @@
 import hljs from "highlight.js/lib/core"
 import markdown from "highlight.js/lib/languages/markdown"
 import { ClipboardCopy } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { Button } from "./button"
 import { ModalDialog } from "./overlays"
 import { Stack, Text } from "./primitives"
@@ -22,11 +22,11 @@ export function MarkdownPreviewDialog({ markdown: source, open, title = "Markdow
     const [copyLabel, setCopyLabel] = useState("Copy markdown")
     const highlighted = useMemo(() => hljs.highlight(source || "", { language: "markdown" }).value, [source])
 
-    const copyMarkdown = async () => {
+    const copyMarkdown = useCallback(async () => {
         await navigator.clipboard.writeText(source)
         setCopyLabel("Copied")
         window.setTimeout(() => setCopyLabel("Copy markdown"), 1200)
-    }
+    }, [source])
 
     return (
         <ModalDialog open={open} title={title} description="Preview the selected article as markdown source." onOpenChange={onOpenChange}>

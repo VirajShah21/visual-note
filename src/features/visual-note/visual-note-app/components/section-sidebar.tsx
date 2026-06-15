@@ -1,10 +1,11 @@
 "use client"
 
 import { PanelLeft, Pencil, Plus, Trash2 } from "lucide-react"
-import { useState } from "react"
-import { Button, ContextActions, Heading, InfoPopover, ModalDialog, Pill, ScrollArea, Stack, TextField } from "@/components/ui"
+import { useCallback, useMemo, useState } from "react"
+import { Button, ContextActions, Heading, InfoPopover, Pill, ScrollArea, Stack } from "@/components/ui"
 import type { SectionSidebarProps } from "../types/visual-note-app.types"
 import styles from "../../visual-note-app.module.css"
+import { SectionDialogs } from "./section-sidebar-dialogs"
 
 export function SectionSidebar({
     sections,
@@ -29,43 +30,50 @@ export function SectionSidebar({
     const [isCreateTopicOpen, setIsCreateTopicOpen] = useState(false)
     const [activeSectionIdForTopic, setActiveSectionIdForTopic] = useState("")
 
-    const create = () => {
+    const create = useCallback(() => {
         if (!onCreateSection(title)) return
         setTitle("New section")
         setIsCreateOpen(false)
-    }
-    const createTopic = () => {
+    }, [onCreateSection, title])
+    const createTopic = useCallback(() => {
         if (!activeSectionIdForTopic || !onCreateTopic(activeSectionIdForTopic, itemTitle)) return
         setItemTitle("New item")
         setIsCreateTopicOpen(false)
-    }
-    const openEditTopic = (topicId: string) => {
-        const topic = topics.find(item => item.id === topicId)
-        if (!topic) return
-        setEditingTopicId(topic.id)
-        setEditTitle(topic.title)
-    }
-    const openEditSection = (sectionId: string) => {
-        const section = sections.find(item => item.id === sectionId)
-        if (!section) return
-        setEditingSectionId(section.id)
-        setEditTitle(section.title)
-    }
-    const renameSection = () => {
+    }, [activeSectionIdForTopic, itemTitle, onCreateTopic])
+    const openEditTopic = useCallback(
+        (topicId: string) => {
+            const topic = topics.find(item => item.id === topicId)
+            if (!topic) return
+            setEditingTopicId(topic.id)
+            setEditTitle(topic.title)
+        },
+        [topics],
+    )
+    const openEditSection = useCallback(
+        (sectionId: string) => {
+            const section = sections.find(item => item.id === sectionId)
+            if (!section) return
+            setEditingSectionId(section.id)
+            setEditTitle(section.title)
+        },
+        [sections],
+    )
+    const renameSection = useCallback(() => {
         if (!onRenameSection(editingSectionId, editTitle)) return
         setEditingSectionId("")
         setEditTitle("")
-    }
-    const rename = () => {
+    }, [editTitle, editingSectionId, onRenameSection])
+    const rename = useCallback(() => {
         if (!onRenameTopic(editingTopicId, editTitle)) return
         setEditingTopicId("")
         setEditTitle("")
-    }
-    const openTopicCreator = (sectionId: string) => {
+    }, [editTitle, editingTopicId, onRenameTopic])
+    const openTopicCreator = useCallback((sectionId: string) => {
         setActiveSectionIdForTopic(sectionId)
         setItemTitle("New item")
         setIsCreateTopicOpen(true)
-    }
+    }, [])
+    const openCreateDialog = useCallback(() => setIsCreateOpen(true), [])
 
     return (
         <ScrollArea className={styles.sidebar}>
@@ -97,7 +105,7 @@ export function SectionSidebar({
                         />
                     ))}
                 </Stack>
-                <Button icon={<Plus size={15} />} onClick={() => setIsCreateOpen(true)} fullWidth>
+                <Button icon={<Plus size={15} />} onClick={openCreateDialog} fullWidth>
                     New section
                 </Button>
             </Stack>
@@ -152,43 +160,34 @@ function SectionGroup({
     onSelectSection,
     onSelectTopic,
 }: SectionGroupProps) {
+    const renameSectionItem = useMemo(
+        () => ({ label: "Rename section", icon: <Pencil size={14} />, onSelect: () => onOpenEditSection(section.id) }),
+        [onOpenEditSection, section.id],
+    )
+    const deleteSectionItem = useMemo(() => ({ label: "Delete section", icon: <Trash2 size={14} />, onSelect: () => onDeleteSection(section.id) }), [onDeleteSection, section.id])
+    const sectionItems = useMemo(() => [renameSectionItem, deleteSectionItem], [deleteSectionItem, renameSectionItem])
+    const handleSelectSection = useCallback(() => onSelectSection(section.id), [onSelectSection, section.id])
+    const handleOpenTopicCreator = useCallback(() => onOpenTopicCreator(section.id), [onOpenTopicCreator, section.id])
+
     return (
         <Stack className={styles.sectionGroup} gap="sm">
-            <ContextActions
-                className={styles.sectionHeaderTrigger}
-                items={[
-                    { label: "Rename section", icon: <Pencil size={14} />, onSelect: () => onOpenEditSection(section.id) },
-                    { label: "Delete section", icon: <Trash2 size={14} />, onSelect: () => onDeleteSection(section.id) },
-                ]}
-            >
-                <Heading
-                    className={`${styles.sectionTitle} ${section.id === activeSectionId ? styles.activeSectionTitle : ""}`}
-                    size="sm"
-                    onClick={() => onSelectSection(section.id)}
-                >
+            <ContextActions className={styles.sectionHeaderTrigger} items={sectionItems}>
+                <Heading className={`${styles.sectionTitle} ${section.id === activeSectionId ? styles.activeSectionTitle : ""}`} size="sm" onClick={handleSelectSection}>
                     {section.title}
                 </Heading>
             </ContextActions>
             <Stack className={styles.sectionPageList} gap="xs">
                 {topics.map(topic => (
-                    <ContextActions
+                    <SectionTopicItem
                         key={topic.id}
-                        className={styles.topicContextTrigger}
-                        items={[
-                            { label: "Rename item", icon: <Pencil size={14} />, onSelect: () => onOpenEditTopic(topic.id) },
-                            { label: "Delete item", icon: <Trash2 size={14} />, onSelect: () => onDeleteTopic(topic.id) },
-                        ]}
-                    >
-                        <Button
-                            className={`${styles.navButton} ${styles.topicSelectButton} ${topic.id === activeTopicId ? styles.activeNavButton : ""}`}
-                            onClick={() => onSelectTopic(topic.id)}
-                            fullWidth
-                        >
-                            {topic.title}
-                        </Button>
-                    </ContextActions>
+                        topic={topic}
+                        activeTopicId={activeTopicId}
+                        onDeleteTopic={onDeleteTopic}
+                        onOpenEditTopic={onOpenEditTopic}
+                        onSelectTopic={onSelectTopic}
+                    />
                 ))}
-                <Button icon={<Plus size={15} />} onClick={() => onOpenTopicCreator(section.id)} fullWidth>
+                <Button icon={<Plus size={15} />} onClick={handleOpenTopicCreator} fullWidth>
                     New item
                 </Button>
             </Stack>
@@ -196,93 +195,25 @@ function SectionGroup({
     )
 }
 
-type SectionDialogsProps = {
-    title: string
-    itemTitle: string
-    editTitle: string
-    editingTopicId: string
-    editingSectionId: string
-    isCreateOpen: boolean
-    isCreateTopicOpen: boolean
-    onCreate: () => void
-    onCreateTopic: () => void
-    onRename: () => void
-    onRenameSection: () => void
-    onSetTitle: (title: string) => void
-    onSetItemTitle: (title: string) => void
-    onSetEditTitle: (title: string) => void
-    onSetCreateOpen: (open: boolean) => void
-    onSetCreateTopicOpen: (open: boolean) => void
-    onSetEditingTopicId: (id: string) => void
-    onSetEditingSectionId: (id: string) => void
+type SectionTopicItemProps = {
+    topic: SectionSidebarProps["topics"][number]
+    activeTopicId: string
+    onDeleteTopic: (topicId: string) => boolean
+    onOpenEditTopic: (topicId: string) => void
+    onSelectTopic: (topicId: string) => void
 }
 
-function SectionDialogs(props: SectionDialogsProps) {
-    return (
-        <>
-            <ModalDialog open={props.isCreateOpen} title="Create section" description="Sections are sidebar groups for this notebook." onOpenChange={props.onSetCreateOpen}>
-                <Stack gap="md">
-                    <TextField label="Section title" value={props.title} onChange={event => props.onSetTitle(event.target.value)} />
-                    <Button icon={<Plus size={15} />} variant="primary" onClick={props.onCreate} fullWidth>
-                        Create section
-                    </Button>
-                </Stack>
-            </ModalDialog>
-            <ModalDialog open={props.isCreateTopicOpen} title="Create item" description="Add a sidebar item to this section." onOpenChange={props.onSetCreateTopicOpen}>
-                <Stack gap="md">
-                    <TextField label="Item title" value={props.itemTitle} onChange={event => props.onSetItemTitle(event.target.value)} />
-                    <Button icon={<Plus size={15} />} variant="primary" onClick={props.onCreateTopic} fullWidth>
-                        Create item
-                    </Button>
-                </Stack>
-            </ModalDialog>
-            <RenameDialog
-                title="Rename topic"
-                description="Update this sidebar topic title."
-                open={Boolean(props.editingTopicId)}
-                value={props.editTitle}
-                onOpenChange={open => !open && props.onSetEditingTopicId("")}
-                onValueChange={props.onSetEditTitle}
-                onRename={props.onRename}
-            />
-            <RenameDialog
-                title="Rename section"
-                description="Update this sidebar section title."
-                open={Boolean(props.editingSectionId)}
-                value={props.editTitle}
-                onOpenChange={open => !open && props.onSetEditingSectionId("")}
-                onValueChange={props.onSetEditTitle}
-                onRename={props.onRenameSection}
-            />
-        </>
-    )
-}
+function SectionTopicItem({ topic, activeTopicId, onDeleteTopic, onOpenEditTopic, onSelectTopic }: SectionTopicItemProps) {
+    const renameItem = useMemo(() => ({ label: "Rename item", icon: <Pencil size={14} />, onSelect: () => onOpenEditTopic(topic.id) }), [onOpenEditTopic, topic.id])
+    const deleteItem = useMemo(() => ({ label: "Delete item", icon: <Trash2 size={14} />, onSelect: () => onDeleteTopic(topic.id) }), [onDeleteTopic, topic.id])
+    const items = useMemo(() => [renameItem, deleteItem], [deleteItem, renameItem])
+    const handleSelect = useCallback(() => onSelectTopic(topic.id), [onSelectTopic, topic.id])
 
-function RenameDialog({
-    title,
-    description,
-    open,
-    value,
-    onOpenChange,
-    onValueChange,
-    onRename,
-}: {
-    title: string
-    description: string
-    open: boolean
-    value: string
-    onOpenChange: (open: boolean) => void
-    onValueChange: (value: string) => void
-    onRename: () => void
-}) {
     return (
-        <ModalDialog open={open} title={title} description={description} onOpenChange={onOpenChange}>
-            <Stack gap="md">
-                <TextField label={title} value={value} onChange={event => onValueChange(event.target.value)} />
-                <Button icon={<Pencil size={15} />} variant="primary" onClick={onRename} fullWidth>
-                    Rename
-                </Button>
-            </Stack>
-        </ModalDialog>
+        <ContextActions className={styles.topicContextTrigger} items={items}>
+            <Button className={`${styles.navButton} ${styles.topicSelectButton} ${topic.id === activeTopicId ? styles.activeNavButton : ""}`} onClick={handleSelect} fullWidth>
+                {topic.title}
+            </Button>
+        </ContextActions>
     )
 }

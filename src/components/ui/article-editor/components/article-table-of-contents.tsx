@@ -1,5 +1,6 @@
 "use client"
 
+import { useCallback } from "react"
 import type { ArticleHeadingIndex } from "@/lib/visual-note/article-content"
 import { articleHeadingTargetId } from "../utils/heading-target"
 import styles from "./article-table-of-contents.module.css"
@@ -26,11 +27,19 @@ export function ArticleTableOfContents({ headings, hideTitle = false }: ArticleT
             {hideTitle ? null : <p className={styles.title}>Contents</p>}
             <div className={styles.list}>
                 {headings.map(heading => (
-                    <button key={heading.id} type="button" className={`${styles.item} ${styles[`level${heading.level}`]}`} onClick={() => focusHeading(heading.id)}>
-                        {heading.title || "Untitled section"}
-                    </button>
+                    <TableOfContentsItem key={heading.id} heading={heading} />
                 ))}
             </div>
         </aside>
+    )
+}
+
+function TableOfContentsItem({ heading }: { heading: ArticleHeadingIndex }) {
+    const handleClick = useCallback(() => focusHeading(heading.id), [heading.id])
+
+    return (
+        <button type="button" className={`${styles.item} ${styles[`level${heading.level}`]}`} onClick={handleClick}>
+            {heading.title || "Untitled section"}
+        </button>
     )
 }

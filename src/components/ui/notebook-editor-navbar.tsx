@@ -2,7 +2,7 @@
 
 import { Popover } from "@base-ui/react/popover"
 import { BookOpen, BookOpenText, Braces, Download, Eye, FileCode2, Home, Info, ListTree, PanelLeftClose, PanelLeftOpen, PencilLine, Search, Settings } from "lucide-react"
-import { useMemo, useState, type ChangeEventHandler } from "react"
+import { useCallback, useMemo, useState, type ChangeEventHandler } from "react"
 import type { ArticleBlockInfoMode, ArticleContentsMode, ArticleEditorMode, NotebookEditorSettings } from "@/lib/visual-note/types"
 import { Button } from "./button"
 import { cx } from "./class-name"
@@ -63,7 +63,7 @@ export function NotebookEditorNavbar({
     recentNotebooks = [],
 }: NotebookEditorNavbarProps) {
     const [isNotebookSwitcherOpen, setIsNotebookSwitcherOpen] = useState(false)
-    const handleSearchChange: ChangeEventHandler<HTMLInputElement> = event => onSearchChange(event.target.value)
+    const handleSearchChange: ChangeEventHandler<HTMLInputElement> = useCallback(event => onSearchChange(event.target.value), [onSearchChange])
     const hasQuery = searchQuery.trim().length > 0
     const switcherNotebooks = useMemo(
         () =>
@@ -73,14 +73,17 @@ export function NotebookEditorNavbar({
                 .slice(0, 3),
         [currentNotebookId, recentNotebooks],
     )
-    const selectHome = () => {
+    const selectHome = useCallback(() => {
         setIsNotebookSwitcherOpen(false)
         onHomeSelect()
-    }
-    const selectNotebook = (notebookId: string) => {
-        setIsNotebookSwitcherOpen(false)
-        onNotebookSelect(notebookId)
-    }
+    }, [onHomeSelect])
+    const selectNotebook = useCallback(
+        (notebookId: string) => {
+            setIsNotebookSwitcherOpen(false)
+            onNotebookSelect(notebookId)
+        },
+        [onNotebookSelect],
+    )
     const settingsGroups: ToolbarMenuGroup[] = [
         {
             id: "block-info",
@@ -154,13 +157,7 @@ export function NotebookEditorNavbar({
                                     </span>
                                 </button>
                                 {switcherNotebooks.map(notebook => (
-                                    <button key={notebook.id} className={styles.switcherItem} type="button" onClick={() => selectNotebook(notebook.id)}>
-                                        <span className={styles.notebookSwatch} style={{ backgroundColor: notebook.color }} />
-                                        <span className={styles.switcherText}>
-                                            <span className={styles.switcherName}>{notebook.title}</span>
-                                            <span className={styles.switcherMeta}>{notebook.updatedLabel}</span>
-                                        </span>
-                                    </button>
+                                    <NotebookSwitcherItem key={notebook.id} notebook={notebook} onSelectNotebook={selectNotebook} />
                                 ))}
                             </Popover.Popup>
                         </Popover.Positioner>
@@ -173,25 +170,7 @@ export function NotebookEditorNavbar({
                 {hasQuery ? (
                     <div className={styles.searchResults} role="listbox" aria-label="Notebook search results">
                         {searchResults.length ? (
-                            searchResults.map(result => (
-                                <button
-                                    key={result.id}
-                                    className={styles.searchResult}
-                                    type="button"
-                                    role="option"
-                                    aria-selected={false}
-                                    onClick={() => onSearchResultSelect(result)}
-                                >
-                                    <span className={styles.resultHeader}>
-                                        <span className={styles.resultTitle}>{result.title}</span>
-                                        <span className={cx(styles.resultBadge, result.isCurrentPage && styles.resultBadgeActive)}>
-                                            {result.isCurrentPage ? "Current page" : "Other page"}
-                                        </span>
-                                    </span>
-                                    <span className={styles.resultLocation}>{result.location}</span>
-                                    <span className={styles.resultContext}>{result.context}</span>
-                                </button>
-                            ))
+                            searchResults.map(result => <SearchResultItem key={result.id} result={result} onSearchResultSelect={onSearchResultSelect} />)
                         ) : (
                             <span className={styles.emptyResults}>No matches in this notebook</span>
                         )}
@@ -205,5 +184,34 @@ export function NotebookEditorNavbar({
                 </Button>
             </div>
         </div>
+    )
+}
+
+function NotebookSwitcherItem({ notebook, onSelectNotebook }: { notebook: NotebookEditorRecentNotebook; onSelectNotebook: (notebookId: string) => void }) {
+    const handleSelect = useCallback(() => onSelectNotebook(notebook.id), [notebook.id, onSelectNotebook])
+
+    return (
+        <button className={styles.switcherItem} type="button" onClick={handleSelect}>
+            <span className={styles.notebookSwatch} style={{ backgroundColor: notebook.color }} />
+            <span className={styles.switcherText}>
+                <span className={styles.switcherName}>{notebook.title}</span>
+                <span className={styles.switcherMeta}>{notebook.updatedLabel}</span>
+            </span>
+        </button>
+    )
+}
+
+function SearchResultItem({ result, onSearchResultSelect }: { result: NotebookEditorSearchResult; onSearchResultSelect: (result: NotebookEditorSearchResult) => void }) {
+    const handleSelect = useCallback(() => onSearchResultSelect(result), [onSearchResultSelect, result])
+
+    return (
+        <button className={styles.searchResult} type="button" role="option" aria-selected={false} onClick={handleSelect}>
+            <span className={styles.resultHeader}>
+                <span className={styles.resultTitle}>{result.title}</span>
+                <span className={cx(styles.resultBadge, result.isCurrentPage && styles.resultBadgeActive)}>{result.isCurrentPage ? "Current page" : "Other page"}</span>
+            </span>
+            <span className={styles.resultLocation}>{result.location}</span>
+            <span className={styles.resultContext}>{result.context}</span>
+        </button>
     )
 }

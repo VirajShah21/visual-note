@@ -1,12 +1,11 @@
 "use client"
 
-import { Plus } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
-import { Button, Card, DateField, Grid, Heading, Stack, TextAreaField, TextField, TimeField } from "@/components/ui"
+import { useCallback } from "react"
+import { Card, Grid, Heading, Stack } from "@/components/ui"
 import {
     arrayFrom,
     dateInputValue,
-    defaultListItems,
     objectArrayFrom,
     replaceObjectAt,
     replaceStringAt,
@@ -16,39 +15,66 @@ import {
     timelineItemRevealTransition,
 } from "../utils/visual-note-app.utils"
 import type { DisplayDataEditorProps } from "../types/visual-note-app.types"
-import { StringListEditor } from "./string-list-editor"
+import {
+    DataTextAreaField,
+    DataTextField,
+    ObjectAddButton,
+    ObjectDateField,
+    ObjectRemoveButton,
+    ObjectTextField,
+    ObjectTimeField,
+    StringListEditorForField,
+} from "./display-data-editor-controls"
+import { BugsEditorSection, ShoppingItemsEditorSection, WorkLogsEditorSection } from "./display-data-editor-sections"
 
 const MotionCard = motion(Card)
 
 export function DisplayDataEditor({ display, onDataChange }: DisplayDataEditorProps) {
     const data = display.data
-    const updateField = (field: string, value: string) => onDataChange({ ...data, [field]: value })
-    const updateListItem = (field: string, index: number, value: string) => onDataChange({ ...data, [field]: replaceStringAt(arrayFrom(data[field]), index, value) })
-    const addListItem = (field: string, value: string) => onDataChange({ ...data, [field]: [...arrayFrom(data[field]), value] })
-    const removeListItem = (field: string, index: number) => onDataChange({ ...data, [field]: arrayFrom(data[field]).filter((_, itemIndex) => itemIndex !== index) })
-    const updateObjectItem = (field: string, index: number, key: string, value: string) => {
-        onDataChange({ ...data, [field]: replaceObjectAt(objectArrayFrom(data[field]), index, { [key]: value }) })
-    }
-    const addObjectItem = (field: string, item: Record<string, unknown>) => onDataChange({ ...data, [field]: [...objectArrayFrom(data[field]), item] })
-    const removeObjectItem = (field: string, index: number) => onDataChange({ ...data, [field]: objectArrayFrom(data[field]).filter((_, itemIndex) => itemIndex !== index) })
+    const updateField = useCallback((field: string, value: string) => onDataChange({ ...data, [field]: value }), [data, onDataChange])
+    const updateListItem = useCallback(
+        (field: string, index: number, value: string) => onDataChange({ ...data, [field]: replaceStringAt(arrayFrom(data[field]), index, value) }),
+        [data, onDataChange],
+    )
+    const addListItem = useCallback((field: string, value: string) => onDataChange({ ...data, [field]: [...arrayFrom(data[field]), value] }), [data, onDataChange])
+    const removeListItem = useCallback(
+        (field: string, index: number) => onDataChange({ ...data, [field]: arrayFrom(data[field]).filter((_, itemIndex) => itemIndex !== index) }),
+        [data, onDataChange],
+    )
+    const updateObjectItem = useCallback(
+        (field: string, index: number, key: string, value: string) => {
+            onDataChange({ ...data, [field]: replaceObjectAt(objectArrayFrom(data[field]), index, { [key]: value }) })
+        },
+        [data, onDataChange],
+    )
+    const addObjectItem = useCallback(
+        (field: string, item: Record<string, unknown>) => onDataChange({ ...data, [field]: [...objectArrayFrom(data[field]), item] }),
+        [data, onDataChange],
+    )
+    const removeObjectItem = useCallback(
+        (field: string, index: number) => onDataChange({ ...data, [field]: objectArrayFrom(data[field]).filter((_, itemIndex) => itemIndex !== index) }),
+        [data, onDataChange],
+    )
 
     if (display.kind === "data-card")
         return (
             <Stack gap="md">
-                <TextField label="Label" value={stringFrom(data.label)} onChange={event => updateField("label", event.target.value)} />
-                <TextField label="Value" value={stringFrom(data.value)} onChange={event => updateField("value", event.target.value)} />
+                <DataTextField label="Label" field="label" value={stringFrom(data.label)} onUpdateField={updateField} />
+                <DataTextField label="Value" field="value" value={stringFrom(data.value)} onUpdateField={updateField} />
             </Stack>
         )
 
     if (display.kind === "checklist")
         return (
-            <StringListEditor
+            <StringListEditorForField
                 title="Checklist items"
                 items={arrayFrom(data.items)}
                 label="Item"
-                onAdd={() => addListItem("items", "New checklist item")}
-                onChange={(index, value) => updateListItem("items", index, value)}
-                onRemove={index => removeListItem("items", index)}
+                field="items"
+                newItem="New checklist item"
+                onAddListItem={addListItem}
+                onUpdateListItem={updateListItem}
+                onRemoveListItem={removeListItem}
             />
         )
 
@@ -68,32 +94,41 @@ export function DisplayDataEditor({ display, onDataChange }: DisplayDataEditorPr
                         >
                             <Stack gap="md">
                                 <Grid columns="two">
-                                    <TextField
+                                    <ObjectTextField
                                         label="Label"
+                                        field="events"
+                                        index={index}
+                                        itemKey="label"
                                         value={stringFrom(eventItem.label)}
-                                        onChange={event => updateObjectItem("events", index, "label", event.target.value)}
+                                        onUpdateObjectItem={updateObjectItem}
                                     />
-                                    <DateField
+                                    <ObjectDateField
                                         label="Date"
+                                        field="events"
+                                        index={index}
+                                        itemKey="date"
                                         value={dateInputValue(eventItem.date)}
-                                        onChange={event => updateObjectItem("events", index, "date", event.target.value)}
+                                        onUpdateObjectItem={updateObjectItem}
                                     />
-                                    <TimeField
+                                    <ObjectTimeField
                                         label="Time"
+                                        field="events"
+                                        index={index}
+                                        itemKey="time"
                                         value={timeInputValue(eventItem.time)}
-                                        onChange={event => updateObjectItem("events", index, "time", event.target.value)}
+                                        onUpdateObjectItem={updateObjectItem}
                                     />
                                 </Grid>
-                                <Button variant="ghost" onClick={() => removeObjectItem("events", index)} fullWidth>
+                                <ObjectRemoveButton field="events" index={index} onRemoveObjectItem={removeObjectItem}>
                                     Delete Event
-                                </Button>
+                                </ObjectRemoveButton>
                             </Stack>
                         </MotionCard>
                     ))}
                 </AnimatePresence>
-                <Button icon={<Plus size={15} />} onClick={() => addObjectItem("events", { label: "New event", date: "", time: "" })} fullWidth>
+                <ObjectAddButton field="events" item={{ label: "New event", date: "", time: "" }} onAddObjectItem={addObjectItem}>
                     Add Event
-                </Button>
+                </ObjectAddButton>
             </Stack>
         )
 
@@ -105,157 +140,64 @@ export function DisplayDataEditor({ display, onDataChange }: DisplayDataEditorPr
                     <Card key={`${index}-${metric.label}`} padding="compact">
                         <Stack gap="md">
                             <Grid columns="two">
-                                <TextField label="Label" value={stringFrom(metric.label)} onChange={event => updateObjectItem("metrics", index, "label", event.target.value)} />
-                                <TextField label="Value" value={stringFrom(metric.value)} onChange={event => updateObjectItem("metrics", index, "value", event.target.value)} />
+                                <ObjectTextField
+                                    label="Label"
+                                    field="metrics"
+                                    index={index}
+                                    itemKey="label"
+                                    value={stringFrom(metric.label)}
+                                    onUpdateObjectItem={updateObjectItem}
+                                />
+                                <ObjectTextField
+                                    label="Value"
+                                    field="metrics"
+                                    index={index}
+                                    itemKey="value"
+                                    value={stringFrom(metric.value)}
+                                    onUpdateObjectItem={updateObjectItem}
+                                />
                             </Grid>
-                            <Button variant="ghost" onClick={() => removeObjectItem("metrics", index)} fullWidth>
+                            <ObjectRemoveButton field="metrics" index={index} onRemoveObjectItem={removeObjectItem}>
                                 Delete Metric
-                            </Button>
+                            </ObjectRemoveButton>
                         </Stack>
                     </Card>
                 ))}
-                <Button icon={<Plus size={15} />} onClick={() => addObjectItem("metrics", { label: "New metric", value: "0" })} fullWidth>
+                <ObjectAddButton field="metrics" item={{ label: "New metric", value: "0" }} onAddObjectItem={addObjectItem}>
                     Add Metric
-                </Button>
+                </ObjectAddButton>
             </Stack>
         )
 
     if (display.kind === "work-logs")
-        return (
-            <Stack gap="md">
-                <Heading size="sm">Work logs</Heading>
-                {objectArrayFrom(data.workLogs).map((log, index) => (
-                    <Card key={`${index}-${log.title}`} padding="compact">
-                        <Stack gap="md">
-                            <Grid columns="two">
-                                <TextField
-                                    label="Timestamp"
-                                    value={stringFrom(log.timestamp)}
-                                    onChange={event => updateObjectItem("workLogs", index, "timestamp", event.target.value)}
-                                />
-                                <TextField
-                                    label="Time worked"
-                                    value={stringFrom(log.timeWorked)}
-                                    onChange={event => updateObjectItem("workLogs", index, "timeWorked", event.target.value)}
-                                />
-                            </Grid>
-                            <TextField label="Title" value={stringFrom(log.title)} onChange={event => updateObjectItem("workLogs", index, "title", event.target.value)} />
-                            <TextAreaField
-                                label="Description"
-                                value={stringFrom(log.description)}
-                                onChange={event => updateObjectItem("workLogs", index, "description", event.target.value)}
-                            />
-                            <TextField
-                                label="Pull request URL"
-                                value={stringFrom(log.pullRequestUrl)}
-                                onChange={event => updateObjectItem("workLogs", index, "pullRequestUrl", event.target.value)}
-                            />
-                            <Button variant="ghost" onClick={() => removeObjectItem("workLogs", index)} fullWidth>
-                                Delete Work Log
-                            </Button>
-                        </Stack>
-                    </Card>
-                ))}
-                <Button icon={<Plus size={15} />} onClick={() => addObjectItem("workLogs", defaultListItems.workLog)} fullWidth>
-                    Add Work Log
-                </Button>
-            </Stack>
-        )
+        return <WorkLogsEditorSection data={data} onAddObjectItem={addObjectItem} onRemoveObjectItem={removeObjectItem} onUpdateObjectItem={updateObjectItem} />
 
     if (display.kind === "bugs-list")
-        return (
-            <Stack gap="md">
-                <Heading size="sm">Bugs</Heading>
-                {objectArrayFrom(data.bugs).map((bug, index) => (
-                    <Card key={`${index}-${bug.title}`} padding="compact">
-                        <Stack gap="md">
-                            <Grid columns="two">
-                                <TextField label="Title" value={stringFrom(bug.title)} onChange={event => updateObjectItem("bugs", index, "title", event.target.value)} />
-                                <TextField label="Severity" value={stringFrom(bug.severity)} onChange={event => updateObjectItem("bugs", index, "severity", event.target.value)} />
-                            </Grid>
-                            <TextAreaField
-                                label="Description"
-                                value={stringFrom(bug.description)}
-                                onChange={event => updateObjectItem("bugs", index, "description", event.target.value)}
-                            />
-                            <TextField
-                                label="GitHub issue or Jira ticket URL"
-                                value={stringFrom(bug.ticketUrl)}
-                                onChange={event => updateObjectItem("bugs", index, "ticketUrl", event.target.value)}
-                            />
-                            <Button variant="ghost" onClick={() => removeObjectItem("bugs", index)} fullWidth>
-                                Delete Bug
-                            </Button>
-                        </Stack>
-                    </Card>
-                ))}
-                <Button icon={<Plus size={15} />} onClick={() => addObjectItem("bugs", defaultListItems.bug)} fullWidth>
-                    Add Bug
-                </Button>
-            </Stack>
-        )
+        return <BugsEditorSection data={data} onAddObjectItem={addObjectItem} onRemoveObjectItem={removeObjectItem} onUpdateObjectItem={updateObjectItem} />
 
     if (display.kind === "shopping-list")
-        return (
-            <Stack gap="md">
-                <Heading size="sm">Shopping items</Heading>
-                {objectArrayFrom(data.shoppingItems).map((item, index) => (
-                    <Card key={`${index}-${item.product}`} padding="compact">
-                        <Stack gap="md">
-                            <Grid columns="two">
-                                <TextField label="Brand" value={stringFrom(item.brand)} onChange={event => updateObjectItem("shoppingItems", index, "brand", event.target.value)} />
-                                <TextField
-                                    label="Product"
-                                    value={stringFrom(item.product)}
-                                    onChange={event => updateObjectItem("shoppingItems", index, "product", event.target.value)}
-                                />
-                                <TextField
-                                    label="Model or variant"
-                                    value={stringFrom(item.modelVariant)}
-                                    onChange={event => updateObjectItem("shoppingItems", index, "modelVariant", event.target.value)}
-                                />
-                                <TextField label="Store" value={stringFrom(item.store)} onChange={event => updateObjectItem("shoppingItems", index, "store", event.target.value)} />
-                                <TextField
-                                    label="Store location"
-                                    value={stringFrom(item.storeLocation)}
-                                    onChange={event => updateObjectItem("shoppingItems", index, "storeLocation", event.target.value)}
-                                />
-                                <TextField
-                                    label="Store URL"
-                                    value={stringFrom(item.storeUrl)}
-                                    onChange={event => updateObjectItem("shoppingItems", index, "storeUrl", event.target.value)}
-                                />
-                            </Grid>
-                            <Button variant="ghost" onClick={() => removeObjectItem("shoppingItems", index)} fullWidth>
-                                Delete Item
-                            </Button>
-                        </Stack>
-                    </Card>
-                ))}
-                <Button icon={<Plus size={15} />} onClick={() => addObjectItem("shoppingItems", defaultListItems.shoppingItem)} fullWidth>
-                    Add Shopping Item
-                </Button>
-            </Stack>
-        )
+        return <ShoppingItemsEditorSection data={data} onAddObjectItem={addObjectItem} onRemoveObjectItem={removeObjectItem} onUpdateObjectItem={updateObjectItem} />
 
     if (display.kind === "pull-request")
         return (
             <Stack gap="md">
-                <TextField label="PR URL" value={stringFrom(data.prUrl)} onChange={event => updateField("prUrl", event.target.value)} />
+                <DataTextField label="PR URL" field="prUrl" value={stringFrom(data.prUrl)} onUpdateField={updateField} />
                 <Grid columns="two">
-                    <TextField label="PR number or ID" value={stringFrom(data.prNumber)} onChange={event => updateField("prNumber", event.target.value)} />
-                    <TextField label="Author" value={stringFrom(data.author)} onChange={event => updateField("author", event.target.value)} />
-                    <TextField label="Reviewer" value={stringFrom(data.reviewer)} onChange={event => updateField("reviewer", event.target.value)} />
+                    <DataTextField label="PR number or ID" field="prNumber" value={stringFrom(data.prNumber)} onUpdateField={updateField} />
+                    <DataTextField label="Author" field="author" value={stringFrom(data.author)} onUpdateField={updateField} />
+                    <DataTextField label="Reviewer" field="reviewer" value={stringFrom(data.reviewer)} onUpdateField={updateField} />
                 </Grid>
-                <TextField label="PR title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
-                <TextAreaField label="PR description" value={stringFrom(data.description)} onChange={event => updateField("description", event.target.value)} />
-                <StringListEditor
+                <DataTextField label="PR title" field="title" value={stringFrom(data.title)} onUpdateField={updateField} />
+                <DataTextAreaField label="PR description" field="description" value={stringFrom(data.description)} onUpdateField={updateField} />
+                <StringListEditorForField
                     title="Comments"
                     items={arrayFrom(data.comments)}
                     label="Comment"
-                    onAdd={() => addListItem("comments", "New comment")}
-                    onChange={(index, value) => updateListItem("comments", index, value)}
-                    onRemove={index => removeListItem("comments", index)}
+                    field="comments"
+                    newItem="New comment"
+                    onAddListItem={addListItem}
+                    onUpdateListItem={updateListItem}
+                    onRemoveListItem={removeListItem}
                 />
             </Stack>
         )
@@ -263,29 +205,31 @@ export function DisplayDataEditor({ display, onDataChange }: DisplayDataEditorPr
     if (display.kind === "url")
         return (
             <Stack gap="md">
-                <TextField label="URL" value={stringFrom(data.url)} onChange={event => updateField("url", event.target.value)} />
-                <TextField label="Page title" value={stringFrom(data.pageTitle)} onChange={event => updateField("pageTitle", event.target.value)} />
-                <TextAreaField label="Page description" value={stringFrom(data.pageDescription)} onChange={event => updateField("pageDescription", event.target.value)} />
-                <TextField label="Banner image" value={stringFrom(data.bannerImage)} onChange={event => updateField("bannerImage", event.target.value)} />
-                <TextField label="Social preview image" value={stringFrom(data.socialPreviewImage)} onChange={event => updateField("socialPreviewImage", event.target.value)} />
-                <TextField label="Favicon" value={stringFrom(data.favicon)} onChange={event => updateField("favicon", event.target.value)} />
-                <StringListEditor
+                <DataTextField label="URL" field="url" value={stringFrom(data.url)} onUpdateField={updateField} />
+                <DataTextField label="Page title" field="pageTitle" value={stringFrom(data.pageTitle)} onUpdateField={updateField} />
+                <DataTextAreaField label="Page description" field="pageDescription" value={stringFrom(data.pageDescription)} onUpdateField={updateField} />
+                <DataTextField label="Banner image" field="bannerImage" value={stringFrom(data.bannerImage)} onUpdateField={updateField} />
+                <DataTextField label="Social preview image" field="socialPreviewImage" value={stringFrom(data.socialPreviewImage)} onUpdateField={updateField} />
+                <DataTextField label="Favicon" field="favicon" value={stringFrom(data.favicon)} onUpdateField={updateField} />
+                <StringListEditorForField
                     title="Keywords"
                     items={arrayFrom(data.keywords)}
                     label="Keyword"
-                    onAdd={() => addListItem("keywords", "New keyword")}
-                    onChange={(index, value) => updateListItem("keywords", index, value)}
-                    onRemove={index => removeListItem("keywords", index)}
+                    field="keywords"
+                    newItem="New keyword"
+                    onAddListItem={addListItem}
+                    onUpdateListItem={updateListItem}
+                    onRemoveListItem={removeListItem}
                 />
             </Stack>
         )
 
     return (
         <Stack gap="md">
-            <TextAreaField label="Code" value={stringFrom(data.code)} onChange={event => updateField("code", event.target.value)} />
+            <DataTextAreaField label="Code" field="code" value={stringFrom(data.code)} onUpdateField={updateField} />
             <Grid columns="two">
-                <TextField label="Language" value={stringFrom(data.language)} onChange={event => updateField("language", event.target.value)} />
-                <TextField label="GitHub or external URL" value={stringFrom(data.sourceUrl)} onChange={event => updateField("sourceUrl", event.target.value)} />
+                <DataTextField label="Language" field="language" value={stringFrom(data.language)} onUpdateField={updateField} />
+                <DataTextField label="GitHub or external URL" field="sourceUrl" value={stringFrom(data.sourceUrl)} onUpdateField={updateField} />
             </Grid>
         </Stack>
     )

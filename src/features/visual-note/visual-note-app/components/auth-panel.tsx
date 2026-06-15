@@ -1,7 +1,7 @@
 "use client"
 
 import { Sparkles } from "lucide-react"
-import { useState } from "react"
+import { type ChangeEvent, useCallback, useState } from "react"
 import { Button, Card, Grid, Heading, InfoPopover, Pill, Stack, Text, TextField } from "@/components/ui"
 import type { AuthPanelProps } from "../types/visual-note-app.types"
 import styles from "../../visual-note-app.module.css"
@@ -13,12 +13,16 @@ export function AuthPanel({ notice, supabaseStatus, onSignIn, onRegister }: Auth
     const [password, setPassword] = useState("visual-note-demo")
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    const submit = async () => {
+    const submit = useCallback(async () => {
         setIsSubmitting(true)
         if (mode === "register") await onRegister(email, password, name)
         else await onSignIn(email, password, name)
         setIsSubmitting(false)
-    }
+    }, [email, mode, name, onRegister, onSignIn, password])
+    const updateName = useCallback((event: ChangeEvent<HTMLInputElement>) => setName(event.target.value), [])
+    const updateEmail = useCallback((event: ChangeEvent<HTMLInputElement>) => setEmail(event.target.value), [])
+    const updatePassword = useCallback((event: ChangeEvent<HTMLInputElement>) => setPassword(event.target.value), [])
+    const toggleMode = useCallback(() => setMode(current => (current === "register" ? "login" : "register")), [])
 
     return (
         <Grid className={`${styles.app} ${styles.authShell}`}>
@@ -49,13 +53,13 @@ export function AuthPanel({ notice, supabaseStatus, onSignIn, onRegister }: Auth
                 </Stack>
                 <Card>
                     <Stack gap="md">
-                        {mode === "register" ? <TextField label="Name" value={name} onChange={event => setName(event.target.value)} /> : null}
-                        <TextField label="Email" type="email" value={email} onChange={event => setEmail(event.target.value)} />
-                        <TextField label="Password" type="password" value={password} onChange={event => setPassword(event.target.value)} />
+                        {mode === "register" ? <TextField label="Name" value={name} onChange={updateName} /> : null}
+                        <TextField label="Email" type="email" value={email} onChange={updateEmail} />
+                        <TextField label="Password" type="password" value={password} onChange={updatePassword} />
                         <Button variant="primary" onClick={submit} disabled={isSubmitting} fullWidth>
                             {mode === "register" ? "Register and open workspace" : "Log in"}
                         </Button>
-                        <Button variant="ghost" onClick={() => setMode(current => (current === "register" ? "login" : "register"))} fullWidth>
+                        <Button variant="ghost" onClick={toggleMode} fullWidth>
                             {mode === "register" ? "Use login instead" : "Create an account instead"}
                         </Button>
                     </Stack>

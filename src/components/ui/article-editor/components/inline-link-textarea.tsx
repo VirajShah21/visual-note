@@ -2,7 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element -- Inline markdown images use arbitrary URLs and must keep native aspect behavior. */
 
-import { useReducer, type ReactNode } from "react"
+import { type FocusEvent, type KeyboardEvent, type MouseEvent, useCallback, useReducer, type ReactNode } from "react"
 import { cx } from "../../class-name"
 import styles from "../../article-editor.module.css"
 import { BlockTextarea, type BlockTextareaProps } from "./block-textarea"
@@ -55,6 +55,44 @@ export function ReadableInlineContent({ text }: { text: string }) {
 export function InlineLinkTextarea({ value, className, ...props }: BlockTextareaProps) {
     const [isEditing, setIsEditing] = useReducer((_: boolean, next: boolean) => next, false)
     const shouldDisplayLinks = !isEditing && hasMarkdownInlineMedia(value)
+    const startEditing = useCallback(() => setIsEditing(true), [])
+    const stopEditing = useCallback(() => setIsEditing(false), [])
+    const handleDisplayClick = useCallback(
+        (event: MouseEvent<HTMLDivElement>) => {
+            const target = event.target as HTMLElement
+            if (target.closest("a")) return
+
+            startEditing()
+        },
+        [startEditing],
+    )
+    const handleDisplayKeyDown = useCallback(
+        (event: KeyboardEvent<HTMLDivElement>) => {
+            if (event.key !== "Enter" && event.key !== " ") return
+
+            event.preventDefault()
+            startEditing()
+        },
+        [startEditing],
+    )
+    const handleFocus = useCallback(
+        (event: FocusEvent<HTMLTextAreaElement>) => {
+            props.onFocus?.(event)
+            if (isEditing) {
+                const selection = event.currentTarget.value.length
+                event.currentTarget.setSelectionRange(selection, selection)
+            }
+            startEditing()
+        },
+        [isEditing, props, startEditing],
+    )
+    const handleBlur = useCallback(
+        (event: FocusEvent<HTMLTextAreaElement>) => {
+            props.onBlur?.(event)
+            stopEditing()
+        },
+        [props, stopEditing],
+    )
 
     if (shouldDisplayLinks)
         return (
@@ -63,41 +101,12 @@ export function InlineLinkTextarea({ value, className, ...props }: BlockTextarea
                 role="textbox"
                 tabIndex={0}
                 aria-label={props["aria-label"]}
-                onClick={event => {
-                    const target = event.target as HTMLElement
-                    if (target.closest("a")) return
-
-                    setIsEditing(true)
-                }}
-                onKeyDown={event => {
-                    if (event.key !== "Enter" && event.key !== " ") return
-
-                    event.preventDefault()
-                    setIsEditing(true)
-                }}
+                onClick={handleDisplayClick}
+                onKeyDown={handleDisplayKeyDown}
             >
                 {renderInlineMedia(value)}
             </div>
         )
 
-    return (
-        <BlockTextarea
-            {...props}
-            value={value}
-            className={className}
-            autoFocus={isEditing}
-            onFocus={event => {
-                props.onFocus?.(event)
-                if (isEditing) {
-                    const selection = event.currentTarget.value.length
-                    event.currentTarget.setSelectionRange(selection, selection)
-                }
-                setIsEditing(true)
-            }}
-            onBlur={event => {
-                props.onBlur?.(event)
-                setIsEditing(false)
-            }}
-        />
-    )
+    return <BlockTextarea {...props} value={value} className={className} autoFocus={isEditing} onFocus={handleFocus} onBlur={handleBlur} />
 }

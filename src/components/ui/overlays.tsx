@@ -16,7 +16,7 @@ type SurfaceProps = {
 
 export function ModalDialog({ open, title, description, children, onOpenChange }: SurfaceProps) {
     return (
-        <Dialog.Root open={open} onOpenChange={nextOpen => onOpenChange(nextOpen)}>
+        <Dialog.Root open={open} onOpenChange={onOpenChange}>
             <Dialog.Portal>
                 <Dialog.Backdrop className={styles.backdrop} />
                 <Dialog.Viewport className={styles.viewport}>
@@ -32,7 +32,7 @@ export function ModalDialog({ open, title, description, children, onOpenChange }
 
 export function SideDrawer({ open, title, description, children, onOpenChange }: SurfaceProps) {
     return (
-        <Dialog.Root open={open} onOpenChange={nextOpen => onOpenChange(nextOpen)}>
+        <Dialog.Root open={open} onOpenChange={onOpenChange}>
             <Dialog.Portal>
                 <Dialog.Backdrop className={styles.backdrop} />
                 <Dialog.Viewport className={styles.drawerViewport}>

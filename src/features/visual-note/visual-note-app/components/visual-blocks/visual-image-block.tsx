@@ -1,10 +1,12 @@
 "use client"
 
 import { Image as ImageIcon } from "lucide-react"
-import { EditableVisualBlock, Grid, ImageBlockFigure, Pill, SelectField, Stack, TextAreaField, TextField } from "@/components/ui"
+import { type ChangeEvent, useCallback } from "react"
+import { EditableVisualBlock, Grid, ImageBlockFigure, Pill, Stack, TextField } from "@/components/ui"
 import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
 import { stringFrom } from "../../utils/visual-note-app.utils"
 import styles from "../../../visual-note-app.module.css"
+import { VisualDataSelectField, VisualDataTextAreaField, VisualDataTextField } from "../visual-block-display-controls"
 
 type VisualImageBlockProps = {
     data: VisualBlockData
@@ -34,7 +36,7 @@ const numberFrom = (value: unknown, fallback: number) => {
 }
 
 export function VisualImageBlock({ data, isReadOnly = false, onDataChange }: VisualImageBlockProps) {
-    const updateField = (field: string, value: unknown) => onDataChange({ ...data, [field]: value })
+    const updateField = useCallback((field: string, value: unknown) => onDataChange({ ...data, [field]: value }), [data, onDataChange])
     const size = sizeFrom(data.size)
     const borderRadius = numberFrom(data.borderRadius, 12)
     const borderWidth = numberFrom(data.borderWidth, 0)
@@ -62,21 +64,21 @@ export function VisualImageBlock({ data, isReadOnly = false, onDataChange }: Vis
     return (
         <EditableVisualBlock preview={preview} readOnly={isReadOnly}>
             <Grid columns="two" gap="sm">
-                <TextField label="Image URL" value={stringFrom(data.url)} onChange={event => updateField("url", event.target.value)} />
-                <TextField label="Alt text" value={stringFrom(data.alt)} onChange={event => updateField("alt", event.target.value)} />
-                <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
-                <SelectField label="Size" value={size} options={sizeOptions} onValueChange={value => updateField("size", value)} />
-                <TextField
-                    label="Border roundness"
-                    type="number"
-                    min={0}
-                    value={String(borderRadius)}
-                    onChange={event => updateField("borderRadius", Number(event.target.value))}
-                />
-                <TextField label="Border thickness" type="number" min={0} value={String(borderWidth)} onChange={event => updateField("borderWidth", Number(event.target.value))} />
+                <VisualDataTextField label="Image URL" field="url" value={stringFrom(data.url)} onUpdateField={updateField} />
+                <VisualDataTextField label="Alt text" field="alt" value={stringFrom(data.alt)} onUpdateField={updateField} />
+                <VisualDataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={updateField} />
+                <VisualDataSelectField label="Size" field="size" value={size} options={sizeOptions} onUpdateField={updateField} />
+                <ImageNumberField label="Border roundness" field="borderRadius" value={String(borderRadius)} onUpdateField={updateField} />
+                <ImageNumberField label="Border thickness" field="borderWidth" value={String(borderWidth)} onUpdateField={updateField} />
             </Grid>
-            <TextField label="Caption" value={stringFrom(data.caption)} onChange={event => updateField("caption", event.target.value)} />
-            <TextAreaField label="Overlay text" value={stringFrom(data.overlayText)} onChange={event => updateField("overlayText", event.target.value)} />
+            <VisualDataTextField label="Caption" field="caption" value={stringFrom(data.caption)} onUpdateField={updateField} />
+            <VisualDataTextAreaField label="Overlay text" field="overlayText" value={stringFrom(data.overlayText)} onUpdateField={updateField} />
         </EditableVisualBlock>
     )
+}
+
+function ImageNumberField({ label, field, value, onUpdateField }: { label: string; field: string; value: string; onUpdateField: (field: string, value: unknown) => void }) {
+    const handleChange = useCallback((event: ChangeEvent<HTMLInputElement>) => onUpdateField(field, Number(event.target.value)), [field, onUpdateField])
+
+    return <TextField label={label} type="number" min={0} value={value} onChange={handleChange} />
 }

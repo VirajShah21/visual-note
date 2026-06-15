@@ -1,35 +1,44 @@
 "use client"
 
 import { CalendarDays, Code2, Contact, MapPin } from "lucide-react"
-import type { ReactNode } from "react"
-import { ChartDataSheet, DateField, EditableVisualBlock, Grid, Heading, Pill, SelectField, SimpleChart, Stack, Text, TextAreaField, TextField, TimeField } from "@/components/ui"
+import { type ReactNode, useCallback } from "react"
+import { EditableVisualBlock, Grid, Heading, Pill, Stack, Text } from "@/components/ui"
 import type { VisualBlockDisplayProps } from "../types/visual-note-app.types"
 import { calendarPreviewText, joinedPreviewText } from "../utils/visual-block-preview"
-import { chartDataLayoutFrom, chartDatasetFromSheet, chartSheetFromData, chartTypeFrom } from "../utils/chart-data"
 import { arrayFrom, dateInputValue, replaceStringAt, stringFrom, timeInputValue } from "../utils/visual-note-app.utils"
 import styles from "../../visual-note-app.module.css"
-import { InlineStringList } from "./inline-string-list"
+import { InlineStringListForField, VisualDataDateField, VisualDataTextAreaField, VisualDataTextField, VisualDataTimeField } from "./visual-block-display-controls"
+import { VisualBlockChartDisplay } from "./visual-block-chart-display"
 import { VisualBlockListDisplay } from "./visual-blocks/visual-block-list-display"
 import { VisualImageBlock } from "./visual-blocks/visual-image-block"
 import { VisualPullRequestBlock } from "./visual-blocks/visual-pull-request-block"
 
 export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOnly = false, onDataChange }: VisualBlockDisplayProps) {
-    const updateField = (field: string, value: unknown) => onDataChange({ ...data, [field]: value })
-    const updateStringList = (field: string, index: number, value: string) => updateField(field, replaceStringAt(arrayFrom(data[field]), index, value))
-    const addStringListItem = (field: string, value: string) => updateField(field, [...arrayFrom(data[field]), value])
-    const removeStringListItem = (field: string, index: number) =>
-        updateField(
-            field,
-            arrayFrom(data[field]).filter((_, itemIndex) => itemIndex !== index),
-        )
-    const header = (icon: ReactNode, title: string, action?: ReactNode) => (
-        <Stack className={styles.visualBlockHeader} direction="horizontal" gap="sm">
-            <Pill>
-                {icon}
-                {title}
-            </Pill>
-            {action}
-        </Stack>
+    const updateField = useCallback((field: string, value: unknown) => onDataChange({ ...data, [field]: value }), [data, onDataChange])
+    const updateStringList = useCallback(
+        (field: string, index: number, value: string) => updateField(field, replaceStringAt(arrayFrom(data[field]), index, value)),
+        [data, updateField],
+    )
+    const addStringListItem = useCallback((field: string, value: string) => updateField(field, [...arrayFrom(data[field]), value]), [data, updateField])
+    const removeStringListItem = useCallback(
+        (field: string, index: number) =>
+            updateField(
+                field,
+                arrayFrom(data[field]).filter((_, itemIndex) => itemIndex !== index),
+            ),
+        [data, updateField],
+    )
+    const header = useCallback(
+        (icon: ReactNode, title: string, action?: ReactNode) => (
+            <Stack className={styles.visualBlockHeader} direction="horizontal" gap="sm">
+                <Pill>
+                    {icon}
+                    {title}
+                </Pill>
+                {action}
+            </Stack>
+        ),
+        [],
     )
 
     if (parseError)
@@ -73,19 +82,21 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOn
                 }
             >
                 <Grid columns="two" gap="sm">
-                    <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
-                    <DateField label="Date" value={dateInputValue(data.date)} onChange={event => updateField("date", event.target.value)} />
-                    <TimeField label="Start" value={timeInputValue(data.startTime)} onChange={event => updateField("startTime", event.target.value)} />
-                    <TimeField label="End" value={timeInputValue(data.endTime)} onChange={event => updateField("endTime", event.target.value)} />
-                    <TextField label="Location" value={stringFrom(data.location)} onChange={event => updateField("location", event.target.value)} />
+                    <VisualDataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={updateField} />
+                    <VisualDataDateField label="Date" field="date" value={dateInputValue(data.date)} onUpdateField={updateField} />
+                    <VisualDataTimeField label="Start" field="startTime" value={timeInputValue(data.startTime)} onUpdateField={updateField} />
+                    <VisualDataTimeField label="End" field="endTime" value={timeInputValue(data.endTime)} onUpdateField={updateField} />
+                    <VisualDataTextField label="Location" field="location" value={stringFrom(data.location)} onUpdateField={updateField} />
                 </Grid>
-                <TextAreaField label="Notes" value={stringFrom(data.notes)} onChange={event => updateField("notes", event.target.value)} />
-                <InlineStringList
+                <VisualDataTextAreaField label="Notes" field="notes" value={stringFrom(data.notes)} onUpdateField={updateField} />
+                <InlineStringListForField
                     title="Attendees"
                     items={arrayFrom(data.attendees)}
-                    onAdd={() => addStringListItem("attendees", "New attendee")}
-                    onChange={(index, value) => updateStringList("attendees", index, value)}
-                    onRemove={index => removeStringListItem("attendees", index)}
+                    field="attendees"
+                    newItem="New attendee"
+                    onAddStringListItem={addStringListItem}
+                    onUpdateStringList={updateStringList}
+                    onRemoveStringListItem={removeStringListItem}
                 />
             </EditableVisualBlock>
         )
@@ -110,18 +121,20 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOn
                 }
             >
                 <Grid columns="two" gap="sm">
-                    <TextField label="Name" value={stringFrom(data.name)} onChange={event => updateField("name", event.target.value)} />
-                    <TextField label="Role" value={stringFrom(data.role)} onChange={event => updateField("role", event.target.value)} />
-                    <TextField label="Company" value={stringFrom(data.company)} onChange={event => updateField("company", event.target.value)} />
-                    <TextField label="Email" value={stringFrom(data.email)} onChange={event => updateField("email", event.target.value)} />
-                    <TextField label="Phone" value={stringFrom(data.phone)} onChange={event => updateField("phone", event.target.value)} />
+                    <VisualDataTextField label="Name" field="name" value={stringFrom(data.name)} onUpdateField={updateField} />
+                    <VisualDataTextField label="Role" field="role" value={stringFrom(data.role)} onUpdateField={updateField} />
+                    <VisualDataTextField label="Company" field="company" value={stringFrom(data.company)} onUpdateField={updateField} />
+                    <VisualDataTextField label="Email" field="email" value={stringFrom(data.email)} onUpdateField={updateField} />
+                    <VisualDataTextField label="Phone" field="phone" value={stringFrom(data.phone)} onUpdateField={updateField} />
                 </Grid>
-                <InlineStringList
+                <InlineStringListForField
                     title="Links"
                     items={arrayFrom(data.links)}
-                    onAdd={() => addStringListItem("links", "https://example.com")}
-                    onChange={(index, value) => updateStringList("links", index, value)}
-                    onRemove={index => removeStringListItem("links", index)}
+                    field="links"
+                    newItem="https://example.com"
+                    onAddStringListItem={addStringListItem}
+                    onUpdateStringList={updateStringList}
+                    onRemoveStringListItem={removeStringListItem}
                 />
             </EditableVisualBlock>
         )
@@ -140,81 +153,20 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOn
                     </>
                 }
             >
-                <TextField label="Label" value={stringFrom(data.label)} onChange={event => updateField("label", event.target.value)} />
-                <InlineStringList
+                <VisualDataTextField label="Label" field="label" value={stringFrom(data.label)} onUpdateField={updateField} />
+                <InlineStringListForField
                     title="Address lines"
                     items={arrayFrom(data.lines)}
-                    onAdd={() => addStringListItem("lines", "Address line")}
-                    onChange={(index, value) => updateStringList("lines", index, value)}
-                    onRemove={index => removeStringListItem("lines", index)}
+                    field="lines"
+                    newItem="Address line"
+                    onAddStringListItem={addStringListItem}
+                    onUpdateStringList={updateStringList}
+                    onRemoveStringListItem={removeStringListItem}
                 />
-                <TextField label="Map URL" value={stringFrom(data.mapUrl)} onChange={event => updateField("mapUrl", event.target.value)} />
-                <TextAreaField label="Notes" value={stringFrom(data.notes)} onChange={event => updateField("notes", event.target.value)} />
+                <VisualDataTextField label="Map URL" field="mapUrl" value={stringFrom(data.mapUrl)} onUpdateField={updateField} />
+                <VisualDataTextAreaField label="Notes" field="notes" value={stringFrom(data.notes)} onUpdateField={updateField} />
             </EditableVisualBlock>
         )
 
-    const chartLayout = chartDataLayoutFrom(data.dataLayout)
-    const chartSheet = chartSheetFromData(data)
-    const chartDataset = chartDatasetFromSheet(chartSheet, chartLayout)
-    const chartType = chartTypeFrom(data.type)
-    const chartDataWithoutLegacyFields = () => {
-        const nextData = { ...data }
-        delete nextData.data
-        delete nextData.sheet
-
-        return nextData
-    }
-    const updateChartSheet = (sheet: string[][]) => onDataChange({ ...chartDataWithoutLegacyFields(), dataLayout: chartLayout, dataSheet: sheet })
-    const updateChartLayout = (dataLayout: string) => onDataChange({ ...chartDataWithoutLegacyFields(), dataLayout: chartDataLayoutFrom(dataLayout), dataSheet: chartSheet })
-
-    return (
-        <EditableVisualBlock
-            readOnly={isReadOnly}
-            preview={
-                <>
-                    <SimpleChart
-                        title={stringFrom(data.title, "Chart")}
-                        type={chartType}
-                        dataset={chartDataset}
-                        xLabel={stringFrom(data.xLabel)}
-                        yLabel={stringFrom(data.yLabel)}
-                    />
-                </>
-            }
-        >
-            <Stack className={styles.chartMetadataRow} direction="horizontal" gap="sm">
-                <SelectField
-                    className={styles.chartTypeSelect}
-                    label="Type"
-                    value={chartType}
-                    options={[
-                        { label: "Bar", value: "bar" },
-                        { label: "Line", value: "line" },
-                        { label: "Area", value: "area" },
-                        { label: "Scatter", value: "scatter" },
-                        { label: "Pie", value: "pie" },
-                    ]}
-                    onValueChange={value => updateField("type", value)}
-                />
-                <TextField label="Title" value={stringFrom(data.title)} onChange={event => updateField("title", event.target.value)} />
-            </Stack>
-            <Grid columns="three" gap="sm">
-                <SelectField
-                    label="Axes"
-                    value={chartLayout}
-                    options={[
-                        { label: "X↓ Y→", value: "columns" },
-                        { label: "X→ Y↓", value: "rows" },
-                    ]}
-                    onValueChange={updateChartLayout}
-                />
-                <TextField label="X label" value={stringFrom(data.xLabel)} onChange={event => updateField("xLabel", event.target.value)} />
-                <TextField label="Y label" value={stringFrom(data.yLabel)} onChange={event => updateField("yLabel", event.target.value)} />
-            </Grid>
-            <Stack gap="sm">
-                <Heading size="sm">Data</Heading>
-                <ChartDataSheet sheet={chartSheet} onSheetChange={updateChartSheet} />
-            </Stack>
-        </EditableVisualBlock>
-    )
+    return <VisualBlockChartDisplay data={data} isReadOnly={isReadOnly} onDataChange={onDataChange} />
 }
