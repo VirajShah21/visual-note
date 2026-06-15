@@ -8,6 +8,10 @@ type BlockSelectionDrag = {
     startY: number
 }
 
+type TextOriginSelectionDrag = BlockSelectionDrag & {
+    originRow: HTMLElement
+}
+
 type BlockSelectionState = {
     end: number
     isActive: boolean
@@ -43,6 +47,7 @@ const nativeTextSelectionSurface = "textarea, [role='textbox']"
 
 export const useArticleBlockSelection = (editorRef: RefObject<HTMLDivElement | null>, value: string) => {
     const dragRef = useRef<BlockSelectionDrag | null>(null)
+    const textOriginDragRef = useRef<TextOriginSelectionDrag | null>(null)
     const [selection, setSelection] = useState<BlockSelectionState | null>(null)
     const [selectionRect, setSelectionRect] = useState<BlockSelectionRectState | null>(null)
     const selectedBlockRange =
@@ -56,6 +61,7 @@ export const useArticleBlockSelection = (editorRef: RefObject<HTMLDivElement | n
 
     const clearSelection = useCallback(() => {
         dragRef.current = null
+        textOriginDragRef.current = null
         setSelection(null)
         setSelectionRect(null)
     }, [])
@@ -73,6 +79,7 @@ export const useArticleBlockSelection = (editorRef: RefObject<HTMLDivElement | n
 
     useEffect(() => {
         dragRef.current = null
+        textOriginDragRef.current = null
     }, [value])
 
     const selectedBlockRangeFromRect = useCallback(
@@ -103,16 +110,68 @@ export const useArticleBlockSelection = (editorRef: RefObject<HTMLDivElement | n
         if (document.activeElement instanceof HTMLTextAreaElement) document.activeElement.blur()
     }, [])
 
+    const applyBlockSelectionDrag = useCallback(
+        (drag: BlockSelectionDrag, clientX: number, clientY: number) => {
+            const editor = editorRef.current
+            if (!editor) return false
+
+            drag.isSelecting = true
+            const editorRect = editor.getBoundingClientRect()
+            const left = Math.min(drag.startX, clientX)
+            const top = Math.min(drag.startY, clientY)
+            const right = Math.max(drag.startX, clientX)
+            const bottom = Math.max(drag.startY, clientY)
+            const rect = new DOMRect(left, top, right - left, bottom - top)
+            const blockRange = selectedBlockRangeFromRect(rect) ?? { start: drag.anchorIndex, end: drag.anchorIndex }
+
+            setSelectionRect({ height: rect.height, left: left - editorRect.left, top: top - editorRect.top, value, width: rect.width })
+            setSelection({ ...blockRange, isActive: true, value })
+            return true
+        },
+        [editorRef, selectedBlockRangeFromRect, value],
+    )
+
+    useEffect(() => {
+        const pointerIsInsideRow = (event: globalThis.PointerEvent, row: HTMLElement) => {
+            const rect = row.getBoundingClientRect()
+            return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom
+        }
+
+        const handleTextOriginPointerMove = (event: globalThis.PointerEvent) => {
+            const drag = textOriginDragRef.current
+            if (!drag || drag.pointerId !== event.pointerId) return
+
+            const distanceX = event.clientX - drag.startX
+            const distanceY = event.clientY - drag.startY
+            if (!drag.isSelecting && Math.hypot(distanceX, distanceY) < DRAG_SELECTION_THRESHOLD) return
+            if (!drag.isSelecting && pointerIsInsideRow(event, drag.originRow)) return
+
+            event.preventDefault()
+            clearBrowserSelection()
+            applyBlockSelectionDrag(drag, event.clientX, event.clientY)
+        }
+
+        const handleTextOriginPointerUp = (event: globalThis.PointerEvent) => {
+            const drag = textOriginDragRef.current
+            if (!drag || drag.pointerId !== event.pointerId) return
+
+            textOriginDragRef.current = null
+            if (drag.isSelecting) setSelectionRect(null)
+        }
+
+        document.addEventListener("pointermove", handleTextOriginPointerMove)
+        document.addEventListener("pointerup", handleTextOriginPointerUp)
+        return () => {
+            document.removeEventListener("pointermove", handleTextOriginPointerMove)
+            document.removeEventListener("pointerup", handleTextOriginPointerUp)
+        }
+    }, [applyBlockSelectionDrag, clearBrowserSelection])
+
     const onPointerDown = useCallback(
         (event: PointerEvent<HTMLElement>) => {
             if (event.button !== 0) return
 
             const target = event.target as HTMLElement
-            if (target.closest(nativeTextSelectionSurface)) {
-                clearSelection()
-                return
-            }
-
             if (target.closest(interactiveSelectionBlocker)) {
                 clearSelection()
                 return
@@ -127,7 +186,23 @@ export const useArticleBlockSelection = (editorRef: RefObject<HTMLDivElement | n
             const blockIndex = Number(row.dataset.articleBlockIndex)
             if (!Number.isFinite(blockIndex)) return
 
+            if (target.closest(nativeTextSelectionSurface)) {
+                dragRef.current = null
+                textOriginDragRef.current = {
+                    anchorIndex: blockIndex,
+                    isSelecting: false,
+                    originRow: row,
+                    pointerId: event.pointerId,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                }
+                setSelection(null)
+                setSelectionRect(null)
+                return
+            }
+
             dragRef.current = { anchorIndex: blockIndex, isSelecting: false, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY }
+            textOriginDragRef.current = null
             setSelection(null)
             setSelectionRect(null)
             event.currentTarget.setPointerCapture(event.pointerId)
@@ -144,24 +219,11 @@ export const useArticleBlockSelection = (editorRef: RefObject<HTMLDivElement | n
             const distanceY = event.clientY - drag.startY
             if (!drag.isSelecting && Math.hypot(distanceX, distanceY) < DRAG_SELECTION_THRESHOLD) return
 
-            const editor = editorRef.current
-            if (!editor) return
-
-            drag.isSelecting = true
-            const editorRect = editor.getBoundingClientRect()
-            const left = Math.min(drag.startX, event.clientX)
-            const top = Math.min(drag.startY, event.clientY)
-            const right = Math.max(drag.startX, event.clientX)
-            const bottom = Math.max(drag.startY, event.clientY)
-            const rect = new DOMRect(left, top, right - left, bottom - top)
-            const blockRange = selectedBlockRangeFromRect(rect) ?? { start: drag.anchorIndex, end: drag.anchorIndex }
-
             event.preventDefault()
             clearBrowserSelection()
-            setSelectionRect({ height: rect.height, left: left - editorRect.left, top: top - editorRect.top, value, width: rect.width })
-            setSelection({ ...blockRange, isActive: true, value })
+            applyBlockSelectionDrag(drag, event.clientX, event.clientY)
         },
-        [clearBrowserSelection, editorRef, selectedBlockRangeFromRect, value],
+        [applyBlockSelectionDrag, clearBrowserSelection],
     )
 
     const onPointerUp = useCallback((event: PointerEvent<HTMLElement>) => {
