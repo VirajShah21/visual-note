@@ -140,11 +140,6 @@ export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, re
                         <ArticleListItem key={`${blockIndex}-${itemIndex}`} blockKind={block.kind} blockIndex={blockIndex} item={item} itemIndex={itemIndex} handlers={handlers} />
                     ))}
                 </Stack>
-                <Stack className={styles.blockActions} direction="horizontal" gap="sm">
-                    <AddListItemButton blockIndex={blockIndex} handlers={handlers}>
-                        Add item
-                    </AddListItemButton>
-                </Stack>
             </Stack>
         )
 
@@ -245,8 +240,6 @@ function ArticleListItem({ blockKind, blockIndex, item, itemIndex, handlers }: A
         (event: KeyboardEvent<HTMLTextAreaElement>) => handlers.onInputKeyDown(blockIndex, "list-item", itemIndex, event),
         [blockIndex, handlers, itemIndex],
     )
-    const handleRemove = useCallback(() => handlers.removeListItem(blockIndex, itemIndex), [blockIndex, handlers, itemIndex])
-
     return (
         <Stack className={styles.listRow} direction="horizontal" gap="sm">
             <Text size="small">{blockKind === "bulletList" ? "•" : `${itemIndex + 1}.`}</Text>
@@ -258,26 +251,7 @@ function ArticleListItem({ blockKind, blockIndex, item, itemIndex, handlers }: A
                 onChange={handleChange}
                 onKeyDown={handleKeyDown}
             />
-            <Button variant="ghost" onClick={handleRemove}>
-                Remove
-            </Button>
         </Stack>
-    )
-}
-
-type AddListItemButtonProps = {
-    blockIndex: number
-    handlers: ArticleBlockHandlers
-    children: string
-}
-
-function AddListItemButton({ blockIndex, handlers, children }: AddListItemButtonProps) {
-    const handleClick = useCallback(() => handlers.addListItem(blockIndex), [blockIndex, handlers])
-
-    return (
-        <Button variant="ghost" onClick={handleClick}>
-            {children}
-        </Button>
     )
 }
 

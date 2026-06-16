@@ -1,8 +1,9 @@
 import type { KeyboardEvent } from "react"
 import { cryptoId, isListBlock, type ArticleBlock } from "@/lib/visual-note/article-content"
 import type { ArticleEditorCommand, CommandState, EditorField } from "../types"
+import { removeEmptyListItemBeforeCursor, splitListItem } from "./keyboard-list"
 import { handleSubtitleShortcut } from "./keyboard-subtitle"
-import { EMPTY_PARAGRAPH_TEXT, getLineEnd, getLineStart, isBlockEmpty, normalizeParagraphText } from "./text"
+import { getLineEnd, getLineStart, isBlockEmpty, normalizeParagraphText } from "./text"
 
 type KeyboardHandlerOptions = {
     blocks: ArticleBlock[]
@@ -65,6 +66,11 @@ export const createInputKeyDownHandler =
             return
         }
 
+        if (event.key === "Delete" && handleEmptyListItemDelete({ block, blockIndex, blocks, listIndex, setSplitFocus, value, writeBlocks })) {
+            event.preventDefault()
+            return
+        }
+
         if (event.key === "Backspace" && handleBackspace({ block, blockIndex, blocks, listIndex, setSplitFocus, value, writeBlocks })) {
             event.preventDefault()
             return
@@ -74,6 +80,29 @@ export const createInputKeyDownHandler =
         if (isEnter && handleEnter({ block, blockIndex, blocks, event, field, listIndex, setSplitFocus, writeBlocks })) return
         if (event.key === " ") handleMarkdownShortcut({ block, blockIndex, blocks, event, field, selection, value, setSplitFocus, writeBlocks })
     }
+
+const handleEmptyListItemDelete = ({
+    block,
+    blockIndex,
+    blocks,
+    listIndex,
+    setSplitFocus,
+    value,
+    writeBlocks,
+}: {
+    block: ArticleBlock | undefined
+    blockIndex: number
+    blocks: ArticleBlock[]
+    listIndex: number | undefined
+    setSplitFocus: KeyboardHandlerOptions["setSplitFocus"]
+    value: string
+    writeBlocks: KeyboardHandlerOptions["writeBlocks"]
+}) => {
+    if (listIndex !== undefined && block && isListBlock(block) && value.trim() === "")
+        return removeEmptyListItemBeforeCursor({ block, blockIndex, blocks, listIndex, setSplitFocus, writeBlocks })
+
+    return false
+}
 
 const handleBackspace = ({
     block,
@@ -92,21 +121,8 @@ const handleBackspace = ({
     value: string
     writeBlocks: KeyboardHandlerOptions["writeBlocks"]
 }) => {
-    if (listIndex !== undefined && block && isListBlock(block) && value.trim() === "") {
-        const nextBlocks = [...blocks]
-        const remainingItems = block.items.filter((_, itemIndex) => itemIndex !== listIndex)
-
-        if (remainingItems.length) {
-            nextBlocks[blockIndex] = { ...block, items: remainingItems }
-            setSplitFocus(blockIndex, Math.max(0, listIndex - 1), Number.MAX_SAFE_INTEGER)
-        } else {
-            nextBlocks.splice(blockIndex, 1, { kind: "paragraph", text: EMPTY_PARAGRAPH_TEXT })
-            setSplitFocus(blockIndex, null, 0)
-        }
-
-        writeBlocks(nextBlocks)
-        return true
-    }
+    if (listIndex !== undefined && block && isListBlock(block) && value.trim() === "")
+        return removeEmptyListItemBeforeCursor({ block, blockIndex, blocks, listIndex, setSplitFocus, writeBlocks })
 
     if (listIndex == null && block && isBlockEmpty(block, value) && blockIndex > 0) {
         const nextBlocks = [...blocks]
@@ -181,48 +197,6 @@ const handleEnter = ({
     }
 
     return false
-}
-
-const splitListItem = ({
-    block,
-    blockIndex,
-    blocks,
-    event,
-    listIndex,
-    setSplitFocus,
-    writeBlocks,
-}: {
-    block: Extract<ArticleBlock, { kind: "bulletList" | "orderedList" }>
-    blockIndex: number
-    blocks: ArticleBlock[]
-    event: KeyboardEvent<HTMLTextAreaElement>
-    listIndex: number
-    setSplitFocus: KeyboardHandlerOptions["setSplitFocus"]
-    writeBlocks: KeyboardHandlerOptions["writeBlocks"]
-}) => {
-    const selectionStart = event.currentTarget.selectionStart ?? 0
-    const selectionEnd = event.currentTarget.selectionEnd ?? selectionStart
-    const currentItem = block.items[listIndex] ?? ""
-    const beforeText = currentItem.slice(0, selectionStart)
-    const afterText = currentItem.slice(selectionEnd)
-    const nextBlocks = [...blocks]
-
-    if (currentItem.trim() === "") {
-        const remainingItems = block.items.filter((_, itemIndex) => itemIndex !== listIndex)
-        const replacement: ArticleBlock[] = []
-        if (remainingItems.length) replacement.push({ ...block, items: remainingItems })
-        replacement.push({ kind: "paragraph", text: EMPTY_PARAGRAPH_TEXT })
-        nextBlocks.splice(blockIndex, 1, ...replacement)
-        setSplitFocus(blockIndex + (remainingItems.length ? 1 : 0), null, 0)
-        writeBlocks(nextBlocks)
-        return
-    }
-
-    const items = [...block.items]
-    items.splice(listIndex, 1, beforeText, afterText)
-    nextBlocks[blockIndex] = { ...block, items }
-    setSplitFocus(blockIndex, listIndex + 1, 0)
-    writeBlocks(nextBlocks)
 }
 
 const handleMarkdownShortcut = ({

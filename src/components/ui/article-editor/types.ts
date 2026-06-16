@@ -52,8 +52,6 @@ export type ArticleBlockHandlers = {
     onInputChange: (blockIndex: number, field: EditorField, listIndex: number | undefined, event: ChangeEvent<HTMLTextAreaElement>) => void
     onInputKeyDown: (blockIndex: number, field: EditorField, listIndex: number | undefined, event: KeyboardEvent<HTMLTextAreaElement>) => void
     updateCalloutTone: (blockIndex: number, tone: "note" | "tip" | "warning") => void
-    addListItem: (blockIndex: number) => void
-    removeListItem: (blockIndex: number, listIndex: number) => void
     updateImageField: (blockIndex: number, patch: Partial<Extract<ArticleBlock, { kind: "image" }>>) => void
     updateVisualBlockData: (blockIndex: number, data: VisualBlockData) => void
 }

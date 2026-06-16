@@ -225,19 +225,6 @@ export const useArticleEditorController = ({ value, displays, onChange }: Articl
         (blockIndex: number, data: VisualBlockData) => updateBlock(parsed.blocks, blockIndex, writeBlocks, "visual", { data, raw: "", parseError: undefined }),
         [parsed.blocks, writeBlocks],
     )
-    const updateListItems = useCallback(
-        (blockIndex: number, updater: (items: string[]) => string[]) => {
-            const nextBlocks = [...parsed.blocks]
-            const block = nextBlocks[blockIndex]
-            if (!block || !isListBlock(block)) return
-            nextBlocks[blockIndex] = { ...block, items: updater(block.items) }
-            writeBlocks(nextBlocks)
-        },
-        [parsed.blocks, writeBlocks],
-    )
-    const addListItem = useCallback((blockIndex: number) => updateListItems(blockIndex, items => [...items, "Item"]), [updateListItems])
-    const removeListItem = useCallback((blockIndex: number, listIndex: number) => updateListItems(blockIndex, items => remainingListItems(items, listIndex)), [updateListItems])
-
     return {
         boundedSelectedCommandIndex,
         commandItems,
@@ -251,11 +238,6 @@ export const useArticleEditorController = ({ value, displays, onChange }: Articl
         applyCommand,
         dismissCommand: () => dispatchCommand({ type: "close" }),
         selectionHandlers,
-        handlers: { onInputChange, onInputKeyDown, updateCalloutTone, addListItem, removeListItem, updateImageField, updateVisualBlockData },
+        handlers: { onInputChange, onInputKeyDown, updateCalloutTone, updateImageField, updateVisualBlockData },
     }
-}
-
-const remainingListItems = (items: string[], listIndex: number) => {
-    const next = items.filter((_, index) => index !== listIndex)
-    return next.length === 0 ? ["Item"] : next
 }

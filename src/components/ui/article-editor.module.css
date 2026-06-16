@@ -347,10 +347,6 @@
     gap: 0.35rem;
 }
 
-.blockActions {
-    justify-content: flex-start;
-}
-
 .commandMenu {
     position: fixed;
     z-index: 20;
