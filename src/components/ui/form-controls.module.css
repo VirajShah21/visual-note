@@ -31,6 +31,12 @@
     padding: 0 11px;
 }
 
+.checkbox {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+}
+
 .textarea {
     min-height: 110px;
     resize: vertical;

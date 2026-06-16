@@ -1,0 +1,27 @@
+.workspace {
+    width: min(100%, 980px);
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.header {
+    align-items: center;
+}
+
+.panel {
+    border-radius: 8px;
+}
+
+.sectionTitle {
+    align-items: center;
+    color: var(--ink);
+}
+
+.actions {
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.error {
+    color: var(--danger);
+}

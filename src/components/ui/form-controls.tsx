@@ -121,3 +121,23 @@ export function SelectField({ className, label, hint, error, options, onValueCha
         </FieldShell>
     )
 }
+
+type CheckboxFieldProps = Omit<ComponentProps<typeof Input>, "className" | "type" | "onChange"> & {
+    className?: string
+    label: string
+    hint?: string
+    checked: boolean
+    onCheckedChange: (checked: boolean) => void
+}
+
+export function CheckboxField({ className, label, hint, checked, onCheckedChange, ...props }: CheckboxFieldProps) {
+    const handleChange: ChangeEventHandler<HTMLInputElement> = useCallback(event => onCheckedChange(event.target.checked), [onCheckedChange])
+
+    return (
+        <FieldShell label={label} hint={hint}>
+            <motion.span initial={{ opacity: 0.9, scale: 0.995 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring", stiffness: 180, damping: 24 }}>
+                <Input className={cx(styles.checkbox, className)} type="checkbox" checked={checked} onChange={handleChange} {...props} />
+            </motion.span>
+        </FieldShell>
+    )
+}

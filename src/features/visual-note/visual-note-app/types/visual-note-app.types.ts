@@ -33,6 +33,7 @@ export type ViewWorkspaceProps = {
     editorSettings: NotebookEditorSettings
     onUpdateView: (view: NotebookView) => void
     onUpdateDisplay: (display: DisplayInstance) => void
+    onUploadImage?: (file: File) => Promise<{ url: string; alt?: string }>
 }
 
 export type ArticleWorkspaceProps = {
@@ -40,6 +41,7 @@ export type ArticleWorkspaceProps = {
     editorSettings: NotebookEditorSettings
     onUpdateView: (view: NotebookView) => void
     onUpdateDisplay: (display: DisplayInstance) => void
+    onUploadImage?: (file: File) => Promise<{ url: string; alt?: string }>
 }
 
 export type VisualBlockDisplayProps = {

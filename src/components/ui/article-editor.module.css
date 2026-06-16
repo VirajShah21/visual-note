@@ -235,6 +235,24 @@
     gap: 0.75rem;
 }
 
+.imageUploadRow {
+    align-items: center;
+}
+
+.hiddenFileInput {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.imageUploadError {
+    color: #b42318;
+}
+
 .heading-1,
 .heading-2,
 .heading-3,

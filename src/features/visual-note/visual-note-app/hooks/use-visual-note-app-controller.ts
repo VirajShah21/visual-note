@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import type { ToastMessage, ToastTone } from "@/components/ui"
 import { getSupabaseBrowserClient, getSupabaseStatus } from "@/lib/supabase/client"
 import { loadSupabaseWorkspace, saveSupabaseWorkspace } from "@/lib/supabase/workspace"
+import { uploadNotebookImage } from "@/lib/visual-note/storage-api"
 import { createLocalUser, createNotebook, createPage, createSeedWorkspace, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
 import { clearStoredUser, loadStoredUser, loadStoredWorkspace, storeUser, storeWorkspace } from "@/lib/visual-note/storage"
 import type { DisplayInstance, NotebookEditorSettings, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
@@ -107,7 +108,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         }
         await openWorkspaceForUser(createLocalUser(email, name))
     }
-
     const signOut = async () => {
         const supabase = getSupabaseBrowserClient()
         if (supabase) await supabase.auth.signOut()
@@ -117,19 +117,16 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         setSelection(blankSelection)
         setNotice("")
     }
-
     const updateWorkspace = (updater: (current: VisualNoteWorkspace) => VisualNoteWorkspace) => setWorkspace(current => (current ? updater(current) : current))
     const notebooks = workspace && user ? workspace.notebooks.filter(item => item.userId === user.id) : []
     const sections = workspace ? workspace.pages.filter(item => item.notebookId === selected.currentSelection.notebookId).sort((a, b) => a.position - b.position) : []
     const galleryItems = workspace ? createNotebookGalleryItems(workspace, notebooks) : []
-
     const addNotebook = (title: string) => {
         const trimmedTitle = title.trim()
         if (!user || !trimmedTitle) {
             pushToast("Notebook title required", "Add a title before creating a notebook.", "error")
             return null
         }
-
         let createdNotebookId = ""
         updateWorkspace(current => {
             const notebook = createNotebook(user.id, trimmedTitle)
@@ -200,7 +197,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
             pushToast("Item title required", "Choose a section and enter an item title.", "error")
             return false
         }
-
         updateWorkspace(current => {
             const sectionTopics = current.topics.filter(topic => topic.pageId === sectionId).sort((a, b) => a.position - b.position)
             const topic = createTopic(section.id, trimmedTitle, sectionTopics.length)
@@ -241,7 +237,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
             pushToast("Item not found", "Choose an existing item before deleting.", "error")
             return false
         }
-
         setWorkspace(deleted.workspace)
         setSelection(
             deriveSelection(
@@ -256,14 +251,19 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const updateNotebookEditorSettings = (settings: Partial<NotebookEditorSettings>) => {
         const notebookId = selected.currentSelection.notebookId
         if (!notebookId) return
-
         updateWorkspace(current => updateWorkspaceNotebookEditorSettings(current, notebookId, settings))
     }
     const updateDisplay = (display: DisplayInstance) => {
         if (!selected.view) return
         updateView({ ...selected.view, displays: selected.view.displays.map(item => (item.id === display.id ? display : item)) })
     }
-
+    const uploadImage = async (file: File) => {
+        const notebookId = selected.currentSelection.notebookId
+        if (!notebookId) throw new Error("Choose a notebook before uploading images.")
+        const asset = await uploadNotebookImage(notebookId, file)
+        pushToast("Image uploaded", asset.fileName)
+        return { url: asset.url, alt: asset.fileName }
+    }
     return {
         galleryItems,
         isLoading,
@@ -294,6 +294,7 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
             updateDisplay,
             updateNotebookEditorSettings,
             updateView,
+            uploadImage,
         },
     }
 }

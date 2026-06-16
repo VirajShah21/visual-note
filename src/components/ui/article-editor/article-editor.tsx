@@ -19,6 +19,7 @@ export function ArticleEditor({
     readOnly = false,
     renderDisplay,
     renderVisualBlock,
+    onUploadImage,
 }: ArticleEditorProps) {
     const {
         boundedSelectedCommandIndex,
@@ -94,6 +95,7 @@ export function ArticleEditor({
                                         readOnly={isReaderMode}
                                         renderDisplay={renderDisplay}
                                         renderVisualBlock={renderVisualBlock}
+                                        onUploadImage={onUploadImage}
                                     />
                                 </Stack>
                             </motion.div>

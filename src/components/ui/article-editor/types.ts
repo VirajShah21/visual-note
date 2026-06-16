@@ -25,6 +25,7 @@ export type ArticleEditorProps = {
     readOnly?: boolean
     renderDisplay?: (display: DisplayInstance, displayIndex: number) => ReactNode
     renderVisualBlock?: (block: Extract<ArticleBlock, { kind: "visual" }>, onDataChange: (data: VisualBlockData) => void) => ReactNode
+    onUploadImage?: (file: File) => Promise<{ url: string; alt?: string }>
 }
 
 export type CommandState = {

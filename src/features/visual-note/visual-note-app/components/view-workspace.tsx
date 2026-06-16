@@ -9,7 +9,7 @@ import styles from "../../visual-note-app.module.css"
 import { RenderedDisplay } from "./rendered-display"
 import { VisualBlockDisplay } from "./visual-block-display"
 
-export function ViewWorkspace({ view, editorSettings, onUpdateView, onUpdateDisplay }: ViewWorkspaceProps) {
+export function ViewWorkspace({ view, editorSettings, onUpdateView, onUpdateDisplay, onUploadImage }: ViewWorkspaceProps) {
     if (!view)
         return (
             <Card className={styles.emptyCanvas}>
@@ -22,12 +22,12 @@ export function ViewWorkspace({ view, editorSettings, onUpdateView, onUpdateDisp
 
     return (
         <Stack className={styles.preview} gap="none">
-            <ArticleWorkspace view={view} editorSettings={editorSettings} onUpdateView={onUpdateView} onUpdateDisplay={onUpdateDisplay} />
+            <ArticleWorkspace view={view} editorSettings={editorSettings} onUpdateView={onUpdateView} onUpdateDisplay={onUpdateDisplay} onUploadImage={onUploadImage} />
         </Stack>
     )
 }
 
-export function ArticleWorkspace({ view, editorSettings, onUpdateView, onUpdateDisplay }: ArticleWorkspaceProps) {
+export function ArticleWorkspace({ view, editorSettings, onUpdateView, onUpdateDisplay, onUploadImage }: ArticleWorkspaceProps) {
     const isReaderMode = editorSettings.mode === "reader"
     const updateContent = useCallback((content: string) => onUpdateView({ ...view, content }), [onUpdateView, view])
     const renderDisplay = useCallback(
@@ -59,6 +59,7 @@ export function ArticleWorkspace({ view, editorSettings, onUpdateView, onUpdateD
             onChange={updateContent}
             renderDisplay={renderDisplay}
             renderVisualBlock={renderVisualBlock}
+            onUploadImage={onUploadImage}
         />
     )
 }

@@ -21,14 +21,22 @@ export type ToolbarMenuGroup<Value extends string = string> = {
     onValueChange: (value: Value) => void
 }
 
+export type ToolbarMenuAction = {
+    id: string
+    label: string
+    icon?: ReactNode
+    onSelect: () => void
+}
+
 type ToolbarMenuProps = {
     label: string
     icon: ReactNode
     groups: ToolbarMenuGroup[]
+    actions?: ToolbarMenuAction[]
     className?: string
 }
 
-export function ToolbarMenu({ label, icon, groups, className }: ToolbarMenuProps) {
+export function ToolbarMenu({ label, icon, groups, actions = [], className }: ToolbarMenuProps) {
     return (
         <Menu.Root>
             <Menu.Trigger className={cx(styles.trigger, className)} aria-label={label}>
@@ -39,6 +47,12 @@ export function ToolbarMenu({ label, icon, groups, className }: ToolbarMenuProps
                     <Menu.Popup className={styles.popup}>
                         {groups.map(group => (
                             <ToolbarSubmenu key={group.id} group={group} />
+                        ))}
+                        {actions.map(action => (
+                            <Menu.Item key={action.id} className={styles.item} closeOnClick onClick={action.onSelect}>
+                                <span className={styles.itemIcon}>{action.icon}</span>
+                                <span className={styles.itemLabel}>{action.label}</span>
+                            </Menu.Item>
                         ))}
                     </Menu.Popup>
                 </Menu.Positioner>

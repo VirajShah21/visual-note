@@ -2,8 +2,9 @@
 
 /* eslint-disable @next/next/no-img-element -- User-authored article images use arbitrary URLs and need native intrinsic sizing. */
 
-import { createElement, type CSSProperties } from "react"
+import { createElement, useEffect, useState, type CSSProperties } from "react"
 import { cx } from "./class-name"
+import { fetchPrivateAssetUrl } from "@/lib/visual-note/storage-api"
 import styles from "./image-block.module.css"
 
 export type ImageBlockSize = "full" | "wide" | "medium" | "small"
@@ -39,6 +40,8 @@ const imageSource = (url: string) => {
     return `https://${trimmed}`
 }
 
+const isPrivateAssetUrl = (url: string) => /^\/api\/assets\/[^/?#]+/i.test(url.trim())
+
 export function ImageBlockFigure({
     url,
     alt,
@@ -54,13 +57,46 @@ export function ImageBlockFigure({
     onEdit,
 }: ImageBlockFigureProps) {
     const src = imageSource(url)
+    const [resolvedAsset, setResolvedAsset] = useState({ src: "", objectUrl: "" })
+    const isPrivateAsset = isPrivateAssetUrl(src)
+    const resolvedSrc = isPrivateAsset ? (resolvedAsset.src === src ? resolvedAsset.objectUrl : "") : src
     const imageStyle = {
         "--image-border-radius": `${Math.max(0, borderRadius)}px`,
         "--image-border-width": `${Math.max(0, borderWidth)}px`,
     } as CSSProperties
+    useEffect(() => {
+        const abortController = new AbortController()
+        let objectUrl = ""
+        let isMounted = true
+        if (!isPrivateAsset) return undefined
+
+        void fetchPrivateAssetUrl(src, abortController.signal)
+            .then(nextUrl => {
+                objectUrl = nextUrl
+                if (isMounted) {
+                    setResolvedAsset({ src, objectUrl: nextUrl })
+                    return
+                }
+
+                URL.revokeObjectURL(nextUrl)
+            })
+            .catch(() => {
+                if (abortController.signal.aborted) return
+                if (isMounted) setResolvedAsset(current => (current.src === src ? { src: "", objectUrl: "" } : current))
+            })
+
+        return () => {
+            isMounted = false
+            abortController.abort()
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl)
+                setResolvedAsset(current => (current.objectUrl === objectUrl ? { src: "", objectUrl: "" } : current))
+            }
+        }
+    }, [isPrivateAsset, src])
     const content = (
         <>
-            {src ? <img className={styles.image} src={src} alt={alt} title={title || undefined} /> : <div className={styles.placeholder}>Paste an image URL</div>}
+            {resolvedSrc ? <img className={styles.image} src={resolvedSrc} alt={alt} title={title || undefined} /> : <div className={styles.placeholder}>Paste an image URL</div>}
             {overlayText ? <div className={styles.overlay}>{overlayText}</div> : null}
             {onEdit && !isEditing ? <span className={styles.editOverlay}>{editLabel}</span> : null}
         </>

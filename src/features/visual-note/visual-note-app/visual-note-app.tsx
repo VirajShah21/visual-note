@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useMemo, useState } from "react"
-import { Card, Grid, MarkdownPreviewDialog, NotebookEditorNavbar, NotebookHome, ScrollArea, Stack, Text, ToastShelf } from "@/components/ui"
+import { Card, Grid, MarkdownPreviewDialog, NotebookEditorNavbar, NotebookHome, NotebookSettingsWorkspace, ScrollArea, Stack, Text, ToastShelf } from "@/components/ui"
 import { defaultNotebookEditorSettings } from "@/lib/visual-note/types"
 import type { VisualNoteAppProps } from "./types/visual-note-app.types"
 import { AuthPanel } from "./components/auth-panel"
@@ -16,6 +16,7 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     const { actions, galleryItems, isLoading, notice, sections, selected, supabaseStatus, toastMessages, user, workspace } = useVisualNoteAppController(initialNotebookId)
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
     const [isExportOpen, setIsExportOpen] = useState(false)
+    const [workspaceView, setWorkspaceView] = useState<"editor" | "settings">("editor")
     const [searchQuery, setSearchQuery] = useState("")
     const searchResults = useMemo(
         () => (workspace ? createNotebookSearchResults(workspace, selected.currentSelection, searchQuery) : []),
@@ -25,6 +26,36 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     const editorSettings = selected.notebook?.editorSettings ?? defaultNotebookEditorSettings
     const openExportDialog = useCallback(() => setIsExportOpen(true), [])
     const toggleSidebar = useCallback(() => setIsSidebarOpen(current => !current), [])
+    const openSettings = useCallback(() => setWorkspaceView("settings"), [])
+    const openEditor = useCallback(() => setWorkspaceView("editor"), [])
+    const selectSection = useCallback(
+        (sectionId: string) => {
+            setWorkspaceView("editor")
+            actions.selectSection(sectionId)
+        },
+        [actions],
+    )
+    const selectTopic = useCallback(
+        (topicId: string) => {
+            setWorkspaceView("editor")
+            actions.selectTopic(topicId)
+        },
+        [actions],
+    )
+    const selectNotebook = useCallback(
+        (notebookId: string) => {
+            setWorkspaceView("editor")
+            actions.selectNotebook(notebookId)
+        },
+        [actions],
+    )
+    const selectSearchResult = useCallback(
+        (result: (typeof searchResults)[number]) => {
+            setWorkspaceView("editor")
+            actions.selectSearchResult(result)
+        },
+        [actions],
+    )
 
     if (isLoading)
         return (
@@ -70,9 +101,10 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                     editorSettings={editorSettings}
                     onExport={openExportDialog}
                     onHomeSelect={actions.openHome}
-                    onNotebookSelect={actions.selectNotebook}
+                    onNotebookSelect={selectNotebook}
                     onSearchChange={setSearchQuery}
-                    onSearchResultSelect={actions.selectSearchResult}
+                    onSearchResultSelect={selectSearchResult}
+                    onMoreSettings={openSettings}
                     onSettingsChange={actions.updateNotebookEditorSettings}
                     onToggleSidebar={toggleSidebar}
                 />
@@ -93,12 +125,27 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                             onCreateTopic={actions.addTopic}
                             onRenameTopic={actions.renameTopic}
                             onDeleteTopic={actions.deleteTopic}
-                            onSelectSection={actions.selectSection}
-                            onSelectTopic={actions.selectTopic}
+                            onSelectSection={selectSection}
+                            onSelectTopic={selectTopic}
                         />
                     ) : null}
                     <ScrollArea className={styles.content}>
-                        <ViewWorkspace view={selected.view} editorSettings={editorSettings} onUpdateView={actions.updateView} onUpdateDisplay={actions.updateDisplay} />
+                        {workspaceView === "settings" ? (
+                            <NotebookSettingsWorkspace
+                                notebookId={selected.currentSelection.notebookId}
+                                notebookTitle={selected.notebook?.title ?? "Notebook"}
+                                storageEnabled={supabaseStatus === "configured"}
+                                onDone={openEditor}
+                            />
+                        ) : (
+                            <ViewWorkspace
+                                view={selected.view}
+                                editorSettings={editorSettings}
+                                onUpdateView={actions.updateView}
+                                onUpdateDisplay={actions.updateDisplay}
+                                onUploadImage={actions.uploadImage}
+                            />
+                        )}
                     </ScrollArea>
                 </Grid>
             </Grid>

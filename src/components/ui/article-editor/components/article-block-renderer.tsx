@@ -26,9 +26,10 @@ type ArticleBlockRendererProps = {
     readOnly?: boolean
     renderDisplay?: ArticleEditorProps["renderDisplay"]
     renderVisualBlock?: ArticleEditorProps["renderVisualBlock"]
+    onUploadImage?: ArticleEditorProps["onUploadImage"]
 }
 
-export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, readOnly = false, renderDisplay, renderVisualBlock }: ArticleBlockRendererProps) {
+export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, readOnly = false, renderDisplay, renderVisualBlock, onUploadImage }: ArticleBlockRendererProps) {
     if (readOnly)
         return (
             <ReadableArticleBlock
@@ -157,7 +158,7 @@ export function ArticleBlockRenderer({ block, blockIndex, displays, handlers, re
     if (block.kind === "image")
         return (
             <Stack gap="xs" className={styles.articleBlock}>
-                <MarkdownImageBlock blockIndex={blockIndex} alt={block.alt} url={block.url} handlers={handlers} />
+                <MarkdownImageBlock blockIndex={blockIndex} alt={block.alt} url={block.url} handlers={handlers} onUploadImage={onUploadImage} />
             </Stack>
         )
 

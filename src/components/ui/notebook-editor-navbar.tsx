@@ -41,6 +41,7 @@ export type NotebookEditorNavbarProps = {
     onNotebookSelect: (notebookId: string) => void
     onSearchChange: (query: string) => void
     onSearchResultSelect: (result: NotebookEditorSearchResult) => void
+    onMoreSettings: () => void
     onSettingsChange: (settings: Partial<NotebookEditorSettings>) => void
     onToggleSidebar: () => void
     recentNotebooks?: NotebookEditorRecentNotebook[]
@@ -58,6 +59,7 @@ export function NotebookEditorNavbar({
     onNotebookSelect,
     onSearchChange,
     onSearchResultSelect,
+    onMoreSettings,
     onSettingsChange,
     onToggleSidebar,
     recentNotebooks = [],
@@ -122,6 +124,14 @@ export function NotebookEditorNavbar({
             ],
         },
     ]
+    const settingsActions = [
+        {
+            id: "more-settings",
+            label: "More Settings",
+            icon: <Settings size={14} />,
+            onSelect: onMoreSettings,
+        },
+    ]
 
     return (
         <div className={styles.navbar}>
@@ -178,7 +188,7 @@ export function NotebookEditorNavbar({
                 ) : null}
             </div>
             <div className={styles.rightGroup}>
-                <ToolbarMenu label="Notebook editor settings" icon={<Settings size={16} />} groups={settingsGroups} />
+                <ToolbarMenu label="Notebook editor settings" icon={<Settings size={16} />} groups={settingsGroups} actions={settingsActions} />
                 <Button icon={<Download size={15} />} variant="secondary" onClick={onExport}>
                     Export
                 </Button>
