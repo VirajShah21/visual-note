@@ -1,11 +1,19 @@
 import { Document, Image, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer"
 import { createElement } from "react"
-import type { PdfRenderBlock, PdfRenderModel } from "./types"
+import { PdfVisualBlock } from "./pdf-visual-renderer"
+import type { PdfImageSize, PdfRenderBlock, PdfRenderModel } from "./types"
 
 const marginByDensity = {
     narrow: 28,
     normal: 44,
     wide: 64,
+}
+
+const imageWidthBySize: Record<PdfImageSize, string> = {
+    full: "100%",
+    wide: "86%",
+    medium: "66%",
+    small: "44%",
 }
 
 const styles = StyleSheet.create({
@@ -64,6 +72,26 @@ const styles = StyleSheet.create({
         objectFit: "contain",
         width: "100%",
     },
+    imageFrame: {
+        marginBottom: 12,
+    },
+    imageTitle: {
+        fontSize: 12,
+        fontWeight: 700,
+        marginBottom: 6,
+    },
+    imageCaption: {
+        color: "#586879",
+        fontSize: 9,
+        marginTop: 5,
+    },
+    imageOverlay: {
+        backgroundColor: "#101820",
+        borderRadius: 4,
+        color: "#ffffff",
+        marginBottom: 6,
+        padding: 6,
+    },
     data: {
         borderColor: "#d7e0e7",
         borderRadius: 4,
@@ -84,6 +112,16 @@ const headingStyle = (depth: number) => {
 
     return styles.heading3
 }
+
+const imageStyle = (block: Extract<PdfRenderBlock, { kind: "image" }>) => [
+    styles.image,
+    {
+        borderColor: "#d7e0e7",
+        borderRadius: block.borderRadius ?? 0,
+        borderWidth: block.borderWidth ?? 0,
+        width: imageWidthBySize[block.size ?? "full"],
+    },
+]
 
 function PdfBlock({ block }: { block: PdfRenderBlock }) {
     if (block.kind === "heading")
@@ -124,7 +162,16 @@ function PdfBlock({ block }: { block: PdfRenderBlock }) {
             </Text>
         )
     if (block.kind === "divider") return <View break={block.breakBefore} style={styles.divider} />
-    if (block.kind === "image") return createElement(Image, { break: block.breakBefore, src: block.url, style: styles.image })
+    if (block.kind === "image")
+        return (
+            <View break={block.breakBefore} wrap={false} style={styles.imageFrame}>
+                {block.title ? <Text style={styles.imageTitle}>{block.title}</Text> : null}
+                {block.overlayText ? <Text style={styles.imageOverlay}>{block.overlayText}</Text> : null}
+                {createElement(Image, { src: block.url, style: imageStyle(block) })}
+                {block.caption ? <Text style={styles.imageCaption}>{block.caption}</Text> : null}
+            </View>
+        )
+    if (block.kind === "visual-card" || block.kind === "chart" || block.kind === "poll") return <PdfVisualBlock block={block} />
 
     return (
         <View break={block.breakBefore} style={styles.data}>

@@ -94,6 +94,36 @@ export type PdfExportOptions = {
     pageSize: PdfPageSize
 }
 
+export type PdfVisualDetail = {
+    label: string
+    value: string
+}
+
+export type PdfVisualSection = {
+    title: string
+    lines: string[]
+}
+
+export type PdfChartType = "bar" | "line" | "area" | "scatter" | "pie"
+
+export type PdfChartSeries = {
+    name: string
+    values: number[]
+}
+
+export type PdfChartDataset = {
+    labels: string[]
+    series: PdfChartSeries[]
+}
+
+export type PdfPollOption = {
+    label: string
+    votes: number
+    percent: number
+}
+
+export type PdfImageSize = "full" | "wide" | "medium" | "small"
+
 export type PdfRenderBlock =
     | { kind: "heading"; depth: number; text: string; breakBefore?: boolean }
     | { kind: "paragraph"; text: string; breakBefore?: boolean }
@@ -101,8 +131,31 @@ export type PdfRenderBlock =
     | { kind: "quote"; lines: string[]; breakBefore?: boolean }
     | { kind: "code"; language: string; code: string; breakBefore?: boolean }
     | { kind: "divider"; breakBefore?: boolean }
-    | { kind: "image"; alt: string; url: string; breakBefore?: boolean }
+    | {
+          kind: "image"
+          alt: string
+          url: string
+          title?: string
+          caption?: string
+          overlayText?: string
+          size?: PdfImageSize
+          borderRadius?: number
+          borderWidth?: number
+          breakBefore?: boolean
+      }
     | { kind: "data"; title: string; body: string; breakBefore?: boolean }
+    | {
+          kind: "visual-card"
+          label: string
+          title: string
+          subtitle?: string
+          details?: PdfVisualDetail[]
+          badges?: string[]
+          sections?: PdfVisualSection[]
+          breakBefore?: boolean
+      }
+    | { kind: "chart"; title: string; chartType: PdfChartType; xLabel: string; yLabel: string; dataset: PdfChartDataset; breakBefore?: boolean }
+    | { kind: "poll"; question: string; options: PdfPollOption[]; totalVotes: number; breakBefore?: boolean }
 
 export type PdfRenderModel = {
     title: string

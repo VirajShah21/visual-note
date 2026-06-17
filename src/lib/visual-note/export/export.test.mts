@@ -4,6 +4,7 @@ import { createExportDocument } from "./document.ts"
 import { renderMarkdownExport } from "./markdown.ts"
 import { createPdfRenderModel } from "./pdf-model.ts"
 import { createServerPackageFiles, renderWebHtml } from "./web.ts"
+import { defaultVisualBlockData, serializeVisualBlockBody, visualBlockKinds } from "../visual-blocks.ts"
 import type { VisualNoteWorkspace } from "../types.ts"
 import type { ExportAssetMode, ExportAssetResolution } from "./types.ts"
 
@@ -91,6 +92,25 @@ const assetResolution: ExportAssetResolution = {
 
 const renderContext = (assetMode: ExportAssetMode) => ({ assetMode, assetResolution })
 
+const visualFence = (kind: (typeof visualBlockKinds)[number]) => {
+    const data =
+        kind === "image"
+            ? {
+                  ...defaultVisualBlockData(kind),
+                  url: "/api/assets/asset-1",
+                  alt: "Visual photo",
+                  title: "Embedded visual image",
+                  caption: "Image caption",
+                  overlayText: "Image overlay",
+                  size: "medium",
+                  borderRadius: 8,
+                  borderWidth: 2,
+              }
+            : defaultVisualBlockData(kind)
+
+    return [`\`\`\`visual:${kind}`, serializeVisualBlockBody(data), "```"].join("\n")
+}
+
 test("builds current-page and full-notebook export documents in position order", () => {
     const currentPage = createExportDocument({ scope: "page", selection, workspace })
     const notebook = createExportDocument({ scope: "notebook", selection, workspace })
@@ -169,5 +189,55 @@ test("maps PDF export options and page-break choices into a render model", () =>
     assert.equal(
         model.blocks.some(block => block.kind === "heading" && block.text === "Second" && block.breakBefore),
         true,
+    )
+})
+
+test("maps every supported visual block into structured PDF render blocks", () => {
+    const allVisualWorkspace: VisualNoteWorkspace = {
+        ...workspace,
+        views: [
+            {
+                ...workspace.views[0],
+                content: visualBlockKinds.map(visualFence).join("\n\n"),
+            },
+        ],
+    }
+    const document = createExportDocument({ scope: "page", selection, workspace: allVisualWorkspace })
+    assert.ok(document)
+
+    const model = createPdfRenderModel(
+        document,
+        {
+            assetMode: "base64",
+            margin: "normal",
+            orientation: "portrait",
+            pageBreaks: "none",
+            pageSize: "letter",
+        },
+        renderContext("base64"),
+    )
+    const visualCards = model.blocks.filter(block => block.kind === "visual-card")
+
+    assert.equal(
+        model.blocks.some(
+            block => block.kind === "image" && block.title === "Embedded visual image" && block.caption === "Image caption" && block.size === "medium" && block.borderWidth === 2,
+        ),
+        true,
+    )
+    assert.equal(
+        model.blocks.some(block => block.kind === "chart" && block.title === "Notebook activity" && block.dataset.series.length === 2),
+        true,
+    )
+    assert.equal(
+        model.blocks.some(block => block.kind === "poll" && block.question === "Which block should we polish first?" && block.options.length === 2),
+        true,
+    )
+    assert.deepEqual(
+        visualCards.map(block => block.label).sort(),
+        ["Address Card", "Calendar Event", "Contact Card", "Packing List", "Pull Request", "Recipe", "Shopping List", "Task List", "Timeline"].sort(),
+    )
+    assert.equal(
+        model.blocks.some(block => block.kind === "data" && /Pull Request|Calendar Event|Task List/.test(block.title)),
+        false,
     )
 })

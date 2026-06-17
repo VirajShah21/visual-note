@@ -1,16 +1,6 @@
 import { parseArticleContent, type ArticleBlock } from "../article-content"
-import { visualBlockLabel } from "../visual-blocks"
-import { assetUrlFor } from "./assets"
+import { createPdfImageBlocks, createPdfVisualBlocks } from "./pdf-visual-blocks"
 import type { ExportDocument, ExportRenderContext, PdfExportOptions, PdfRenderBlock, PdfRenderModel } from "./types"
-
-const stringFrom = (value: unknown, fallback = "") => {
-    if (typeof value === "string" && value.trim()) return value
-    if (typeof value === "number" || typeof value === "boolean") return String(value)
-
-    return fallback
-}
-
-const isPrivateAssetUrl = (source: string) => /^\/api\/assets\/[^/?#]+/i.test(source.trim())
 
 const dataBlock = (title: string, data: unknown, breakBefore = false): PdfRenderBlock => ({
     kind: "data",
@@ -18,21 +8,6 @@ const dataBlock = (title: string, data: unknown, breakBefore = false): PdfRender
     body: JSON.stringify(data, null, 2),
     breakBefore,
 })
-
-const imageBlock = (source: string, alt: string, context: ExportRenderContext, breakBefore = false): PdfRenderBlock[] => {
-    if (context.assetMode === "ignore") return []
-
-    const url = assetUrlFor(source, context.assetMode, context.assetResolution)
-    if (!url || isPrivateAssetUrl(url)) return [dataBlock(alt || "Image", "Image asset could not be embedded.", breakBefore)]
-
-    return [{ kind: "image", alt, url, breakBefore }]
-}
-
-const visualBlock = (block: Extract<ArticleBlock, { kind: "visual" }>, context: ExportRenderContext, breakBefore = false): PdfRenderBlock[] => {
-    if (block.visualKind === "image") return imageBlock(stringFrom(block.data.url), stringFrom(block.data.alt, "Image"), context, breakBefore)
-
-    return [dataBlock(visualBlockLabel(block.visualKind), block.parseError ? block.raw : block.data, breakBefore)]
-}
 
 const renderArticleBlock = (block: ArticleBlock, context: ExportRenderContext, breakBefore = false): PdfRenderBlock[] => {
     if (block.kind === "heading") return [{ kind: "heading", depth: block.level, text: block.text, breakBefore }]
@@ -43,9 +18,9 @@ const renderArticleBlock = (block: ArticleBlock, context: ExportRenderContext, b
     if (block.kind === "code") return [{ kind: "code", language: block.language, code: block.code, breakBefore }]
     if (block.kind === "divider") return [{ kind: "divider", breakBefore }]
     if (block.kind === "callout") return [dataBlock(block.tone, block.text, breakBefore)]
-    if (block.kind === "image") return imageBlock(block.url, block.alt, context, breakBefore)
+    if (block.kind === "image") return createPdfImageBlocks({ source: block.url, alt: block.alt, context, breakBefore })
     if (block.kind === "display") return [dataBlock(`Display ${block.displayIndex + 1}`, { displayIndex: block.displayIndex + 1 }, breakBefore)]
-    if (block.kind === "visual") return visualBlock(block, context, breakBefore)
+    if (block.kind === "visual") return createPdfVisualBlocks(block, context, breakBefore)
 
     return []
 }
