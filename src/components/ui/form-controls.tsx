@@ -141,3 +141,80 @@ export function CheckboxField({ className, label, hint, checked, onCheckedChange
         </FieldShell>
     )
 }
+
+type CheckboxCardFieldProps = Omit<ComponentProps<typeof Input>, "className" | "type" | "onChange"> & {
+    className?: string
+    label: string
+    description?: string
+    checked: boolean
+    onCheckedChange: (checked: boolean) => void
+}
+
+export function CheckboxCardField({ className, description, checked, label, onCheckedChange, ...props }: CheckboxCardFieldProps) {
+    const handleChange: ChangeEventHandler<HTMLInputElement> = useCallback(event => onCheckedChange(event.target.checked), [onCheckedChange])
+
+    return (
+        <label className={cx(styles.checkboxCard, checked && styles.checkboxCardSelected, props.disabled && styles.checkboxCardDisabled)}>
+            <Input className={cx(styles.checkbox, styles.checkboxCardInput, className)} type="checkbox" checked={checked} onChange={handleChange} {...props} />
+            <span className={styles.checkboxCardLabel}>
+                <span>{label}</span>
+                {description ? <span className={styles.checkboxCardDescription}>{description}</span> : null}
+            </span>
+        </label>
+    )
+}
+
+type RadioOption = {
+    label: string
+    value: string
+    description?: string
+    disabled?: boolean
+}
+
+type RadioFieldProps = Omit<ComponentProps<typeof Input>, "className" | "type" | "onChange" | "value" | "name"> & {
+    className?: string
+    label: string
+    hint?: string
+    name: string
+    options: RadioOption[]
+    layout?: "grid" | "horizontal"
+    value: string
+    onValueChange: (value: string) => void
+}
+
+export function RadioField({ className, label, hint, name, options, value, layout = "grid", onValueChange, ...props }: RadioFieldProps) {
+    const handleChange: ChangeEventHandler<HTMLInputElement> = useCallback(event => onValueChange(event.target.value), [onValueChange])
+
+    return (
+        <FieldShell label={label} hint={hint}>
+            <motion.div
+                className={cx(styles.radioGroup, layout === "horizontal" && styles.radioGroupHorizontal)}
+                initial={{ opacity: 0.9, scale: 0.995 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: "spring", stiffness: 180, damping: 24 }}
+            >
+                {options.map(option => (
+                    <label
+                        key={option.value}
+                        className={cx(styles.radioOption, option.value === value && styles.radioOptionSelected, option.disabled && styles.radioOptionDisabled)}
+                    >
+                        <Input
+                            className={cx(styles.radio, className)}
+                            type="radio"
+                            name={name}
+                            value={option.value}
+                            checked={option.value === value}
+                            disabled={option.disabled}
+                            onChange={handleChange}
+                            {...props}
+                        />
+                        <span className={styles.radioLabel}>
+                            <span>{option.label}</span>
+                            {option.description ? <span className={styles.radioDescription}>{option.description}</span> : null}
+                        </span>
+                    </label>
+                ))}
+            </motion.div>
+        </FieldShell>
+    )
+}

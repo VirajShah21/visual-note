@@ -6,21 +6,27 @@ import { Info, X } from "lucide-react"
 import type { ReactNode } from "react"
 import styles from "./overlays.module.css"
 
+type SurfaceAlign = "center" | "start"
+
 type SurfaceProps = {
     open: boolean
     title: string
     description?: string
+    align?: SurfaceAlign
     children: ReactNode
+    size?: "normal" | "wide"
     onOpenChange: (open: boolean) => void
 }
 
-export function ModalDialog({ open, title, description, children, onOpenChange }: SurfaceProps) {
+export function ModalDialog({ open, title, description, children, align = "center", size = "normal", onOpenChange }: SurfaceProps) {
+    const viewportClassName = `${styles.viewport} ${align === "start" ? styles.viewportStart : ""}`.trim()
+
     return (
         <Dialog.Root open={open} onOpenChange={onOpenChange}>
             <Dialog.Portal>
                 <Dialog.Backdrop className={styles.backdrop} />
-                <Dialog.Viewport className={styles.viewport}>
-                    <Dialog.Popup className={styles.popup}>
+                <Dialog.Viewport className={viewportClassName}>
+                    <Dialog.Popup className={`${styles.popup} ${size === "wide" ? styles.popupWide : ""}`}>
                         <SurfaceHeader title={title} description={description} />
                         <div className={styles.body}>{children}</div>
                     </Dialog.Popup>

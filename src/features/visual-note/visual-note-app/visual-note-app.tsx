@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useMemo, useState } from "react"
-import { Card, Grid, MarkdownPreviewDialog, NotebookEditorNavbar, NotebookHome, NotebookSettingsWorkspace, ScrollArea, Stack, Text, ToastShelf } from "@/components/ui"
+import { Card, ExportWizard, Grid, NotebookEditorNavbar, NotebookHome, NotebookSettingsWorkspace, ScrollArea, Stack, Text, ToastShelf } from "@/components/ui"
 import { defaultNotebookEditorSettings } from "@/lib/visual-note/types"
 import type { VisualNoteAppProps } from "./types/visual-note-app.types"
 import { AuthPanel } from "./components/auth-panel"
@@ -9,7 +9,6 @@ import { SectionSidebar } from "./components/section-sidebar"
 import { ViewWorkspace } from "./components/view-workspace"
 import { useVisualNoteAppController } from "./hooks/use-visual-note-app-controller"
 import { createNotebookSearchResults } from "./utils/notebook-search"
-import { stringFrom } from "./utils/visual-note-app.utils"
 import styles from "../visual-note-app.module.css"
 
 export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualNoteAppProps) {
@@ -22,7 +21,6 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
         () => (workspace ? createNotebookSearchResults(workspace, selected.currentSelection, searchQuery) : []),
         [searchQuery, selected.currentSelection, workspace],
     )
-    const markdownSource = selected.view ? stringFrom(selected.view.content) : ""
     const editorSettings = selected.notebook?.editorSettings ?? defaultNotebookEditorSettings
     const openExportDialog = useCallback(() => setIsExportOpen(true), [])
     const toggleSidebar = useCallback(() => setIsSidebarOpen(current => !current), [])
@@ -149,7 +147,7 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                     </ScrollArea>
                 </Grid>
             </Grid>
-            <MarkdownPreviewDialog markdown={markdownSource} open={isExportOpen} onOpenChange={setIsExportOpen} />
+            <ExportWizard open={isExportOpen} selection={selected.currentSelection} workspace={workspace} onOpenChange={setIsExportOpen} />
             <ToastShelf messages={toastMessages} onDismiss={actions.dismissToast} />
         </Stack>
     )
