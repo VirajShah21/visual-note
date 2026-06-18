@@ -30,6 +30,7 @@ export function SegmentedControl<Value extends string>({ className, label, optio
     return (
         <Tabs.Root className={cx(styles.root, className)} value={value} onValueChange={handleValueChange}>
             <Tabs.List className={styles.list} aria-label={label}>
+                <Tabs.Indicator className={styles.indicator} renderBeforeHydration />
                 {options.map(option => (
                     <Tabs.Tab key={option.value} className={styles.item} value={option.value}>
                         {option.icon}

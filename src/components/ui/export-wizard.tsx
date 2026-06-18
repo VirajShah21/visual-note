@@ -177,7 +177,7 @@ export function ExportWizard({ open, selection, workspace, onOpenChange }: Expor
 
     return (
         <ModalDialog open={open} title="Export" description="Export the selected page or the full notebook." size="wide" align="start" onOpenChange={onOpenChange}>
-            <Stack gap="lg">
+            <Stack gap="lg" layout="position">
                 <SegmentedControl label="Export format" options={formatOptions} value={format} onValueChange={setFormat} />
                 <div className={styles.controlGridFullWidth}>
                     <RadioField label="Scope" name="scope" value={scope} layout="horizontal" options={scopeOptions} onValueChange={handleScopeChange} />

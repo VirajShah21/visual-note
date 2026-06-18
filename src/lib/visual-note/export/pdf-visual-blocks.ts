@@ -1,7 +1,7 @@
 import type { ArticleBlock } from "../article-content"
+import { chartDatasetFromData, chartTypeFrom } from "../chart-data"
 import { visualBlockLabel, type VisualBlockData } from "../visual-blocks"
 import { assetUrlFor } from "./assets"
-import { pdfChartDatasetFromData, pdfChartTypeFrom } from "./pdf-chart-data"
 import {
     arrayFrom,
     checkedLine,
@@ -237,10 +237,10 @@ const pollBlock = (data: VisualBlockData, breakBefore: boolean): PdfRenderBlock 
 const chartBlock = (data: VisualBlockData, breakBefore: boolean): PdfRenderBlock => ({
     kind: "chart",
     title: stringFrom(data.title, "Chart"),
-    chartType: pdfChartTypeFrom(data.type),
+    chartType: chartTypeFrom(data.type),
     xLabel: stringFrom(data.xLabel),
     yLabel: stringFrom(data.yLabel),
-    dataset: pdfChartDatasetFromData(data),
+    dataset: chartDatasetFromData(data),
     breakBefore,
 })
 

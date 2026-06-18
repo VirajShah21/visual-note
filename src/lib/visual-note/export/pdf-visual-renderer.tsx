@@ -1,9 +1,8 @@
 import { StyleSheet, Text, View } from "@react-pdf/renderer"
-import type { PdfChartDataset, PdfPollOption, PdfRenderBlock } from "./types"
+import { PdfChartBlock } from "./pdf-chart-renderer"
+import type { PdfPollOption, PdfRenderBlock } from "./types"
 
 type PdfVisualRenderBlock = Extract<PdfRenderBlock, { kind: "visual-card" | "chart" | "poll" }>
-
-const chartColors = ["#2f7d5c", "#315f8c", "#9b5c36", "#7b5aa6", "#b14759", "#4d7680"]
 
 const styles = StyleSheet.create({
     card: {
@@ -100,14 +99,6 @@ const styles = StyleSheet.create({
     },
 })
 
-const percentWidth = (value: number, maxValue: number) => {
-    if (value <= 0) return "0%"
-
-    return `${Math.max(4, Math.round((value / maxValue) * 100))}%`
-}
-
-const chartMaxValue = (dataset: PdfChartDataset) => Math.max(1, ...dataset.series.flatMap(series => series.values.map(value => Math.max(0, value))))
-
 function Bar({ color, percent }: { color: string; percent: string }) {
     return (
         <View style={styles.barTrack}>
@@ -179,34 +170,6 @@ function PdfPollBlock({ block }: { block: Extract<PdfRenderBlock, { kind: "poll"
             <Text style={styles.subtitle}>{`${block.totalVotes} total votes`}</Text>
             {block.options.map(option => (
                 <PollBar key={option.label} option={option} />
-            ))}
-        </View>
-    )
-}
-
-function PdfChartBlock({ block }: { block: Extract<PdfRenderBlock, { kind: "chart" }> }) {
-    const maxValue = chartMaxValue(block.dataset)
-
-    return (
-        <View break={block.breakBefore} wrap={false} style={styles.card}>
-            <Text style={styles.kicker}>{`${block.chartType} chart`}</Text>
-            <Text style={styles.title}>{block.title}</Text>
-            {block.xLabel || block.yLabel ? <Text style={styles.subtitle}>{[block.xLabel, block.yLabel].filter(Boolean).join(" / ")}</Text> : null}
-            {block.dataset.labels.map((label, labelIndex) => (
-                <View key={`${label}-${labelIndex}`} style={styles.barRow}>
-                    <Text style={styles.barLabel}>{label}</Text>
-                    {block.dataset.series.map((series, seriesIndex) => {
-                        const value = series.values[labelIndex] ?? 0
-                        const color = chartColors[seriesIndex % chartColors.length]
-
-                        return (
-                            <View key={`${label}-${series.name}`} style={styles.line}>
-                                <Bar color={color} percent={percentWidth(value, maxValue)} />
-                                <Text style={styles.barValue}>{`${series.name}: ${value}`}</Text>
-                            </View>
-                        )
-                    })}
-                </View>
             ))}
         </View>
     )

@@ -1,12 +1,16 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import type { VisualChartType } from "../chart-data.ts"
 import { createExportDocument } from "./document.ts"
 import { renderMarkdownExport } from "./markdown.ts"
+import { createPdfChartRenderPlan } from "./pdf-chart-render-plan.ts"
 import { createPdfRenderModel } from "./pdf-model.ts"
 import { createServerPackageFiles, renderWebHtml } from "./web.ts"
 import { defaultVisualBlockData, serializeVisualBlockBody, visualBlockKinds } from "../visual-blocks.ts"
 import type { VisualNoteWorkspace } from "../types.ts"
-import type { ExportAssetMode, ExportAssetResolution } from "./types.ts"
+import type { ExportAssetMode, ExportAssetResolution, PdfRenderBlock } from "./types.ts"
+
+type PdfChartRenderBlock = Extract<PdfRenderBlock, { kind: "chart" }>
 
 const workspace: VisualNoteWorkspace = {
     notebooks: [
@@ -110,6 +114,21 @@ const visualFence = (kind: (typeof visualBlockKinds)[number]) => {
 
     return [`\`\`\`visual:${kind}`, serializeVisualBlockBody(data), "```"].join("\n")
 }
+
+const chartTypes: VisualChartType[] = ["bar", "line", "area", "scatter", "pie"]
+
+const chartFence = (type: VisualChartType) =>
+    [
+        "```visual:chart",
+        serializeVisualBlockBody({
+            ...defaultVisualBlockData("chart"),
+            title: `${type} chart`,
+            type,
+        }),
+        "```",
+    ].join("\n")
+
+const chartBlocksFrom = (blocks: PdfRenderBlock[]) => blocks.filter((block): block is PdfChartRenderBlock => block.kind === "chart")
 
 test("builds current-page and full-notebook export documents in position order", () => {
     const currentPage = createExportDocument({ scope: "page", selection, workspace })
@@ -240,4 +259,92 @@ test("maps every supported visual block into structured PDF render blocks", () =
         model.blocks.some(block => block.kind === "data" && /Pull Request|Calendar Event|Task List/.test(block.title)),
         false,
     )
+})
+
+test("maps each chart type into PDF chart render blocks", () => {
+    const chartWorkspace: VisualNoteWorkspace = {
+        ...workspace,
+        views: [
+            {
+                ...workspace.views[0],
+                content: chartTypes.map(chartFence).join("\n\n"),
+            },
+        ],
+    }
+    const document = createExportDocument({ scope: "page", selection, workspace: chartWorkspace })
+    assert.ok(document)
+
+    const model = createPdfRenderModel(
+        document,
+        {
+            assetMode: "base64",
+            margin: "normal",
+            orientation: "portrait",
+            pageBreaks: "none",
+            pageSize: "letter",
+        },
+        renderContext("base64"),
+    )
+    const chartBlocks = chartBlocksFrom(model.blocks)
+
+    assert.deepEqual(
+        chartBlocks.map(block => block.chartType),
+        chartTypes,
+    )
+    assert.deepEqual(
+        chartBlocks.map(block => block.dataset.labels),
+        chartTypes.map(() => ["Mon", "Tue", "Wed"]),
+    )
+})
+
+test("builds vector render plans for cartesian PDF chart types", () => {
+    const dataset = {
+        labels: ["Mon", "Tue"],
+        series: [
+            { name: "Actual", values: [4, 7] },
+            { name: "Target", values: [6, 8] },
+        ],
+    }
+    const barPlan = createPdfChartRenderPlan({ chartType: "bar", dataset })
+    const linePlan = createPdfChartRenderPlan({ chartType: "line", dataset })
+    const areaPlan = createPdfChartRenderPlan({ chartType: "area", dataset })
+    const scatterPlan = createPdfChartRenderPlan({ chartType: "scatter", dataset })
+
+    assert.equal(barPlan.bars.length, 4)
+    assert.equal(barPlan.seriesLegendItems.length, 2)
+    assert.equal(linePlan.lines.length, 2)
+    assert.equal(linePlan.points.length, 4)
+    assert.match(linePlan.lines[0]?.path ?? "", /^M/)
+    assert.equal(areaPlan.areas.length, 2)
+    assert.match(areaPlan.areas[0]?.path ?? "", /^M/)
+    assert.equal(scatterPlan.points.length, 4)
+    assert.equal(scatterPlan.points[0]?.fill, scatterPlan.points[0]?.color)
+})
+
+test("builds pie and fallback PDF chart render plans", () => {
+    const piePlan = createPdfChartRenderPlan({
+        chartType: "pie",
+        dataset: {
+            labels: ["Mon", "Tue"],
+            series: [
+                { name: "Actual", values: [4, 7] },
+                { name: "Target", values: [6, 8] },
+            ],
+        },
+    })
+    const emptyPiePlan = createPdfChartRenderPlan({
+        chartType: "pie",
+        dataset: {
+            labels: ["Empty"],
+            series: [{ name: "Zero", values: [0] }],
+        },
+    })
+    const fallbackPlan = createPdfChartRenderPlan({ chartType: "bar", dataset: { labels: [], series: [] } })
+
+    assert.equal(piePlan.pies.length, 2)
+    assert.equal(piePlan.pies[0]?.slices.length, 2)
+    assert.equal(piePlan.pieLegendItems.length, 2)
+    assert.equal(emptyPiePlan.pies[0]?.empty, true)
+    assert.deepEqual(fallbackPlan.labels, ["No data"])
+    assert.equal(fallbackPlan.bars.length, 1)
 })

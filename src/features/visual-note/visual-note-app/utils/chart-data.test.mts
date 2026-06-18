@@ -1,23 +1,44 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import { chartDatasetFromData, compactChartSheetFromData, minimumChartColumns, minimumChartRows } from "../../../../lib/visual-note/chart-data.ts"
 import { chartDataLayoutFrom, chartDatasetFromSheet, chartSheetFromData, chartTypeFrom } from "./chart-data.ts"
 
 test("normalizes legacy label/value chart data into a columns sheet", () => {
-    const sheet = chartSheetFromData({
+    const data = {
         data: [
             { label: "Mon", value: 4 },
             { label: "Tue", value: "7" },
         ],
+    }
+    const compactSheet = compactChartSheetFromData(data)
+    const sheet = chartSheetFromData(data)
+
+    assert.deepEqual(compactSheet, [
+        ["", "Value"],
+        ["Mon", "4"],
+        ["Tue", "7"],
+    ])
+    assert.equal(sheet.length, minimumChartRows)
+    assert.equal(sheet[0]?.length, minimumChartColumns)
+})
+
+test("extracts compact shared chart data without editor padding", () => {
+    const dataset = chartDatasetFromData({
+        dataLayout: "rows",
+        dataSheet: [
+            ["", "Mon", "Tue", ""],
+            ["Actual", "4", "7", ""],
+            ["Target", "6", "8", ""],
+        ],
     })
 
-    assert.deepEqual(
-        sheet.slice(0, 3).map(row => row.slice(0, 2)),
-        [
-            ["", "Value"],
-            ["Mon", "4"],
-            ["Tue", "7"],
+    assert.deepEqual(dataset, {
+        labels: ["Mon", "Tue"],
+        series: [
+            { name: "Actual", values: [4, 7] },
+            { name: "Target", values: [6, 8] },
         ],
-    )
+    })
 })
 
 test("extracts column-oriented sheet data as x labels with multiple y series", () => {

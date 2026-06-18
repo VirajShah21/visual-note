@@ -1,4 +1,5 @@
 import type { ArticleBlock } from "../article-content"
+import type { ChartDataset, ChartSeries, VisualChartType } from "../chart-data"
 import type { DisplayInstance, SelectionState, VisualNoteWorkspace } from "../types"
 
 export type ExportScope = "page" | "notebook"
@@ -104,17 +105,9 @@ export type PdfVisualSection = {
     lines: string[]
 }
 
-export type PdfChartType = "bar" | "line" | "area" | "scatter" | "pie"
-
-export type PdfChartSeries = {
-    name: string
-    values: number[]
-}
-
-export type PdfChartDataset = {
-    labels: string[]
-    series: PdfChartSeries[]
-}
+export type PdfChartType = VisualChartType
+export type PdfChartSeries = ChartSeries
+export type PdfChartDataset = ChartDataset
 
 export type PdfPollOption = {
     label: string

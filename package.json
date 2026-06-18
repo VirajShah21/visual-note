@@ -9,7 +9,7 @@
         "lint": "eslint --fix",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
-        "test:chart": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test --experimental-strip-types src/features/visual-note/visual-note-app/utils/chart-data.test.mts",
+        "test:chart": "tsx --test src/features/visual-note/visual-note-app/utils/chart-data.test.mts",
         "test:export": "tsx --test src/lib/visual-note/export/export.test.mts",
         "knip": "knip"
     },
