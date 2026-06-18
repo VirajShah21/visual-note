@@ -20,6 +20,10 @@
     padding: 24px;
 }
 
+.viewportStart {
+    align-items: flex-start;
+}
+
 .popup {
     width: min(520px, 100%);
     max-height: calc(100vh - 48px);
@@ -29,6 +33,10 @@
     background: var(--surface);
     box-shadow: 0 24px 70px rgba(24, 36, 48, 0.22);
     animation: surfaceIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.popupWide {
+    width: min(860px, 100%);
 }
 
 .popup[data-transition-status="ending"] {
@@ -255,6 +263,10 @@
     .viewport {
         align-items: end;
         padding: 12px;
+    }
+
+    .viewportStart {
+        align-items: flex-start;
     }
 
     .popup {

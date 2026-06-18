@@ -3,20 +3,13 @@
 import { arc as d3Arc, area as d3Area, line as d3Line, max, pie as d3Pie, scaleBand, scaleLinear } from "d3"
 import type { PieArcDatum } from "d3"
 import type { ReactNode } from "react"
+import { chartColors, chartMargin as margin, chartPieMargin as pieMargin, chartSize, type ChartDataset, type ChartSeries, type VisualChartType } from "@/lib/visual-note/chart-data"
 import { Stack, Text } from "./primitives"
 import styles from "./simple-chart.module.css"
 
-export type SimpleChartType = "bar" | "line" | "area" | "scatter" | "pie"
-
-export type SimpleChartSeries = {
-    name: string
-    values: number[]
-}
-
-export type SimpleChartDataset = {
-    labels: string[]
-    series: SimpleChartSeries[]
-}
+export type SimpleChartType = VisualChartType
+export type SimpleChartSeries = ChartSeries
+export type SimpleChartDataset = ChartDataset
 
 type SimpleChartPoint = {
     label: string
@@ -31,11 +24,7 @@ type SimpleChartProps = {
     yLabel?: string
 }
 
-const width = 680
-const height = 280
-const margin = { top: 18, right: 22, bottom: 48, left: 48 }
-const pieMargin = { top: 24, right: 22, bottom: 28, left: 22 }
-const chartColors = ["#2f7d5c", "#315f8c", "#9b5c36", "#7b5aa6", "#b14759", "#4d7680"]
+const { width, height } = chartSize
 
 export function SimpleChart({ title, type = "bar", dataset, xLabel, yLabel }: SimpleChartProps) {
     const labels = dataset.labels.length ? dataset.labels : ["No data"]

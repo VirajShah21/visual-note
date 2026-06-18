@@ -6,22 +6,24 @@
         "dev": "next dev -p 8000",
         "build": "next build",
         "start": "next start -p 8000",
-        "lint": "eslint",
-        "lint:fix": "eslint --fix",
+        "lint": "eslint --fix",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
-        "test:chart": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test --experimental-strip-types src/features/visual-note/visual-note-app/utils/chart-data.test.mts",
+        "test:chart": "tsx --test src/features/visual-note/visual-note-app/utils/chart-data.test.mts",
+        "test:export": "tsx --test src/lib/visual-note/export/export.test.mts",
         "knip": "knip"
     },
     "dependencies": {
         "@aws-sdk/client-s3": "^3.1069.0",
         "@base-ui/react": "^1.5.0",
         "@monaco-editor/react": "^4.7.0",
+        "@react-pdf/renderer": "^4.5.1",
         "@supabase/supabase-js": "^2.106.2",
         "@types/d3": "^7.4.3",
         "d3": "^7.9.0",
         "highlight.js": "^11.11.1",
         "json5": "^2.2.3",
+        "jszip": "^3.10.1",
         "lucide-react": "^1.17.0",
         "monaco-editor": "^0.55.1",
         "motion": "^12.40.0",
@@ -42,6 +44,7 @@
         "eslint-plugin-react-hooks": "^7.1.1",
         "knip": "^6.16.1",
         "prettier": "^3.8.3",
+        "tsx": "^4.22.4",
         "typescript": "^5"
     }
 }
