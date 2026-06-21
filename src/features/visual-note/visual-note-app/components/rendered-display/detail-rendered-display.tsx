@@ -1,6 +1,6 @@
 import { Bug, CheckCircle2, Code2, ExternalLink as ExternalLinkIcon, GitPullRequest, Layers3, LinkIcon, ShoppingCart, Sparkles } from "lucide-react"
 import type { ReactNode } from "react"
-import { ExternalLink, Grid, Heading, MediaImage, Pill, Stack, Text } from "@/components/ui"
+import { DetailCell, ExternalLink, Grid, Heading, MediaImage, Pill, Stack, Text } from "@/components/ui"
 import type { DisplayInstance } from "@/lib/visual-note/types"
 import { arrayFrom, objectArrayFrom, stringFrom } from "../../utils/visual-note-app.utils"
 import styles from "../../../visual-note-app.module.css"
@@ -267,15 +267,6 @@ function FallbackDisplay({ data, editor, displayHeader }: DetailKindProps) {
                 </Text>
             </Stack>
             {editor}
-        </Stack>
-    )
-}
-
-function DetailCell({ label, value }: { label: string; value: string }) {
-    return (
-        <Stack className={styles.detailCell} gap="xs">
-            <Text size="small">{label}</Text>
-            <Text tone="strong">{value}</Text>
         </Stack>
     )
 }

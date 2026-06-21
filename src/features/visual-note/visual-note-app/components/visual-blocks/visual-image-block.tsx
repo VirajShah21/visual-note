@@ -2,11 +2,10 @@
 
 import { Image as ImageIcon } from "lucide-react"
 import { type ChangeEvent, useCallback } from "react"
-import { EditableVisualBlock, Grid, ImageBlockFigure, Pill, Stack, TextField } from "@/components/ui"
+import { DataSelectField, DataTextAreaField, DataTextField, EditableVisualBlock, Grid, ImageBlockFigure, Pill, Stack, TextField } from "@/components/ui"
 import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
 import { stringFrom } from "../../utils/visual-note-app.utils"
 import styles from "../../../visual-note-app.module.css"
-import { VisualDataSelectField, VisualDataTextAreaField, VisualDataTextField } from "../visual-block-display-controls"
 
 type VisualImageBlockProps = {
     data: VisualBlockData
@@ -64,15 +63,15 @@ export function VisualImageBlock({ data, isReadOnly = false, onDataChange }: Vis
     return (
         <EditableVisualBlock preview={preview} readOnly={isReadOnly}>
             <Grid columns="two" gap="sm">
-                <VisualDataTextField label="Image URL" field="url" value={stringFrom(data.url)} onUpdateField={updateField} />
-                <VisualDataTextField label="Alt text" field="alt" value={stringFrom(data.alt)} onUpdateField={updateField} />
-                <VisualDataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={updateField} />
-                <VisualDataSelectField label="Size" field="size" value={size} options={sizeOptions} onUpdateField={updateField} />
+                <DataTextField label="Image URL" field="url" value={stringFrom(data.url)} onUpdateField={updateField} />
+                <DataTextField label="Alt text" field="alt" value={stringFrom(data.alt)} onUpdateField={updateField} />
+                <DataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={updateField} />
+                <DataSelectField label="Size" field="size" value={size} options={sizeOptions} onUpdateField={updateField} />
                 <ImageNumberField label="Border roundness" field="borderRadius" value={String(borderRadius)} onUpdateField={updateField} />
                 <ImageNumberField label="Border thickness" field="borderWidth" value={String(borderWidth)} onUpdateField={updateField} />
             </Grid>
-            <VisualDataTextField label="Caption" field="caption" value={stringFrom(data.caption)} onUpdateField={updateField} />
-            <VisualDataTextAreaField label="Overlay text" field="overlayText" value={stringFrom(data.overlayText)} onUpdateField={updateField} />
+            <DataTextField label="Caption" field="caption" value={stringFrom(data.caption)} onUpdateField={updateField} />
+            <DataTextAreaField label="Overlay text" field="overlayText" value={stringFrom(data.overlayText)} onUpdateField={updateField} />
         </EditableVisualBlock>
     )
 }

@@ -1,8 +1,8 @@
 "use client"
 
-import { Pencil, Plus } from "lucide-react"
+import { Plus } from "lucide-react"
 import { type ChangeEvent, useCallback } from "react"
-import { Button, ModalDialog, Stack, TextField } from "@/components/ui"
+import { Button, ModalDialog, RenameDialog, Stack, TextField } from "@/components/ui"
 
 type SectionDialogsProps = {
     title: string
@@ -78,36 +78,5 @@ export function SectionDialogs(props: SectionDialogsProps) {
                 onRename={props.onRenameSection}
             />
         </>
-    )
-}
-
-function RenameDialog({
-    title,
-    description,
-    open,
-    value,
-    onOpenChange,
-    onValueChange,
-    onRename,
-}: {
-    title: string
-    description: string
-    open: boolean
-    value: string
-    onOpenChange: (open: boolean) => void
-    onValueChange: (value: string) => void
-    onRename: () => void
-}) {
-    const handleValueChange = useCallback((event: ChangeEvent<HTMLInputElement>) => onValueChange(event.target.value), [onValueChange])
-
-    return (
-        <ModalDialog open={open} title={title} description={description} onOpenChange={onOpenChange}>
-            <Stack gap="md">
-                <TextField label={title} value={value} onChange={handleValueChange} />
-                <Button icon={<Pencil size={15} />} variant="primary" onClick={onRename} fullWidth>
-                    Rename
-                </Button>
-            </Stack>
-        </ModalDialog>
     )
 }

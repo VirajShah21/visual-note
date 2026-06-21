@@ -1,8 +1,7 @@
 "use client"
 
-import { Card, Grid, Heading, Stack } from "@/components/ui"
+import { Card, Grid, Heading, ObjectAddButton, ObjectRemoveButton, ObjectTextAreaField, ObjectTextField, Stack } from "@/components/ui"
 import { defaultListItems, objectArrayFrom, stringFrom } from "../utils/visual-note-app.utils"
-import { ObjectAddButton, ObjectRemoveButton, ObjectTextAreaField, ObjectTextField } from "./display-data-editor-controls"
 
 type ObjectEditorSectionProps = {
     data: Record<string, unknown>

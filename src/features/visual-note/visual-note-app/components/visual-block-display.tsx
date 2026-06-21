@@ -2,12 +2,11 @@
 
 import { CalendarDays, Code2, Contact, MapPin } from "lucide-react"
 import { type ReactNode, useCallback } from "react"
-import { EditableVisualBlock, Grid, Heading, Pill, Stack, Text } from "@/components/ui"
+import { DataDateField, DataTextAreaField, DataTextField, DataTimeField, EditableVisualBlock, Grid, Heading, InlineStringListForField, Pill, Stack, Text } from "@/components/ui"
 import type { VisualBlockDisplayProps } from "../types/visual-note-app.types"
 import { calendarPreviewText, joinedPreviewText } from "../utils/visual-block-preview"
 import { arrayFrom, dateInputValue, replaceStringAt, stringFrom, timeInputValue } from "../utils/visual-note-app.utils"
 import styles from "../../visual-note-app.module.css"
-import { InlineStringListForField, VisualDataDateField, VisualDataTextAreaField, VisualDataTextField, VisualDataTimeField } from "./visual-block-display-controls"
 import { VisualBlockChartDisplay } from "./visual-block-chart-display"
 import { VisualBlockListDisplay } from "./visual-blocks/visual-block-list-display"
 import { VisualImageBlock } from "./visual-blocks/visual-image-block"
@@ -82,13 +81,13 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOn
                 }
             >
                 <Grid columns="two" gap="sm">
-                    <VisualDataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={updateField} />
-                    <VisualDataDateField label="Date" field="date" value={dateInputValue(data.date)} onUpdateField={updateField} />
-                    <VisualDataTimeField label="Start" field="startTime" value={timeInputValue(data.startTime)} onUpdateField={updateField} />
-                    <VisualDataTimeField label="End" field="endTime" value={timeInputValue(data.endTime)} onUpdateField={updateField} />
-                    <VisualDataTextField label="Location" field="location" value={stringFrom(data.location)} onUpdateField={updateField} />
+                    <DataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={updateField} />
+                    <DataDateField label="Date" field="date" value={dateInputValue(data.date)} onUpdateField={updateField} />
+                    <DataTimeField label="Start" field="startTime" value={timeInputValue(data.startTime)} onUpdateField={updateField} />
+                    <DataTimeField label="End" field="endTime" value={timeInputValue(data.endTime)} onUpdateField={updateField} />
+                    <DataTextField label="Location" field="location" value={stringFrom(data.location)} onUpdateField={updateField} />
                 </Grid>
-                <VisualDataTextAreaField label="Notes" field="notes" value={stringFrom(data.notes)} onUpdateField={updateField} />
+                <DataTextAreaField label="Notes" field="notes" value={stringFrom(data.notes)} onUpdateField={updateField} />
                 <InlineStringListForField
                     title="Attendees"
                     items={arrayFrom(data.attendees)}
@@ -121,11 +120,11 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOn
                 }
             >
                 <Grid columns="two" gap="sm">
-                    <VisualDataTextField label="Name" field="name" value={stringFrom(data.name)} onUpdateField={updateField} />
-                    <VisualDataTextField label="Role" field="role" value={stringFrom(data.role)} onUpdateField={updateField} />
-                    <VisualDataTextField label="Company" field="company" value={stringFrom(data.company)} onUpdateField={updateField} />
-                    <VisualDataTextField label="Email" field="email" value={stringFrom(data.email)} onUpdateField={updateField} />
-                    <VisualDataTextField label="Phone" field="phone" value={stringFrom(data.phone)} onUpdateField={updateField} />
+                    <DataTextField label="Name" field="name" value={stringFrom(data.name)} onUpdateField={updateField} />
+                    <DataTextField label="Role" field="role" value={stringFrom(data.role)} onUpdateField={updateField} />
+                    <DataTextField label="Company" field="company" value={stringFrom(data.company)} onUpdateField={updateField} />
+                    <DataTextField label="Email" field="email" value={stringFrom(data.email)} onUpdateField={updateField} />
+                    <DataTextField label="Phone" field="phone" value={stringFrom(data.phone)} onUpdateField={updateField} />
                 </Grid>
                 <InlineStringListForField
                     title="Links"
@@ -153,7 +152,7 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOn
                     </>
                 }
             >
-                <VisualDataTextField label="Label" field="label" value={stringFrom(data.label)} onUpdateField={updateField} />
+                <DataTextField label="Label" field="label" value={stringFrom(data.label)} onUpdateField={updateField} />
                 <InlineStringListForField
                     title="Address lines"
                     items={arrayFrom(data.lines)}
@@ -163,8 +162,8 @@ export function VisualBlockDisplay({ visualKind, data, raw, parseError, isReadOn
                     onUpdateStringList={updateStringList}
                     onRemoveStringListItem={removeStringListItem}
                 />
-                <VisualDataTextField label="Map URL" field="mapUrl" value={stringFrom(data.mapUrl)} onUpdateField={updateField} />
-                <VisualDataTextAreaField label="Notes" field="notes" value={stringFrom(data.notes)} onUpdateField={updateField} />
+                <DataTextField label="Map URL" field="mapUrl" value={stringFrom(data.mapUrl)} onUpdateField={updateField} />
+                <DataTextAreaField label="Notes" field="notes" value={stringFrom(data.notes)} onUpdateField={updateField} />
             </EditableVisualBlock>
         )
 

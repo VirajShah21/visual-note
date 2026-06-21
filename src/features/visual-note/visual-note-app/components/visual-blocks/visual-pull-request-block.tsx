@@ -2,10 +2,9 @@
 
 import { CheckCircle2, CircleDot, GitBranch, GitPullRequest, XCircle } from "lucide-react"
 import { useCallback } from "react"
-import { EditableVisualBlock, Grid, Heading, Pill, Stack, Text } from "@/components/ui"
+import { DataTextField, EditableVisualBlock, Grid, Heading, InlineStringListForField, Pill, Stack, Text } from "@/components/ui"
 import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
 import { arrayFrom, replaceStringAt, stringFrom } from "../../utils/visual-note-app.utils"
-import { InlineStringListForField, VisualDataTextField } from "../visual-block-display-controls"
 import styles from "./visual-pull-request-block.module.css"
 
 type VisualPullRequestBlockProps = {
@@ -110,14 +109,14 @@ export function VisualPullRequestBlock({ data, isReadOnly = false, onDataChange 
     return (
         <EditableVisualBlock preview={preview} previewClassName={styles.cardFrame} previewPadding="none" readOnly={isReadOnly}>
             <Grid columns="two" gap="sm">
-                <VisualDataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={updateField} />
-                <VisualDataTextField label="URL" field="url" value={url} onUpdateField={updateField} />
-                <VisualDataTextField label="Number" field="number" value={stringFrom(data.number)} onUpdateField={updateField} />
-                <VisualDataTextField label="Status" field="status" value={stringFrom(data.status)} onUpdateField={updateField} />
-                <VisualDataTextField label="Author" field="author" value={stringFrom(data.author)} onUpdateField={updateField} />
-                <VisualDataTextField label="Base branch" field="baseBranch" value={stringFrom(data.baseBranch)} onUpdateField={updateField} />
-                <VisualDataTextField label="PR branch" field="headBranch" value={stringFrom(data.headBranch)} onUpdateField={updateField} />
-                <VisualDataTextField label="Source" field="source" value={stringFrom(data.source)} onUpdateField={updateField} />
+                <DataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={updateField} />
+                <DataTextField label="URL" field="url" value={url} onUpdateField={updateField} />
+                <DataTextField label="Number" field="number" value={stringFrom(data.number)} onUpdateField={updateField} />
+                <DataTextField label="Status" field="status" value={stringFrom(data.status)} onUpdateField={updateField} />
+                <DataTextField label="Author" field="author" value={stringFrom(data.author)} onUpdateField={updateField} />
+                <DataTextField label="Base branch" field="baseBranch" value={stringFrom(data.baseBranch)} onUpdateField={updateField} />
+                <DataTextField label="PR branch" field="headBranch" value={stringFrom(data.headBranch)} onUpdateField={updateField} />
+                <DataTextField label="Source" field="source" value={stringFrom(data.source)} onUpdateField={updateField} />
             </Grid>
             <InlineStringListForField
                 title="Labels"

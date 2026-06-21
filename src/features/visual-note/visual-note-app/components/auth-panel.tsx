@@ -2,7 +2,7 @@
 
 import { Sparkles } from "lucide-react"
 import { type ChangeEvent, useCallback, useState } from "react"
-import { Button, Card, Grid, Heading, InfoPopover, Pill, Stack, Text, TextField } from "@/components/ui"
+import { Button, Card, Grid, Heading, InfoCard, InfoPopover, Pill, Stack, Text, TextField } from "@/components/ui"
 import type { AuthPanelProps } from "../types/visual-note-app.types"
 import styles from "../../visual-note-app.module.css"
 
@@ -71,18 +71,5 @@ export function AuthPanel({ notice, supabaseStatus, onSignIn, onRegister }: Auth
                 ) : null}
             </Stack>
         </Grid>
-    )
-}
-
-function InfoCard({ title, children }: { title: string; children: string }) {
-    return (
-        <Card>
-            <Stack direction="horizontal" gap="sm">
-                <Pill>{title}</Pill>
-                <InfoPopover title={title} label={`${title} details`}>
-                    {children}
-                </InfoPopover>
-            </Stack>
-        </Card>
     )
 }

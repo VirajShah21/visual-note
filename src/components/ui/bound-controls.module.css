@@ -1,0 +1,12 @@
+.wrapRow {
+    flex-wrap: wrap;
+    align-items: end;
+}
+
+.detailCell {
+    min-width: 0;
+    padding: 0.7rem 0.75rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 0.75rem;
+    background: rgba(15, 23, 42, 0.26);
+}
