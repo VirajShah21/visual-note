@@ -139,8 +139,21 @@
     background: var(--border);
 }
 
+.scrollAreaRoot,
+.scrollAreaShell,
 .scrollArea {
     min-height: 0;
+}
+
+.scrollAreaRoot,
+.scrollAreaShell {
+    width: 100%;
+    height: 100%;
+}
+
+.scrollArea {
+    width: 100%;
+    height: 100%;
     overflow: auto;
 }
 

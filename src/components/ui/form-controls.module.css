@@ -32,9 +32,29 @@
 }
 
 .checkbox {
+    display: inline-grid;
     width: 18px;
     height: 18px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--surface);
     accent-color: var(--accent);
+    color: #ffffff;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+}
+
+.checkbox[data-checked] {
+    border-color: var(--accent);
+    background: var(--accent);
+}
+
+.checkboxIndicator {
+    display: inline-grid;
+    place-items: center;
 }
 
 .textarea {
@@ -49,6 +69,55 @@
 .select:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.select {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    text-align: left;
+}
+
+.selectPositioner {
+    z-index: 70;
+}
+
+.selectPopup {
+    min-width: var(--anchor-width);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: 0 18px 45px rgba(24, 36, 48, 0.14);
+    padding: 5px;
+}
+
+.selectItem {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    border-radius: 6px;
+    color: var(--ink);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 8px 9px;
+    outline: none;
+}
+
+.selectItem[data-highlighted] {
+    background: var(--accent-wash);
+}
+
+.selectItem[data-selected] {
+    color: var(--accent-strong);
+    font-weight: 650;
+}
+
+.selectIndicator {
+    color: var(--accent-strong);
+    font-size: 12px;
 }
 
 .hint {
@@ -133,9 +202,27 @@
 }
 
 .radio {
+    display: inline-grid;
     width: 16px;
     height: 16px;
+    flex: 0 0 auto;
+    place-items: center;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
     accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.radio[data-checked] {
+    border-color: var(--accent);
+}
+
+.radioIndicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--accent);
 }
 
 .checkboxCard {

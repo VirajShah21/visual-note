@@ -2,6 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element -- User-authored article images use arbitrary URLs and need native intrinsic sizing. */
 
+import { Button as BaseButton } from "@base-ui/react/button"
 import { createElement, useEffect, useState, type CSSProperties } from "react"
 import { cx } from "./class-name"
 import { fetchPrivateAssetUrl } from "@/lib/visual-note/storage-api"
@@ -105,9 +106,9 @@ export function ImageBlockFigure({
     return (
         <figure className={cx(styles.figure, sizeClass(size), className)} style={imageStyle}>
             {onEdit ? (
-                <button type="button" className={cx(styles.frame, styles.editableFrame, isEditing && styles.editingFrame)} aria-label={editLabel} onClick={onEdit}>
+                <BaseButton className={cx(styles.frame, styles.editableFrame, isEditing && styles.editingFrame)} aria-label={editLabel} onClick={onEdit}>
                     {content}
-                </button>
+                </BaseButton>
             ) : (
                 <div className={styles.frame}>{content}</div>
             )}

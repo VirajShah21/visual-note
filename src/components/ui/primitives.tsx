@@ -1,7 +1,9 @@
 "use client"
 
+import { ScrollArea as BaseScrollArea } from "@base-ui/react/scroll-area"
+import { Separator } from "@base-ui/react/separator"
 import { motion, type HTMLMotionProps } from "motion/react"
-import type { ReactNode } from "react"
+import type { ComponentProps, ReactNode } from "react"
 import { cx } from "./class-name"
 import styles from "./primitives.module.css"
 
@@ -186,29 +188,25 @@ export function Pill({ className, children, initial, animate, transition, ...pro
     )
 }
 
-export function Divider({ className, initial, animate, transition, ...props }: Omit<HTMLMotionProps<"hr">, "children"> & { className?: string }) {
-    return (
-        <motion.hr
-            className={cx(styles.divider, className)}
-            initial={initial ?? { scaleX: 0, opacity: 0 }}
-            animate={animate ?? { scaleX: 1, opacity: 1 }}
-            transition={transition ?? { ...motionTransition, delay: 0.02 }}
-            {...props}
-        />
-    )
+type DividerProps = Omit<ComponentProps<typeof Separator>, "children" | "className"> & {
+    className?: string
 }
 
-export function ScrollArea({ className, children, initial, animate, transition, ...props }: BoxProps) {
+export function Divider({ className, ...props }: DividerProps) {
+    return <Separator className={cx(styles.divider, className)} {...props} />
+}
+
+type ScrollAreaProps = {
+    className?: string
+    children?: ReactNode
+}
+
+export function ScrollArea({ className, children }: ScrollAreaProps) {
     return (
-        <motion.div
-            className={cx(styles.scrollArea, className)}
-            initial={initial ?? motionEnter}
-            animate={animate ?? motionShow}
-            transition={transition ?? { ...motionTransition, delay: 0.03 }}
-            layout
-            {...props}
-        >
-            {children}
+        <motion.div className={styles.scrollAreaRoot} initial={motionEnter} animate={motionShow} transition={{ ...motionTransition, delay: 0.03 }} layout>
+            <BaseScrollArea.Root className={styles.scrollAreaShell}>
+                <BaseScrollArea.Viewport className={cx(styles.scrollArea, className)}>{children}</BaseScrollArea.Viewport>
+            </BaseScrollArea.Root>
         </motion.div>
     )
 }

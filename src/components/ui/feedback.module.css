@@ -26,6 +26,10 @@
     border-left-color: var(--danger);
 }
 
+.content {
+    min-width: 0;
+}
+
 .title {
     color: var(--ink);
     font-size: 13px;

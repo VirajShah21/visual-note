@@ -1,5 +1,7 @@
 "use client"
 
+import { Button as BaseButton } from "@base-ui/react/button"
+import { Input } from "@base-ui/react/input"
 import { Popover } from "@base-ui/react/popover"
 import { BookOpen, BookOpenText, Braces, Download, Eye, FileCode2, Home, Info, ListTree, PanelLeftClose, PanelLeftOpen, PencilLine, Search, Settings } from "lucide-react"
 import { useCallback, useMemo, useState, type ChangeEventHandler } from "react"
@@ -157,7 +159,7 @@ export function NotebookEditorNavbar({
                         <Popover.Positioner className={styles.switcherPositioner} side="bottom" align="start" sideOffset={8} collisionPadding={12}>
                             <Popover.Popup className={styles.switcherPopup}>
                                 <Popover.Title className={styles.switcherTitle}>Switch notebook</Popover.Title>
-                                <button className={styles.switcherItem} type="button" onClick={selectHome}>
+                                <BaseButton className={styles.switcherItem} onClick={selectHome}>
                                     <span className={styles.switcherIcon}>
                                         <Home size={15} />
                                     </span>
@@ -165,7 +167,7 @@ export function NotebookEditorNavbar({
                                         <span className={styles.switcherName}>Home</span>
                                         <span className={styles.switcherMeta}>All notebooks</span>
                                     </span>
-                                </button>
+                                </BaseButton>
                                 {switcherNotebooks.map(notebook => (
                                     <NotebookSwitcherItem key={notebook.id} notebook={notebook} onSelectNotebook={selectNotebook} />
                                 ))}
@@ -176,7 +178,7 @@ export function NotebookEditorNavbar({
             </div>
             <div className={styles.searchWrap}>
                 <Search className={styles.searchIcon} size={16} />
-                <input className={styles.searchInput} value={searchQuery} placeholder="Search notebook" aria-label="Search notebook" onChange={handleSearchChange} />
+                <Input className={styles.searchInput} value={searchQuery} placeholder="Search notebook" aria-label="Search notebook" onChange={handleSearchChange} />
                 {hasQuery ? (
                     <div className={styles.searchResults} role="listbox" aria-label="Notebook search results">
                         {searchResults.length ? (
@@ -201,13 +203,13 @@ function NotebookSwitcherItem({ notebook, onSelectNotebook }: { notebook: Notebo
     const handleSelect = useCallback(() => onSelectNotebook(notebook.id), [notebook.id, onSelectNotebook])
 
     return (
-        <button className={styles.switcherItem} type="button" onClick={handleSelect}>
+        <BaseButton className={styles.switcherItem} onClick={handleSelect}>
             <span className={styles.notebookSwatch} style={{ backgroundColor: notebook.color }} />
             <span className={styles.switcherText}>
                 <span className={styles.switcherName}>{notebook.title}</span>
                 <span className={styles.switcherMeta}>{notebook.updatedLabel}</span>
             </span>
-        </button>
+        </BaseButton>
     )
 }
 
@@ -215,13 +217,13 @@ function SearchResultItem({ result, onSearchResultSelect }: { result: NotebookEd
     const handleSelect = useCallback(() => onSearchResultSelect(result), [onSearchResultSelect, result])
 
     return (
-        <button className={styles.searchResult} type="button" role="option" aria-selected={false} onClick={handleSelect}>
+        <BaseButton className={styles.searchResult} role="option" aria-selected={false} onClick={handleSelect}>
             <span className={styles.resultHeader}>
                 <span className={styles.resultTitle}>{result.title}</span>
                 <span className={cx(styles.resultBadge, result.isCurrentPage && styles.resultBadgeActive)}>{result.isCurrentPage ? "Current page" : "Other page"}</span>
             </span>
             <span className={styles.resultLocation}>{result.location}</span>
             <span className={styles.resultContext}>{result.context}</span>
-        </button>
+        </BaseButton>
     )
 }
