@@ -1,9 +1,14 @@
 "use client"
 
+import { Checkbox } from "@base-ui/react/checkbox"
+import { Field } from "@base-ui/react/field"
 import { Input } from "@base-ui/react/input"
+import { Radio } from "@base-ui/react/radio"
+import { RadioGroup } from "@base-ui/react/radio-group"
+import { Select } from "@base-ui/react/select"
 import { motion, type HTMLMotionProps } from "motion/react"
-import { createElement, useCallback } from "react"
-import type { ChangeEventHandler, ComponentProps, ReactNode } from "react"
+import { useCallback } from "react"
+import type { ComponentProps, ReactNode } from "react"
 import { cx } from "./class-name"
 import styles from "./form-controls.module.css"
 
@@ -16,12 +21,16 @@ type FieldShellProps = {
 
 function FieldShell({ label, hint, error, children }: FieldShellProps) {
     return (
-        <motion.label className={styles.field} layout initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ type: "spring", stiffness: 220, damping: 24 }}>
-            {createElement("span", { className: styles.label }, label)}
+        <Field.Root className={styles.field}>
+            <Field.Label className={styles.label}>{label}</Field.Label>
             {children}
-            {hint ? createElement("span", { className: styles.hint }, hint) : null}
-            {error ? createElement("span", { className: styles.error }, error) : null}
-        </motion.label>
+            {hint ? <Field.Description className={styles.hint}>{hint}</Field.Description> : null}
+            {error ? (
+                <Field.Error className={styles.error} match>
+                    {error}
+                </Field.Error>
+            ) : null}
+        </Field.Root>
     )
 }
 
@@ -95,34 +104,54 @@ type Option = {
     value: string
 }
 
-type SelectFieldProps = Omit<HTMLMotionProps<"select">, "onChange"> & {
-    label: string
-    hint?: string
+type SelectFieldProps = {
+    className?: string
+    disabled?: boolean
     error?: string
+    hint?: string
+    id?: string
+    label: string
+    name?: string
     options: Option[]
+    required?: boolean
+    value?: string
     onValueChange: (value: string) => void
 }
 
-export function SelectField({ className, label, hint, error, options, onValueChange, ...props }: SelectFieldProps) {
-    const handleChange: ChangeEventHandler<HTMLSelectElement> = useCallback(event => onValueChange(event.target.value), [onValueChange])
+export function SelectField({ className, disabled = false, id, label, hint, error, name, options, required = false, value, onValueChange }: SelectFieldProps) {
+    const handleValueChange = useCallback(
+        (nextValue: string | null) => {
+            if (nextValue !== null) onValueChange(nextValue)
+        },
+        [onValueChange],
+    )
 
     return (
         <FieldShell label={label} hint={hint} error={error}>
-            <motion.select
-                className={cx(styles.select, className)}
-                initial={{ opacity: 0.9, scale: 0.995 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: "spring", stiffness: 180, damping: 24 }}
-                onChange={handleChange}
-                {...props}
-            >
-                {options.map(option => createElement("option", { key: option.value, value: option.value }, option.label))}
-            </motion.select>
+            <Select.Root id={id} name={name} value={value} disabled={disabled} required={required} items={options} onValueChange={handleValueChange}>
+                <Select.Trigger className={cx(styles.select, className)}>
+                    <Select.Value />
+                </Select.Trigger>
+                <Select.Portal>
+                    <Select.Positioner className={styles.selectPositioner} sideOffset={6} collisionPadding={12}>
+                        <Select.Popup className={styles.selectPopup}>
+                            <Select.List>
+                                {options.map(option => (
+                                    <Select.Item key={option.value} className={styles.selectItem} value={option.value}>
+                                        <Select.ItemText>{option.label}</Select.ItemText>
+                                        <Select.ItemIndicator className={styles.selectIndicator}>✓</Select.ItemIndicator>
+                                    </Select.Item>
+                                ))}
+                            </Select.List>
+                        </Select.Popup>
+                    </Select.Positioner>
+                </Select.Portal>
+            </Select.Root>
         </FieldShell>
     )
 }
 
-type CheckboxFieldProps = Omit<ComponentProps<typeof Input>, "className" | "type" | "onChange"> & {
+type CheckboxFieldProps = Omit<ComponentProps<typeof Checkbox.Root>, "className" | "onCheckedChange"> & {
     className?: string
     label: string
     hint?: string
@@ -131,18 +160,18 @@ type CheckboxFieldProps = Omit<ComponentProps<typeof Input>, "className" | "type
 }
 
 export function CheckboxField({ className, label, hint, checked, onCheckedChange, ...props }: CheckboxFieldProps) {
-    const handleChange: ChangeEventHandler<HTMLInputElement> = useCallback(event => onCheckedChange(event.target.checked), [onCheckedChange])
-
     return (
         <FieldShell label={label} hint={hint}>
             <motion.span initial={{ opacity: 0.9, scale: 0.995 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: "spring", stiffness: 180, damping: 24 }}>
-                <Input className={cx(styles.checkbox, className)} type="checkbox" checked={checked} onChange={handleChange} {...props} />
+                <Checkbox.Root className={cx(styles.checkbox, className)} checked={checked} onCheckedChange={onCheckedChange} {...props}>
+                    <Checkbox.Indicator className={styles.checkboxIndicator}>✓</Checkbox.Indicator>
+                </Checkbox.Root>
             </motion.span>
         </FieldShell>
     )
 }
 
-type CheckboxCardFieldProps = Omit<ComponentProps<typeof Input>, "className" | "type" | "onChange"> & {
+type CheckboxCardFieldProps = Omit<ComponentProps<typeof Checkbox.Root>, "className" | "onCheckedChange"> & {
     className?: string
     label: string
     description?: string
@@ -151,16 +180,16 @@ type CheckboxCardFieldProps = Omit<ComponentProps<typeof Input>, "className" | "
 }
 
 export function CheckboxCardField({ className, description, checked, label, onCheckedChange, ...props }: CheckboxCardFieldProps) {
-    const handleChange: ChangeEventHandler<HTMLInputElement> = useCallback(event => onCheckedChange(event.target.checked), [onCheckedChange])
-
     return (
-        <label className={cx(styles.checkboxCard, checked && styles.checkboxCardSelected, props.disabled && styles.checkboxCardDisabled)}>
-            <Input className={cx(styles.checkbox, styles.checkboxCardInput, className)} type="checkbox" checked={checked} onChange={handleChange} {...props} />
-            <span className={styles.checkboxCardLabel}>
+        <Field.Root className={cx(styles.checkboxCard, checked && styles.checkboxCardSelected, props.disabled && styles.checkboxCardDisabled)}>
+            <Checkbox.Root className={cx(styles.checkbox, styles.checkboxCardInput, className)} checked={checked} onCheckedChange={onCheckedChange} {...props}>
+                <Checkbox.Indicator className={styles.checkboxIndicator}>✓</Checkbox.Indicator>
+            </Checkbox.Root>
+            <Field.Label className={styles.checkboxCardLabel}>
                 <span>{label}</span>
-                {description ? <span className={styles.checkboxCardDescription}>{description}</span> : null}
-            </span>
-        </label>
+                {description ? <Field.Description className={styles.checkboxCardDescription}>{description}</Field.Description> : null}
+            </Field.Label>
+        </Field.Root>
     )
 }
 
@@ -171,50 +200,46 @@ type RadioOption = {
     disabled?: boolean
 }
 
-type RadioFieldProps = Omit<ComponentProps<typeof Input>, "className" | "type" | "onChange" | "value" | "name"> & {
+type RadioFieldProps = {
     className?: string
+    disabled?: boolean
+    form?: string
     label: string
     hint?: string
     name: string
     options: RadioOption[]
     layout?: "grid" | "horizontal"
+    readOnly?: boolean
+    required?: boolean
     value: string
     onValueChange: (value: string) => void
 }
 
 export function RadioField({ className, label, hint, name, options, value, layout = "grid", onValueChange, ...props }: RadioFieldProps) {
-    const handleChange: ChangeEventHandler<HTMLInputElement> = useCallback(event => onValueChange(event.target.value), [onValueChange])
-
     return (
         <FieldShell label={label} hint={hint}>
-            <motion.div
+            <RadioGroup
                 className={cx(styles.radioGroup, layout === "horizontal" && styles.radioGroupHorizontal)}
-                initial={{ opacity: 0.9, scale: 0.995 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: "spring", stiffness: 180, damping: 24 }}
+                name={name}
+                value={value}
+                onValueChange={onValueChange}
+                {...props}
             >
                 {options.map(option => (
-                    <label
+                    <Field.Item
                         key={option.value}
                         className={cx(styles.radioOption, option.value === value && styles.radioOptionSelected, option.disabled && styles.radioOptionDisabled)}
                     >
-                        <Input
-                            className={cx(styles.radio, className)}
-                            type="radio"
-                            name={name}
-                            value={option.value}
-                            checked={option.value === value}
-                            disabled={option.disabled}
-                            onChange={handleChange}
-                            {...props}
-                        />
-                        <span className={styles.radioLabel}>
+                        <Radio.Root className={cx(styles.radio, className)} value={option.value} disabled={option.disabled}>
+                            <Radio.Indicator className={styles.radioIndicator} />
+                        </Radio.Root>
+                        <Field.Label className={styles.radioLabel}>
                             <span>{option.label}</span>
-                            {option.description ? <span className={styles.radioDescription}>{option.description}</span> : null}
-                        </span>
-                    </label>
+                            {option.description ? <Field.Description className={styles.radioDescription}>{option.description}</Field.Description> : null}
+                        </Field.Label>
+                    </Field.Item>
                 ))}
-            </motion.div>
+            </RadioGroup>
         </FieldShell>
     )
 }

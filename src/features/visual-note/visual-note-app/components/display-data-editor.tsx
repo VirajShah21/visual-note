@@ -2,7 +2,20 @@
 
 import { AnimatePresence, motion } from "motion/react"
 import { useCallback } from "react"
-import { Card, Grid, Heading, Stack } from "@/components/ui"
+import {
+    Card,
+    DataTextAreaField,
+    DataTextField,
+    Grid,
+    Heading,
+    ObjectAddButton,
+    ObjectDateField,
+    ObjectRemoveButton,
+    ObjectTextField,
+    ObjectTimeField,
+    Stack,
+    StringListEditorForField,
+} from "@/components/ui"
 import {
     arrayFrom,
     dateInputValue,
@@ -15,16 +28,6 @@ import {
     timelineItemRevealTransition,
 } from "../utils/visual-note-app.utils"
 import type { DisplayDataEditorProps } from "../types/visual-note-app.types"
-import {
-    DataTextAreaField,
-    DataTextField,
-    ObjectAddButton,
-    ObjectDateField,
-    ObjectRemoveButton,
-    ObjectTextField,
-    ObjectTimeField,
-    StringListEditorForField,
-} from "./display-data-editor-controls"
 import { BugsEditorSection, ShoppingItemsEditorSection, WorkLogsEditorSection } from "./display-data-editor-sections"
 
 const MotionCard = motion(Card)

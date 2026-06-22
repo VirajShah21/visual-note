@@ -1,9 +1,8 @@
 "use client"
 
-import { AnimatePresence, motion } from "motion/react"
+import { Toast } from "@base-ui/react/toast"
 import { X } from "lucide-react"
-import { useCallback, useEffect } from "react"
-import { Button } from "./button"
+import { useEffect, useMemo } from "react"
 import { cx } from "./class-name"
 import styles from "./feedback.module.css"
 
@@ -22,44 +21,51 @@ type ToastShelfProps = {
 }
 
 export function ToastShelf({ messages, onDismiss }: ToastShelfProps) {
-    useEffect(() => {
-        const timers = messages.map(message => window.setTimeout(() => onDismiss(message.id), 4200))
-
-        return () => timers.forEach(timer => window.clearTimeout(timer))
-    }, [messages, onDismiss])
-
     if (messages.length === 0) return null
 
     return (
-        <div className={styles.viewport} aria-live="polite" aria-relevant="additions">
-            <AnimatePresence initial={false}>
-                {messages.map(message => (
-                    <ToastItem key={message.id} message={message} onDismiss={onDismiss} />
-                ))}
-            </AnimatePresence>
-        </div>
+        <Toast.Provider timeout={4200}>
+            <ToastShelfContent messages={messages} onDismiss={onDismiss} />
+        </Toast.Provider>
     )
 }
 
-function ToastItem({ message, onDismiss }: { message: ToastMessage; onDismiss: (id: string) => void }) {
-    const handleDismiss = useCallback(() => onDismiss(message.id), [message.id, onDismiss])
+function ToastShelfContent({ messages, onDismiss }: ToastShelfProps) {
+    const manager = Toast.useToastManager()
+    const activeIds = useMemo(() => new Set(messages.map(message => message.id)), [messages])
+
+    useEffect(() => {
+        messages.forEach(message => {
+            manager.add({
+                id: message.id,
+                title: message.title,
+                description: message.description,
+                type: message.tone,
+                priority: message.tone === "error" ? "high" : "low",
+                onClose: () => onDismiss(message.id),
+            })
+        })
+    }, [manager, messages, onDismiss])
+
+    useEffect(() => {
+        manager.toasts.forEach(toast => {
+            if (!activeIds.has(toast.id)) manager.close(toast.id)
+        })
+    }, [activeIds, manager])
 
     return (
-        <motion.div
-            className={cx(styles.toast, message.tone === "error" && styles.error)}
-            role={message.tone === "error" ? "alert" : "status"}
-            initial={{ opacity: 0, x: 20, y: 12, scale: 0.95 }}
-            animate={{ opacity: 1, x: 0, y: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 20, scale: 0.96 }}
-            transition={{ type: "spring", stiffness: 210, damping: 24 }}
-        >
-            <div>
-                <p className={styles.title}>{message.title}</p>
-                {message.description ? <p className={styles.description}>{message.description}</p> : null}
-            </div>
-            <Button className={styles.close} variant="ghost" iconOnly aria-label="Dismiss notification" onClick={handleDismiss}>
-                <X size={14} />
-            </Button>
-        </motion.div>
+        <Toast.Viewport className={styles.viewport}>
+            {manager.toasts.map(toast => (
+                <Toast.Root key={toast.id} className={cx(styles.toast, toast.type === "error" && styles.error)} toast={toast}>
+                    <Toast.Content className={styles.content}>
+                        <Toast.Title className={styles.title} />
+                        <Toast.Description className={styles.description} />
+                    </Toast.Content>
+                    <Toast.Close className={styles.close} aria-label="Dismiss notification">
+                        <X size={14} />
+                    </Toast.Close>
+                </Toast.Root>
+            ))}
+        </Toast.Viewport>
     )
 }

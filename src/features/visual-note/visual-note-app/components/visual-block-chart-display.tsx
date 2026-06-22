@@ -1,12 +1,11 @@
 "use client"
 
 import { useCallback } from "react"
-import { ChartDataSheet, EditableVisualBlock, Grid, Heading, SimpleChart, Stack } from "@/components/ui"
+import { ChartDataSheet, DataSelectField, DataTextField, EditableVisualBlock, Grid, Heading, SimpleChart, Stack } from "@/components/ui"
 import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
 import { chartDataLayoutFrom, chartDatasetFromSheet, chartSheetFromData, chartTypeFrom } from "../utils/chart-data"
 import { stringFrom } from "../utils/visual-note-app.utils"
 import styles from "../../visual-note-app.module.css"
-import { VisualDataSelectField, VisualDataTextField } from "./visual-block-display-controls"
 
 type VisualBlockChartDisplayProps = {
     data: VisualBlockData
@@ -53,7 +52,7 @@ export function VisualBlockChartDisplay({ data, isReadOnly, onDataChange }: Visu
             }
         >
             <Stack className={styles.chartMetadataRow} direction="horizontal" gap="sm">
-                <VisualDataSelectField
+                <DataSelectField
                     className={styles.chartTypeSelect}
                     label="Type"
                     field="type"
@@ -67,10 +66,10 @@ export function VisualBlockChartDisplay({ data, isReadOnly, onDataChange }: Visu
                     ]}
                     onUpdateField={updateField}
                 />
-                <VisualDataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={updateField} />
+                <DataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={updateField} />
             </Stack>
             <Grid columns="three" gap="sm">
-                <VisualDataSelectField
+                <DataSelectField
                     label="Axes"
                     field="dataLayout"
                     value={chartLayout}
@@ -80,8 +79,8 @@ export function VisualBlockChartDisplay({ data, isReadOnly, onDataChange }: Visu
                     ]}
                     onUpdateField={updateChartLayoutField}
                 />
-                <VisualDataTextField label="X label" field="xLabel" value={stringFrom(data.xLabel)} onUpdateField={updateField} />
-                <VisualDataTextField label="Y label" field="yLabel" value={stringFrom(data.yLabel)} onUpdateField={updateField} />
+                <DataTextField label="X label" field="xLabel" value={stringFrom(data.xLabel)} onUpdateField={updateField} />
+                <DataTextField label="Y label" field="yLabel" value={stringFrom(data.yLabel)} onUpdateField={updateField} />
             </Grid>
             <Stack gap="sm">
                 <Heading size="sm">Data</Heading>

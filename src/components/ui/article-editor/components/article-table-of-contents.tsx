@@ -1,5 +1,6 @@
 "use client"
 
+import { Button as BaseButton } from "@base-ui/react/button"
 import { useCallback } from "react"
 import type { ArticleHeadingIndex } from "@/lib/visual-note/article-content"
 import { articleHeadingTargetId } from "../utils/heading-target"
@@ -38,8 +39,8 @@ function TableOfContentsItem({ heading }: { heading: ArticleHeadingIndex }) {
     const handleClick = useCallback(() => focusHeading(heading.id), [heading.id])
 
     return (
-        <button type="button" className={`${styles.item} ${styles[`level${heading.level}`]}`} onClick={handleClick}>
+        <BaseButton className={`${styles.item} ${styles[`level${heading.level}`]}`} onClick={handleClick}>
             {heading.title || "Untitled section"}
-        </button>
+        </BaseButton>
     )
 }

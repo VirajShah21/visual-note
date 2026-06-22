@@ -2,13 +2,11 @@
 
 import { CheckCircle2, Clock, ShoppingCart, Vote } from "lucide-react"
 import { type CSSProperties, type ReactNode, useCallback } from "react"
-import { EditableVisualBlock, Grid, Heading, Pill, Stack, Text } from "@/components/ui"
-import type { VisualBlockData, VisualBlockKind } from "@/lib/visual-note/visual-blocks"
-import { listCompletionText, packingListSummary, pollPreviewText, timelinePreviewText } from "../../utils/visual-block-preview"
-import { dateInputValue, numberFrom, objectArrayFrom, replaceObjectAt, stringFrom, timeInputValue, timelineEventsFromData } from "../../utils/visual-note-app.utils"
-import styles from "../../../visual-note-app.module.css"
 import {
-    type ObjectListHandlers,
+    DataTextField,
+    EditableVisualBlock,
+    Grid,
+    Heading,
     ObjectListActionButton,
     ObjectListAddButton,
     ObjectListDateField,
@@ -16,10 +14,16 @@ import {
     ObjectListRemoveButton,
     ObjectListTextField,
     ObjectListTimeField,
-    VisualListItemFields,
-    VisualBlockField,
-    defaultVisualListItem,
-} from "./visual-block-list-controls"
+    Pill,
+    Stack,
+    Text,
+} from "@/components/ui"
+import type { ObjectListHandlers } from "@/components/ui"
+import type { VisualBlockData, VisualBlockKind } from "@/lib/visual-note/visual-blocks"
+import { listCompletionText, packingListSummary, pollPreviewText, timelinePreviewText } from "../../utils/visual-block-preview"
+import { dateInputValue, numberFrom, objectArrayFrom, replaceObjectAt, stringFrom, timeInputValue, timelineEventsFromData } from "../../utils/visual-note-app.utils"
+import styles from "../../../visual-note-app.module.css"
+import { defaultVisualListItem, VisualListItemFields } from "./visual-block-list-controls"
 import { VisualBlockRecipeDisplay } from "./visual-block-recipe-display"
 
 type VisualBlockListDisplayProps = {
@@ -124,7 +128,7 @@ function TimelineVisualBlock({
 
     return (
         <EditableVisualBlock preview={preview} readOnly={isReadOnly}>
-            <VisualBlockField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={onUpdateField} />
+            <DataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={onUpdateField} />
             <Stack className={styles.timelineTrack} gap="none">
                 {timelineEventsFromData(data.events).map((eventItem, index) => (
                     <Stack key={`${index}-${eventItem.label}`} className={styles.timelineItem} gap="sm">
@@ -190,7 +194,7 @@ function PollVisualBlock({
 
     return (
         <EditableVisualBlock preview={preview} readOnly={isReadOnly}>
-            <VisualBlockField label="Question" field="question" value={stringFrom(data.question)} onUpdateField={onUpdateField} />
+            <DataTextField label="Question" field="question" value={stringFrom(data.question)} onUpdateField={onUpdateField} />
             <Stack gap="sm">
                 {options.map((option, index) => {
                     const votes = numberFrom(option.votes, 0)
@@ -261,7 +265,7 @@ function ChecklistVisualBlock({
 
     return (
         <EditableVisualBlock preview={preview} readOnly={isReadOnly}>
-            <VisualBlockField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={onUpdateField} />
+            <DataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={onUpdateField} />
             <Stack gap="sm">
                 {listItems.map((item, index) => (
                     <Stack key={`${index}-${item.title}-${item.name}-${item.label}`} className={styles.refinedItem} gap="sm">

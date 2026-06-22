@@ -2,13 +2,24 @@
 
 import { ListChecks } from "lucide-react"
 import { type ChangeEvent, type ReactNode, useCallback, useState } from "react"
-import { EditableVisualBlock, Grid, Heading, Stack, Text, TextField } from "@/components/ui"
+import {
+    DataNumberField,
+    DataTextField,
+    EditableVisualBlock,
+    Grid,
+    Heading,
+    InlineStringListForField,
+    ObjectListAddButton,
+    ObjectListNumberField,
+    ObjectListTextField,
+    Stack,
+    Text,
+    TextField,
+} from "@/components/ui"
 import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
 import { countLabel, joinedPreviewText } from "../../utils/visual-block-preview"
 import { arrayFrom, numberFrom, objectArrayFrom, replaceObjectAt, replaceStringAt, stringFrom } from "../../utils/visual-note-app.utils"
 import styles from "../../../visual-note-app.module.css"
-import { InlineStringListForField, VisualDataNumberField, VisualDataTextField } from "../visual-block-display-controls"
-import { ObjectListAddButton, ObjectListNumberField, ObjectListTextField } from "./visual-block-list-controls"
 
 type VisualBlockRecipeDisplayProps = {
     data: VisualBlockData
@@ -55,8 +66,8 @@ export function VisualBlockRecipeDisplay({ data, isReadOnly = false, onDataChang
     return (
         <EditableVisualBlock preview={preview} readOnly={isReadOnly}>
             <Grid columns="two" gap="sm">
-                <VisualDataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={updateField} />
-                <VisualDataNumberField label="Base portions" field="basePortions" value={String(basePortions)} onUpdateField={updateField} />
+                <DataTextField label="Title" field="title" value={stringFrom(data.title)} onUpdateField={updateField} />
+                <DataNumberField label="Base portions" field="basePortions" value={String(basePortions)} onUpdateField={updateField} />
                 <RecipePortionsField value={String(recipePortions)} onChange={setRecipePortions} />
             </Grid>
             <Stack gap="sm">
