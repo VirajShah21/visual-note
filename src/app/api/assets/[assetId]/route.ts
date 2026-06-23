@@ -11,7 +11,7 @@ export async function GET(request: Request, context: RouteContext<"/api/assets/[
 
     const { assetId } = await context.params
     const storageSupabase = getSupabaseServiceRoleClient()
-    if (!storageSupabase) return Response.json({ error: "Supabase service role is not configured for storage routes." }, { status: 503 })
+    if (!storageSupabase) return Response.json({ error: "Server database access is not configured for storage routes." }, { status: 503 })
 
     try {
         const resolved = await loadAssetStorage(storageSupabase, auth.userId, assetId)

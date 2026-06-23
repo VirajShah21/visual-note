@@ -61,7 +61,7 @@ The application should make this hierarchy visible in the interface. Avoid rever
 - Keep Supabase client creation in `src/lib/supabase/`.
 - Do not scatter Supabase URL or key reads across components.
 - Use `supabase/schema.sql` as the authoritative starter schema for the workspace persistence table and RLS policies.
-- Support a local demo mode when Supabase environment variables are absent, but keep the Supabase path as the production data path.
+- Run with custom app-auth backed by Supabase Postgres only; no local demo mode.
 - Never commit service role keys or server-only secrets into client code.
 
 ## Agent Workflow

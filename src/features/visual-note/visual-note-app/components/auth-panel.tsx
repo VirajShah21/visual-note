@@ -1,24 +1,34 @@
 "use client"
 
 import { Sparkles } from "lucide-react"
-import { type ChangeEvent, useCallback, useState } from "react"
+import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react"
 import { Button, Card, Grid, Heading, InfoCard, InfoPopover, Pill, Stack, Text, TextField } from "@/components/ui"
 import type { AuthPanelProps } from "../types/visual-note-app.types"
 import styles from "../../visual-note-app.module.css"
 
-export function AuthPanel({ notice, supabaseStatus, onSignIn, onRegister }: AuthPanelProps) {
+export function AuthPanel({ authStatus, notice, onSignIn, onRegister }: AuthPanelProps) {
     const [mode, setMode] = useState<"login" | "register">("register")
-    const [email, setEmail] = useState("viraj@example.com")
-    const [name, setName] = useState("Viraj")
-    const [password, setPassword] = useState("visual-note-demo")
+    const [email, setEmail] = useState("")
+    const [name, setName] = useState("")
+    const [password, setPassword] = useState("")
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const formRef = useRef({ email, mode, name, onRegister, onSignIn, password })
+    const authReady = authStatus === "ready"
+
+    useEffect(() => {
+        formRef.current = { email, mode, name, onRegister, onSignIn, password }
+    }, [email, mode, name, onRegister, onSignIn, password])
 
     const submit = useCallback(async () => {
+        const current = formRef.current
         setIsSubmitting(true)
-        if (mode === "register") await onRegister(email, password, name)
-        else await onSignIn(email, password, name)
-        setIsSubmitting(false)
-    }, [email, mode, name, onRegister, onSignIn, password])
+        try {
+            if (current.mode === "register") await current.onRegister(current.email, current.password, current.name)
+            else await current.onSignIn(current.email, current.password, current.name)
+        } finally {
+            setIsSubmitting(false)
+        }
+    }, [])
     const updateName = useCallback((event: ChangeEvent<HTMLInputElement>) => setName(event.target.value), [])
     const updateEmail = useCallback((event: ChangeEvent<HTMLInputElement>) => setEmail(event.target.value), [])
     const updatePassword = useCallback((event: ChangeEvent<HTMLInputElement>) => setPassword(event.target.value), [])
@@ -48,7 +58,7 @@ export function AuthPanel({ notice, supabaseStatus, onSignIn, onRegister }: Auth
                 <Stack direction="horizontal" gap="sm">
                     <Heading size="lg">{mode === "register" ? "Create your account" : "Log in"}</Heading>
                     <InfoPopover title="Authentication mode" label="Authentication mode details">
-                        {supabaseStatus === "configured" ? "Supabase auth is enabled for this build." : "Supabase env vars are missing, so this runs in local demo mode."}
+                        Visual Note uses application-owned users, password hashes, and server sessions.
                     </InfoPopover>
                 </Stack>
                 <Card>
@@ -56,7 +66,7 @@ export function AuthPanel({ notice, supabaseStatus, onSignIn, onRegister }: Auth
                         {mode === "register" ? <TextField label="Name" value={name} onChange={updateName} /> : null}
                         <TextField label="Email" type="email" value={email} onChange={updateEmail} />
                         <TextField label="Password" type="password" value={password} onChange={updatePassword} />
-                        <Button variant="primary" onClick={submit} disabled={isSubmitting} fullWidth>
+                        <Button variant="primary" onClick={submit} disabled={!authReady || isSubmitting} fullWidth>
                             {mode === "register" ? "Register and open workspace" : "Log in"}
                         </Button>
                         <Button variant="ghost" onClick={toggleMode} fullWidth>

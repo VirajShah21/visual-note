@@ -24,12 +24,6 @@ const slugify = (value: string) =>
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "")
 
-export const createLocalUser = (email: string, name?: string): VisualUser => ({
-    id: createId("user"),
-    email,
-    name: name?.trim() || email.split("@")[0] || "Visual Note User",
-})
-
 export const createNotebook = (userId: string, title: string): Notebook => ({
     id: createId("notebook"),
     userId,
