@@ -58,7 +58,7 @@ const loadWorkspace = async (context: RequestContext) => {
     const supabase = getSupabaseServiceRoleClient()
     if (!supabase) throw new Error("Server database access is required for MCP routes.")
 
-    const workspace = await loadWorkspaceForUser({ supabase, userId: context.userId })
+    const workspace = await loadWorkspaceForUser(supabase, context.userId)
     return { supabase, workspace: normalizeWorkspace(workspace ?? emptyWorkspace) }
 }
 
@@ -74,8 +74,12 @@ const withWorkspaceMutation = async <T>(
     extra: ToolExtra,
     action: (workspace: VisualNoteWorkspace, context: RequestContext) => Promise<WorkspaceOperationResult<T>> | WorkspaceOperationResult<T>,
 ) =>
-    withWorkspace(extra, async (workspace, context) => {
-        const result = await action(workspace, context)
+    (async () => {
+        const context = requestContextFrom(extra.authInfo)
+        if (!context) return jsonResult({ ok: false, error: "auth_required", message: "Authentication required." })
+
+        const loaded = await loadWorkspace(context)
+        const result = await action(loaded.workspace, context)
         if (!result.ok) return jsonResult(result)
 
         const value = result.value as T & { workspace?: VisualNoteWorkspace }
@@ -83,10 +87,9 @@ const withWorkspaceMutation = async <T>(
 
         const publicValue = { ...value }
         delete publicValue.workspace
-        const { supabase } = await loadWorkspace(context)
-        await saveWorkspaceForUser(supabase, context.userId, value.workspace)
+        await saveWorkspaceForUser(loaded.supabase, context.userId, value.workspace)
         return jsonResult({ ok: true, ...publicValue })
-    })
+    })()
 
 export const registerVisualNoteMcpTools = (server: McpServer) => {
     server.registerTool("list_notebooks", { title: "List notebooks", description: "List Visual Note notebooks owned by the authenticated user." }, async extra =>

@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     if (auth instanceof Response) return auth
 
     try {
-        const workspace = await loadWorkspaceForUser(auth)
+        const workspace = await loadWorkspaceForUser(auth.supabase, auth.userId)
         return Response.json({ workspace })
     } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "Unable to load workspace." }, { status: 500 })

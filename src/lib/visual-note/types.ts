@@ -39,6 +39,7 @@ export type NotebookPage = {
     notebookId: string
     title: string
     position: number
+    content?: string
 }
 
 export type NotebookSection = NotebookPage

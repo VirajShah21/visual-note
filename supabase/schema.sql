@@ -28,6 +28,43 @@ alter table public.visual_note_workspaces
   add constraint visual_note_workspaces_user_id_fkey
   foreign key (user_id) references public.visual_note_users(id) on delete cascade;
 
+create table if not exists public.visual_note_notebooks (
+  id text primary key,
+  user_id uuid not null references public.visual_note_users(id) on delete cascade,
+  title text not null,
+  slug text not null,
+  summary text not null default 'A structured web notebook with sections, topics, views, components, and data.',
+  color text not null default '#2f7d5c',
+  editor_settings jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists visual_note_notebooks_user_id_idx
+  on public.visual_note_notebooks(user_id);
+
+create table if not exists public.visual_note_pages (
+  id text primary key,
+  user_id uuid not null references public.visual_note_users(id) on delete cascade,
+  notebook_id text not null references public.visual_note_notebooks(id) on delete cascade,
+  title text not null,
+  position integer not null default 0,
+  content_object_key text not null,
+  topics jsonb not null default '[]'::jsonb,
+  views jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists visual_note_pages_user_id_idx
+  on public.visual_note_pages(user_id);
+
+create unique index if not exists visual_note_pages_notebook_position_idx
+  on public.visual_note_pages(notebook_id, position);
+
+create unique index if not exists visual_note_pages_content_object_key_idx
+  on public.visual_note_pages(content_object_key);
+
 create table if not exists public.visual_note_mcp_tokens (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.visual_note_users(id) on delete cascade,
@@ -105,6 +142,8 @@ alter table public.visual_note_mcp_tokens enable row level security;
 alter table public.visual_note_s3_connections enable row level security;
 alter table public.visual_note_notebook_storage enable row level security;
 alter table public.visual_note_assets enable row level security;
+alter table public.visual_note_notebooks enable row level security;
+alter table public.visual_note_pages enable row level security;
 
 revoke all on public.visual_note_users from anon;
 revoke all on public.visual_note_users from authenticated;
@@ -128,6 +167,8 @@ grant select, insert, update, delete on public.visual_note_mcp_tokens to service
 grant select, insert, update, delete on public.visual_note_s3_connections to service_role;
 grant select, insert, update, delete on public.visual_note_notebook_storage to service_role;
 grant select, insert, update, delete on public.visual_note_assets to service_role;
+grant select, insert, update, delete on public.visual_note_notebooks to service_role;
+grant select, insert, update, delete on public.visual_note_pages to service_role;
 
 drop policy if exists read_workspace on public.visual_note_workspaces;
 drop policy if exists insert_workspace on public.visual_note_workspaces;
@@ -144,4 +185,12 @@ drop policy if exists read_assets on public.visual_note_assets;
 drop policy if exists insert_assets on public.visual_note_assets;
 drop policy if exists update_assets on public.visual_note_assets;
 drop policy if exists delete_assets on public.visual_note_assets;
+drop policy if exists read_notebooks on public.visual_note_notebooks;
+drop policy if exists insert_notebooks on public.visual_note_notebooks;
+drop policy if exists update_notebooks on public.visual_note_notebooks;
+drop policy if exists delete_notebooks on public.visual_note_notebooks;
+drop policy if exists read_pages on public.visual_note_pages;
+drop policy if exists insert_pages on public.visual_note_pages;
+drop policy if exists update_pages on public.visual_note_pages;
+drop policy if exists delete_pages on public.visual_note_pages;
 drop function if exists public.visual_note_user_owns_notebook(text);

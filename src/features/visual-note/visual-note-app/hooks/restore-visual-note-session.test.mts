@@ -64,7 +64,7 @@ const setFetch = (sessionBody: unknown, workspaceBody: unknown = { workspace }) 
         value: async (input: RequestInfo | URL) => {
             const path = input.toString()
             if (path === "/api/auth/session") return Response.json(sessionBody)
-            if (path === "/api/workspace") return Response.json(workspaceBody)
+            if (path === "/api/notebooks") return Response.json(workspaceBody)
             return Response.json({ error: "Unexpected request." }, { status: 500 })
         },
     })
