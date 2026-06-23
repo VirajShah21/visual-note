@@ -21,6 +21,13 @@ create table if not exists public.visual_note_workspaces (
   updated_at timestamptz not null default now()
 );
 
+alter table public.visual_note_workspaces
+  drop constraint if exists visual_note_workspaces_user_id_fkey;
+
+alter table public.visual_note_workspaces
+  add constraint visual_note_workspaces_user_id_fkey
+  foreign key (user_id) references public.visual_note_users(id) on delete cascade;
+
 create table if not exists public.visual_note_mcp_tokens (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.visual_note_users(id) on delete cascade,
@@ -78,6 +85,12 @@ create index if not exists visual_note_sessions_user_id_idx
 
 create index if not exists visual_note_sessions_expires_at_idx
   on public.visual_note_sessions(expires_at);
+
+create index if not exists visual_note_mcp_tokens_user_id_idx
+  on public.visual_note_mcp_tokens(user_id);
+
+create index if not exists visual_note_mcp_tokens_token_prefix_idx
+  on public.visual_note_mcp_tokens(token_prefix);
 
 create index if not exists visual_note_s3_connections_user_id_idx
   on public.visual_note_s3_connections(user_id);

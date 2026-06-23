@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { createAppSession, verifyAppUserCredentials } from "@/server/auth/app-auth-store"
+import { errorMessage } from "@/server/auth/route-errors"
 import { createSessionCookie } from "@/server/auth/session-cookie"
 
 export const runtime = "nodejs"
@@ -22,7 +23,6 @@ export async function POST(request: Request) {
         const token = await createAppSession(supabase, user.id)
         return Response.json({ user }, { headers: { "Set-Cookie": createSessionCookie(token) } })
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to log in."
-        return Response.json({ error: message }, { status: 400 })
+        return Response.json({ error: errorMessage(error, "Unable to log in.") }, { status: 400 })
     }
 }

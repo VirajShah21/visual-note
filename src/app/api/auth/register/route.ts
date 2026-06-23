@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { createAppSession, createAppUser } from "@/server/auth/app-auth-store"
+import { errorCode, errorMessage } from "@/server/auth/route-errors"
 import { createSessionCookie } from "@/server/auth/session-cookie"
 
 export const runtime = "nodejs"
@@ -21,8 +22,8 @@ export async function POST(request: Request) {
         const token = await createAppSession(supabase, user.id)
         return Response.json({ user }, { status: 201, headers: { "Set-Cookie": createSessionCookie(token) } })
     } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to register account."
-        const status = message.toLowerCase().includes("duplicate") ? 409 : 400
+        const message = errorMessage(error, "Unable to register account.")
+        const status = errorCode(error) === "23505" || message.toLowerCase().includes("duplicate") ? 409 : 400
         return Response.json({ error: status === 409 ? "An account with this email already exists." : message }, { status })
     }
 }
