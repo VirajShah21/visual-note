@@ -51,11 +51,11 @@ test("reads notebook trees in page and topic position order", () => {
     assert.equal(result.ok, true)
     if (!result.ok) return
     assert.deepEqual(
-        result.value.pages.map(page => page.title),
+        result.value.pages.map((page: { title: string }) => page.title),
         ["First", "Second"],
     )
     assert.deepEqual(
-        result.value.pages[0]?.topics.map(topic => topic.title),
+        result.value.pages[0]?.topics.map((topic: { title: string }) => topic.title),
         ["Alpha", "Beta"],
     )
 })
