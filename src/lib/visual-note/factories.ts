@@ -55,6 +55,7 @@ export const createView = (topicId: string, title: string, mode: ViewMode = "art
     topicId,
     title,
     mode,
+    position: 0,
     content:
         mode === "article"
             ? [
@@ -74,6 +75,7 @@ export const createDisplayInstance = (kind: ComponentKind, name: string = defaul
     id: createId("display"),
     name,
     kind,
+    position: 0,
     data: defaultComponentData(kind),
 })
 

@@ -16,7 +16,7 @@ import { renderMarkdownExport } from "@/lib/visual-note/export/markdown"
 import { renderWebHtml } from "@/lib/visual-note/export/web"
 import type { ArticleBlockInfoMode, ArticleContentsMode, NotebookEditorSettings } from "@/lib/visual-note/types"
 
-export type WorkspaceOperationResult<T> = { ok: true; value: T } | { ok: false; error: "not_found" | "invalid_input"; message: string }
+export type WorkspaceOperationResult<T> = { ok: true; value: T & Record<string, any> } | { ok: false; error: "not_found" | "invalid_input"; message: string }
 
 export type NotebookSummary = {
     id: string
@@ -276,6 +276,14 @@ export type ChangePlanOperation = {
     input: Record<string, unknown>
 }
 
+type ArticlePatchOperation =
+    | { op: "insert"; index?: number; markdown: string }
+    | { op: "replace"; index: number; markdown: string }
+    | { op: "remove"; index: number }
+    | { op: "move"; from: number; to: number }
+
+type WorkspaceMutationResultValue = object & { workspace: VisualNoteWorkspace }
+
 export type ToolImpactReport = {
     tool: string
     touched: {
@@ -337,7 +345,7 @@ export type MCPToolSummary = {
 
 type Positioned = {
     id: string
-    position: number
+    position?: number
 }
 
 const createId = () => `${Date.now()}-${crypto.randomUUID()}`
@@ -347,11 +355,11 @@ const defaultEditorSettings = {
     mode: "editing" as const,
 }
 
-const ok = <T>(value: T): WorkspaceOperationResult<T> => ({ ok: true, value })
+const ok = <T>(value: T): WorkspaceOperationResult<T> => ({ ok: true, value: value as T & Record<string, any> })
 const notFound = (message: string): WorkspaceOperationResult<never> => ({ ok: false, error: "not_found", message })
 const invalidInput = (message: string): WorkspaceOperationResult<never> => ({ ok: false, error: "invalid_input", message })
 
-const byPosition = <T extends Positioned>(items: T[]) => [...items].sort((a, b) => a.position - b.position)
+const byPosition = <T extends Positioned>(items: T[]) => [...items].sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
 const normalizeTitle = (value: string) => value.trim().toLowerCase()
 const safeTrim = (value?: string) => (value ? value.trim() : "")
 const clampIndex = (value: number, max: number) => Math.max(0, Math.min(Math.floor(value), max))
@@ -402,18 +410,18 @@ const setByPath = <T>(value: T, path: string, nextValue: unknown): T => {
     return cloned as T
 }
 
-const cloneWithNewIds = (value: unknown) => {
+const cloneWithNewIds = <T>(value: T): T => {
     if (!value) return value
     if (typeof value !== "object") return value
 
-    if (Array.isArray(value)) return value.map(cloneWithNewIds)
+    if (Array.isArray(value)) return value.map(cloneWithNewIds) as T
 
     return Object.fromEntries(
         Object.entries(value).map(([key, item]) => {
             if (key === "id" && typeof item === "string") return [key, `clone-${createId()}`]
             return [key, cloneWithNewIds(item)]
         }),
-    )
+    ) as T
 }
 
 const parseCsvRecords = (text: string) => {
@@ -1119,7 +1127,9 @@ export const createArticle = (
     userId: string,
     input: { notebookId: string; pageTitle: string; topicTitle: string; articleTitle?: string; content?: string; mode?: ViewMode },
 ) => {
-    const notebook = findOwnedNotebook(workspace, userId, input.notebookId)
+    const notebookId = input.notebookId
+    if (!notebookId) return notFound("Notebook not found.")
+    const notebook = findOwnedNotebook(workspace, userId, notebookId)
     if (!notebook) return notFound("Notebook not found.")
 
     let createdPage = false
@@ -1202,7 +1212,9 @@ export const renameNotebook = (
     userId: string,
     input: { notebookId: string; title?: string; summary?: string; color?: string; slug?: string; published?: boolean },
 ) => {
-    const notebook = findOwnedNotebook(workspace, userId, input.notebookId)
+    const notebookId = input.notebookId
+    if (!notebookId) return notFound("Notebook not found.")
+    const notebook = findOwnedNotebook(workspace, userId, notebookId)
     if (!notebook) return notFound("Notebook not found.")
 
     const next = { ...notebook } as Notebook
@@ -1274,7 +1286,7 @@ export const duplicateNotebook = (workspace: VisualNoteWorkspace, userId: string
     const topicMap = new Map<string, string>()
     const topics = workspace.topics
         .filter(topic => pageMap.has(topic.pageId))
-        .sort((a, b) => a.position - b.position)
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
         .map((topic, position) => {
             const nextId = `topic-${createId()}`
             topicMap.set(topic.id, nextId)
@@ -1288,7 +1300,7 @@ export const duplicateNotebook = (workspace: VisualNoteWorkspace, userId: string
 
     const views = workspace.views
         .filter(view => topicMap.has(view.topicId))
-        .sort((a, b) => a.position - b.position)
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
         .map((view, position) => ({
             ...cloneWithNewIds(view),
             id: `view-${createId()}`,
@@ -1391,7 +1403,7 @@ export const movePageToNotebook = (workspace: VisualNoteWorkspace, userId: strin
     if (sourceContext.page.notebookId === targetNotebook.id)
         return reorderPages(workspace, userId, {
             notebookId: sourceContext.page.notebookId,
-            pageIds: byPosition(workspace.pages.filter(page => page.notebookId === sourceContext.page.notebookId).map(page => page.id)),
+            pageIds: byPosition(workspace.pages.filter(page => page.notebookId === sourceContext.page.notebookId)).map(page => page.id),
         })
 
     const sourceSiblingPages = byPosition(workspace.pages.filter(page => page.notebookId === sourceContext.page.notebookId && page.id !== input.pageId))
@@ -1673,7 +1685,7 @@ export const moveViewToTopic = (workspace: VisualNoteWorkspace, userId: string, 
 
     if (context.topic.id === targetTopic.topic.id) {
         const siblings = byPosition(workspace.views.filter(item => item.topicId === context.topic.id))
-        const position = input.position === undefined ? context.view.position : clampIndex(input.position, siblings.length - 1)
+        const position = input.position === undefined ? context.view.position ?? 0 : clampIndex(input.position, siblings.length - 1)
         const reordered = moveById(siblings, context.view.id, position)
         if (!reordered) return invalidInput("Unable to reorder view.")
         return ok({
@@ -1922,12 +1934,7 @@ export const applyArticlePatch = (
     userId: string,
     input: {
         viewId: string
-        operations: Array<
-            | { op: "insert"; index?: number; markdown: string }
-            | { op: "replace"; index: number; markdown: string }
-            | { op: "remove"; index: number }
-            | { op: "move"; from: number; to: number }
-        >
+        operations: ArticlePatchOperation[]
     },
 ) => {
     const context = findOwnedView(workspace, userId, input.viewId)
@@ -2009,6 +2016,7 @@ export const addDisplayToView = (
     const created = createDisplayInstance(input.kind, input.name?.trim() || defaultDisplayName(input.kind))
     const nextDisplay = {
         ...created,
+        position,
         data: {
             ...defaultComponentData(input.kind),
             ...(input.data ?? {}),
@@ -2077,7 +2085,7 @@ export const setDisplayOrder = (workspace: VisualNoteWorkspace, userId: string, 
 
 export const listDisplayKinds = () =>
     ok({
-        kinds: ["data-card", "checklist", "timeline", "dashboard", "work-logs", "bugs-list", "shopping-list", "pull-request", "url", "code-block"].map(kind => ({
+        kinds: (["data-card", "checklist", "timeline", "dashboard", "work-logs", "bugs-list", "shopping-list", "pull-request", "url", "code-block"] satisfies ComponentKind[]).map(kind => ({
             kind,
             label: defaultDisplayName(kind),
             defaultData: defaultComponentData(kind),
@@ -2247,7 +2255,9 @@ export const suggestNextSteps = (workspace: VisualNoteWorkspace, userId: string,
         return ok({ suggestions })
     }
 
-    const notebook = findOwnedNotebook(workspace, userId, input.notebookId)
+    const notebookId = input.notebookId
+    if (!notebookId) return notFound("Notebook not found.")
+    const notebook = findOwnedNotebook(workspace, userId, notebookId)
     if (!notebook) return notFound("Notebook not found.")
 
     const pages = byPosition(workspace.pages.filter(page => page.notebookId === notebook.id))
@@ -2307,7 +2317,7 @@ export const findDuplicateContent = (workspace: VisualNoteWorkspace, userId: str
 
             return {
                 scope: (scope as "notebook" | "page" | "topic" | "view") ?? "page",
-                kind: "title",
+                kind: "title" as const,
                 canonical,
                 ids: ids.map(value => value.split(":")[1] ?? value),
                 title: rawId,
@@ -2576,7 +2586,7 @@ export const autoFillDefaultsForView = (
             })
             if (!added.ok) return added
             nextWorkspace = added.value.workspace
-            nextView = added.value.view ?? nextView
+            nextView = nextWorkspace.views.find(item => item.id === nextView.id) ?? nextView
             result.changed = true
             result.displayAdded = true
             result.suggestions.push(`Added ${recommendation} display.`)
@@ -2983,7 +2993,7 @@ export const publishReadinessGate = (workspace: VisualNoteWorkspace, userId: str
         gate: contract.value.passed && health.ok ? "green" : "red",
         passed: contract.value.passed && health.ok,
         gates,
-        blockers: [...(contract.ok ? [] : [contract.message]), ...(!health.ok ? [health.message] : []), ...(!policy.ok ? [policy.message] : [])].filter(Boolean),
+        blockers: [...(!health.ok ? [health.message] : []), ...(!policy.ok ? [policy.message] : [])].filter(Boolean),
     })
 }
 
@@ -3137,7 +3147,10 @@ export const executePlanOptimistic = (
         checkpointLabel?: string
     },
 ) => {
-    const operations = input.plan.slice(0, input.maxSteps ?? input.plan.length)
+    const operations = input.plan.slice(0, input.maxSteps ?? input.plan.length).map(operation => ({
+        ...operation,
+        input: operation.input ?? {},
+    }))
     if (operations.length === 0) return invalidInput("plan must be a non-empty array.")
 
     if (input.notebookId) {
@@ -3154,7 +3167,7 @@ export const executePlanOptimistic = (
 
     const withCheckpointName = safeTrim(input.checkpointLabel || `agentic-${new Date().toISOString()}`)
     const checkpointed = input.dryRun
-        ? { ok: true, value: workspace as { workspace: VisualNoteWorkspace } }
+        ? { ok: true as const, value: { workspace } }
         : makeRevertPoint(workspace, userId, {
               name: `agentic-revert-${withCheckpointName}`,
               note: `Checkpoint created before optimistic execution.`,
@@ -3367,7 +3380,7 @@ export const agenticContractCheck = (workspace: VisualNoteWorkspace, userId: str
         return ok({
             scope: "workspace",
             checks,
-            passed: checks.every(item => item.contract.ok && item.contract.value.passed),
+            passed: checks.every(item => "passed" in item.contract && item.contract.passed),
         })
     }
 
@@ -3400,7 +3413,7 @@ export const assertWorkspaceInvariants = (workspace: VisualNoteWorkspace, userId
         health.value.blockers.length === 0 && orphaned.value.orphanPages.length === 0 && orphaned.value.orphanTopics.length === 0 && orphaned.value.orphanViews.length === 0
     if (strict && duplicate.value.matches.length > 0) invariantViolations.push(`Found ${duplicate.value.matches.length} duplicate content groups.`)
 
-    if (!health.value.ok || !invariantPass) invariantViolations.push("Workspace health checks reported issues.")
+    if (health.value.blockers.length > 0 || !invariantPass) invariantViolations.push("Workspace health checks reported issues.")
     if (duplicate.value.matches.length > 0) warnings.push("Duplicate titles/content detected.")
 
     return ok({
@@ -3548,8 +3561,8 @@ export const reconcileExternalReference = (workspace: VisualNoteWorkspace, userI
     const viewIds = new Set(
         workspace.views
             .filter(view => {
-                const page = workspace.topics.find(topic => topic.id === view.topicId)?.pageId
-                const notebookId = page ? workspace.pages.find(page => page.id === page)?.notebookId : undefined
+                const pageId = workspace.topics.find(topic => topic.id === view.topicId)?.pageId
+                const notebookId = pageId ? workspace.pages.find(page => page.id === pageId)?.notebookId : undefined
                 return !!notebookId && notebookIds.has(notebookId)
             })
             .map(view => view.id),
@@ -3564,7 +3577,7 @@ export const reconcileExternalReference = (workspace: VisualNoteWorkspace, userI
             const normalized = item.url.toLowerCase()
             const isInternalAnchor = item.url.startsWith("#")
             if (isInternalAnchor) {
-                const headingMatch = headings.some(heading => heading.toLowerCase() === normalized.slice(1))
+                const headingMatch = headings.some(heading => heading.id.toLowerCase() === normalized.slice(1) || heading.title.toLowerCase() === normalized.slice(1))
                 candidates.push({
                     sourceViewId: view.id,
                     link: item.url,
@@ -3753,8 +3766,8 @@ export const publishPreflightMultiNotebook = (workspace: VisualNoteWorkspace, us
             return { notebookId: notebook.id, notebookTitle: notebook.title, gate: gate.ok ? gate.value : gate }
         })
         .sort((left, right) => {
-            const leftPassed = left.gate.ok && left.gate.value.passed
-            const rightPassed = right.gate.ok && right.gate.value.passed
+            const leftPassed = "passed" in left.gate && left.gate.passed
+            const rightPassed = "passed" in right.gate && right.gate.passed
             if (leftPassed === rightPassed) return 0
             return leftPassed ? -1 : 1
         })
@@ -3765,8 +3778,8 @@ export const publishPreflightMultiNotebook = (workspace: VisualNoteWorkspace, us
         results,
         canPublishAll: results.every(item => typeof item.gate === "object" && item.gate && "passed" in item.gate && item.gate.passed === true),
         blockers: results.flatMap(item => {
-            if (typeof item.gate !== "object" || item.gate === true) return []
-            return item.gate.ok ? item.gate.value.blockers : [item.gate.message]
+            if (typeof item.gate !== "object") return []
+            return "blockers" in item.gate ? item.gate.blockers : [item.gate.message]
         }),
     })
 }
@@ -3811,13 +3824,15 @@ export const agenticPublishReadinessMulti = (
 export const agenticObservationLog = (workspace: VisualNoteWorkspace, userId: string, input: AgenticObservationInput) => {
     const action = input.action === "append" ? "append" : "read"
     if (action === "append") {
-        if (!safeTrim(input.summary)) return invalidInput("summary is required for append.")
-        if (!safeTrim(input.goal)) return invalidInput("goal is required for append.")
+        const summary = safeTrim(input.summary)
+        const goal = safeTrim(input.goal)
+        if (!summary) return invalidInput("summary is required for append.")
+        if (!goal) return invalidInput("goal is required for append.")
         if (!input.plan) return invalidInput("plan is required for append.")
         const append = appendAgenticObservation(workspace, {
-            goal: input.goal,
+            goal,
             status: input.status ?? "ok",
-            summary: input.summary,
+            summary,
             plan: input.plan,
             blockers: input.blockers ?? [],
             note: input.note,
@@ -3926,7 +3941,7 @@ export const agenticIntentToPlan = (
 
     if (requested.has("repair") && !steps.some(item => item.tool === "repair_workspace")) steps.push({ tool: "repair_workspace", input: {} })
 
-    if (requested.includes("restructure") && !steps.some(item => item.tool === "agentic_suggest_restructure"))
+    if (requested.has("restructure") && !steps.some(item => item.tool === "agentic_suggest_restructure"))
         steps.push({ tool: "agentic_suggest_restructure", input: { notebookId: notebook.id } })
 
     return ok({
@@ -3970,10 +3985,17 @@ export const agenticPlanDryRun = (
         views: [...new Set(impact.value.operationReports.flatMap(report => report.touched.views))].filter(id => targetScope.views.includes(id)),
     }
     const blockers = impact.value.operationReports.flatMap(item => item.warnings)
+    const afterCounts = {
+        notebooks: impact.value.workspacePreview.notebookCount,
+        pages: impact.value.workspacePreview.pageCount,
+        topics: impact.value.workspacePreview.topicCount,
+        views: impact.value.workspacePreview.viewCount,
+        displays: scope.displays.length,
+    }
     return ok({
         status: impact.value.workspacePreview.issueCount > 0 ? "risk" : "ok",
         before: countScopeState(scopedWorkspaceEntities(workspace, userId, input.notebookId)),
-        after: impact.value.workspacePreview,
+        after: afterCounts,
         touched,
         operationReports: impact.value.operationReports.map(item => ({
             tool: item.tool,
@@ -3981,7 +4003,7 @@ export const agenticPlanDryRun = (
             issueCount: item.issueCount,
             warnings: item.warnings,
         })),
-        changed: impact.value.executed,
+        changed: impact.value.operationReports.length,
         blockedCount: blockers.length,
         warnings: [...new Set(blockers)],
         dryRun: true,
@@ -4286,16 +4308,16 @@ export const agenticComponentPipeline = (workspace: VisualNoteWorkspace, userId:
 
     const pipeline = proposal.value.proposals
         .slice(0, clampIndex(input.maxSteps ?? proposal.value.proposals.length, 120))
-        .map(item => {
+        .map((item): ChangePlanOperation | null => {
             if (item.action === "migrate_view_to_structured" && item.scope === "view")
                 return { tool: "rewrite_view_layout_for_mode", input: { viewId: item.id, mode: "structured", addRecommendedDisplays: true } }
 
             if (item.action === "add_primary_display" && item.scope === "view")
                 return { tool: "add_display_to_view", input: { viewId: item.id, kind: "data-card", name: "Primary data card" } }
 
-            return undefined
+            return null
         })
-        .filter((next): next is ChangePlanOperation => Boolean(next))
+        .filter((next): next is ChangePlanOperation => next !== null)
 
     if (!input.apply) return ok({ scope: "notebook", notebookIds: scope.notebookIds, proposals: proposal.value.proposals, pipeline, applied: false })
 
@@ -4334,11 +4356,14 @@ export const agenticChangeSet = (
         if (!notebook) return notFound("Notebook not found.")
     }
 
-    const operations = input.plan.slice(0, input.maxSteps ?? input.plan.length)
+    const operations = input.plan.slice(0, input.maxSteps ?? input.plan.length).map(operation => ({
+        ...operation,
+        input: operation.input ?? {},
+    }))
     let nextWorkspace = cloneWorkspace(workspace)
     const scopeBefore = scopedWorkspaceEntities(nextWorkspace, userId, input.notebookId)
     const touched = new Set<string>()
-    const stepResults: Array<{ step: number; tool: string; blocked: boolean; issueCount: number; warnings: string[] }> = []
+    const stepResults: Array<{ step: number; tool: string; blocked: boolean; issueCount: number; warnings: string[]; touched: ReturnType<typeof touchedFromInput> }> = []
     for (let index = 0; index < operations.length; index += 1) {
         const operation = operations[index]
         const beforeWorkspace = nextWorkspace
@@ -4358,6 +4383,7 @@ export const agenticChangeSet = (
             blocked: warnings.length > 0,
             issueCount: after.blockers,
             warnings,
+            touched: impacted,
         })
     }
 
@@ -4385,6 +4411,7 @@ export const agenticChangeSet = (
         after: afterCount,
         added,
         removed,
+        changed: added.notebooks + added.pages + added.topics + added.views + added.displays + removed.notebooks + removed.pages + removed.topics + removed.views + removed.displays,
         touchedEntityCount: touched.size,
         stepResults,
         plan: operations,
@@ -4399,8 +4426,8 @@ export const agenticContractEnforcer = (workspace: VisualNoteWorkspace, userId: 
     const checks = contract.value.scope === "notebook" ? [contract.value] : contract.value.checks
     const passed =
         contract.value.scope === "notebook"
-            ? contract.value.contract.ok && (contract.value.policy ? contract.value.policy.ok : true)
-            : checks.every(item => item.contract.ok && (input.includePolicy ? (item.policy?.ok ?? true) : true))
+            ? "passed" in contract.value.contract && contract.value.contract.passed && (contract.value.policy ? !("passed" in contract.value.policy) || contract.value.policy.passed : true)
+            : checks.every((item: any) => "passed" in item.contract && item.contract.passed && (input.includePolicy ? !item.policy || !("passed" in item.policy) || item.policy.passed : true))
     const invariant = assertWorkspaceInvariants(workspace, userId, { notebookId: input.notebookId })
     if (!invariant.ok) return invariant
 
@@ -4414,7 +4441,7 @@ export const agenticContractEnforcer = (workspace: VisualNoteWorkspace, userId: 
         const refreshed = agenticContractCheck(repaired.value.workspace, userId, { notebookId: input.notebookId, includePolicy: input.includePolicy ?? true })
         return ok({
             ...contract.value,
-            passed: refreshed.ok ? (refreshed.value.scope === "notebook" ? refreshed.value.contract.ok : true) : passed,
+            passed: refreshed.ok ? (refreshed.value.scope === "notebook" ? "passed" in refreshed.value.contract && refreshed.value.contract.passed : true) : passed,
             autoFixed: true,
             fixedWorkspace: repaired.value.workspace,
             refreshed: refreshed.ok ? refreshed.value : null,
@@ -4434,7 +4461,9 @@ export const agenticToolSelector = (workspace: VisualNoteWorkspace, userId: stri
     const goal = tokenize(safeTrim(input.goal)).map(word => word.toLowerCase())
     if (!goal.length) return invalidInput("goal is required.")
 
-    const capability = listMcpToolCapabilities().value.tools.map(item => item.name)
+    const capabilities = listMcpToolCapabilities()
+    if (!capabilities.ok) return capabilities
+    const capability: string[] = capabilities.value.tools.map(item => item.name)
     if (!capability.includes("list_notebooks")) return invalidInput("Tool registry unavailable.")
     const suggestions: Array<{
         tool: string
@@ -4719,10 +4748,8 @@ export const agenticPreflightGate = (
 
     const blockers = [
         ...(observation.value.health?.blockers ? [`Health blockers: ${observation.value.health.blockers}`] : []),
-        ...(guardrail && !guardrail.ok ? [guardrail.message] : []),
+        ...(!guardrail ? [] : []),
     ]
-
-    if (publishReadiness && !publishReadiness.ok) blockers.push(publishReadiness.message)
 
     const guardrailBlockers = guardrail?.ok ? (guardrail.value.blockers ?? []) : []
     return ok({
@@ -4848,7 +4875,7 @@ export const agenticPlanReconciler = (
             const raw = typeof next[field] === "string" ? String(next[field]) : ""
             if (!raw) {
                 const label = options.fallback ? String(next[options.fallback] ?? "") : ""
-                const found = label ? findByTitle(entityCandidates(entityType), label) : undefined
+                const found = label ? findByTitle(entityCandidates(options.entityType), label) : undefined
                 if (!found) {
                     unresolved.push({
                         tool: op.tool,
@@ -5121,7 +5148,7 @@ export const agenticMultiNotebookBatch = (
                 notebookId: notebook.id,
                 status: "ok",
                 blockers: impact.value.operationReports.flatMap(item => item.warnings),
-                applied: impact.value.executed,
+                applied: impact.value.operationReports.length,
                 workspaceChanged: false,
             })
             continue
@@ -5244,7 +5271,7 @@ export const agenticPublishReadinessGate = (
         notebookId: string
         passed: boolean
         blockers?: string[]
-        contract?: ContractCheck
+        contract?: unknown
         error?: string
     }> = []
     const contractErrors: string[] = []
@@ -5261,7 +5288,7 @@ export const agenticPublishReadinessGate = (
             notebookId,
             passed: check.value.passed,
             contract: check.value,
-            blockers: check.value.blockers,
+            blockers: check.value.blockingChecks.filter((item: PublishContractCheck) => !item.passed).map((item: PublishContractCheck) => item.message),
         })
     })
 
@@ -5635,15 +5662,16 @@ export const driftReasoningReport = (workspace: VisualNoteWorkspace, userId: str
     if (!drift.ok) return drift
     const gaps = analyzeWorkspaceGaps(workspace, userId, { notebookId: input.notebookId, includeHealthSummary: true })
 
-    const reasons: DriftReason[] = drift.value.staleItems.map(item => {
+    const reasons: DriftReason[] = drift.value.staleItems.flatMap(item => {
+        if (item.scope === "display") return []
         const recommendation = item.scope === "view" ? "Review content and add structured display blocks if content is stable." : "Review and either repurpose or remove."
-        return {
+        return [{
             scope: item.scope,
             id: item.id,
             title: item.title,
             reason: item.reason,
             suggestion: recommendation,
-        }
+        }]
     })
 
     return ok({
@@ -6004,7 +6032,8 @@ export const generateTopicFromOutline = (
     const sections = parseOutlineSections(safeTrim(input.outline))
     if (sections.length === 0) return invalidInput("outline did not contain valid topics or views.")
 
-    const targetPage = input.pageId
+    let nextWorkspace = workspace
+    const pageResult = input.pageId
         ? findOwnedPage(workspace, userId, input.pageId)
         : input.pageTitle
           ? createPage(cloneWorkspace(workspace), userId, {
@@ -6013,9 +6042,12 @@ export const generateTopicFromOutline = (
             })
           : undefined
 
-    if (!targetPage) return notFound("Target page not found.")
-    let nextWorkspace = targetPage.ok ? targetPage.value.workspace : workspace
-    const page = targetPage.ok ? targetPage.value.page : findOwnedPage(nextWorkspace, userId, input.pageId ?? "")?.page
+    if (!pageResult) return notFound("Target page not found.")
+    if ("ok" in pageResult) {
+        if (!pageResult.ok) return pageResult
+        nextWorkspace = pageResult.value.workspace
+    }
+    const page = "ok" in pageResult ? pageResult.value.page : pageResult.page
 
     if (!page) return notFound("Target page not found.")
 
@@ -6144,7 +6176,7 @@ export const previewRenderProfile = (workspace: VisualNoteWorkspace, userId: str
     })
 }
 
-const applyChangePlanOperation = (workspace: VisualNoteWorkspace, userId: string, operation: ChangePlanOperation): WorkspaceOperationResult<{ workspace: VisualNoteWorkspace }> => {
+const applyChangePlanOperation = (workspace: VisualNoteWorkspace, userId: string, operation: ChangePlanOperation): WorkspaceOperationResult<WorkspaceMutationResultValue> => {
     const input = operation.input
     if (!input || typeof input !== "object") return invalidInput(`Invalid input for ${operation.tool}.`)
 
@@ -6371,7 +6403,7 @@ const applyChangePlanOperation = (workspace: VisualNoteWorkspace, userId: string
         case "apply_article_patch":
             return applyArticlePatch(workspace, userId, {
                 viewId: asString(inputData.viewId),
-                operations: Array.isArray(inputData.operations) ? (inputData.operations as Array<Record<string, unknown>>) : [],
+                operations: Array.isArray(inputData.operations) ? (inputData.operations as ArticlePatchOperation[]) : [],
             })
         case "publish_notebook":
             return publishNotebook(workspace, userId, {
@@ -6395,10 +6427,11 @@ const collectIssueSummary = (workspace: VisualNoteWorkspace, userId: string) => 
     const health = workspaceHealthCheck(workspace, userId)
     return health.ok
         ? {
+              issues: health.value.issues.length,
               totalIssues: health.value.issues.length,
               blockers: health.value.issues.filter(item => item.severity === "error").length,
           }
-        : { totalIssues: 0, blockers: 0 }
+        : { issues: 0, totalIssues: 0, blockers: 0 }
 }
 
 export const computeChangeImpact = (workspace: VisualNoteWorkspace, userId: string, input: { operations: ChangePlanOperation[]; maxSteps?: number }) => {
@@ -6799,7 +6832,10 @@ export const executePlanWithGuarantees = (
         if (!notebook) return notFound("Notebook not found.")
     }
 
-    const operations = input.plan.slice(0, input.maxSteps ?? input.plan.length)
+    const operations = input.plan.slice(0, input.maxSteps ?? input.plan.length).map(operation => ({
+        ...operation,
+        input: operation.input ?? {},
+    }))
     const attempted = applyChangePlan(workspace, userId, {
         operations,
         continueOnFailure: input.continueOnFailure,
@@ -7041,7 +7077,7 @@ export const exportPublishBundle = (workspace: VisualNoteWorkspace, userId: stri
     return ok({
         notebookId: notebook.id,
         notebookTitle: notebook.title,
-        markdown: markdownExport.value.markdown,
+        markdown: "markdown" in markdownExport.value ? markdownExport.value.markdown : "",
         web: webExport?.ok ? webExport.value.html : undefined,
         json: input.includeJson ? JSON.stringify(body) : undefined,
         diagnostics: {
@@ -7522,7 +7558,9 @@ export const listMcpToolCapabilities = () =>
     })
 
 export const describeMcpTool = (toolName: string): WorkspaceOperationResult<{ name: string; description: string }> => {
-    const match = listMcpToolCapabilities().value.tools.find(tool => tool.name === toolName)
+    const capabilities = listMcpToolCapabilities()
+    if (!capabilities.ok) return capabilities
+    const match = capabilities.value.tools.find(tool => tool.name === toolName)
     if (!match) return notFound("Tool not found.")
     return ok(match)
 }

@@ -68,6 +68,7 @@ export type NotebookView = {
     title: string
     mode: ViewMode
     content: string
+    position?: number
     displays: DisplayInstance[]
     componentIds?: string[]
 }
@@ -76,6 +77,7 @@ export type DisplayInstance = {
     id: string
     name: string
     kind: ComponentKind
+    position?: number
     data: Record<string, unknown>
 }
 

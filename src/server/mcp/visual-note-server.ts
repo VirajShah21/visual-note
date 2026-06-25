@@ -71,9 +71,9 @@ const withWorkspace = async <T>(extra: ToolExtra, action: (workspace: VisualNote
     return action(workspace, context)
 }
 
-const withWorkspaceMutation = async <T>(
+const withWorkspaceMutation = async (
     extra: ToolExtra,
-    action: (workspace: VisualNoteWorkspace, context: RequestContext) => Promise<WorkspaceOperationResult<T>> | WorkspaceOperationResult<T>,
+    action: (workspace: VisualNoteWorkspace, context: RequestContext) => Promise<WorkspaceOperationResult<object & { workspace?: VisualNoteWorkspace }>> | WorkspaceOperationResult<object & { workspace?: VisualNoteWorkspace }>,
 ) =>
     (async () => {
         const context = requestContextFrom(extra.authInfo)
@@ -83,7 +83,7 @@ const withWorkspaceMutation = async <T>(
         const result = await action(loaded.workspace, context)
         if (!result.ok) return jsonResult(result)
 
-        const value = result.value as T & { workspace?: VisualNoteWorkspace }
+        const value = result.value
         if (!value.workspace) return jsonResult({ ok: false, error: "invalid_input", message: "Mutation did not return a workspace." })
 
         const publicValue = { ...value }
@@ -92,7 +92,7 @@ const withWorkspaceMutation = async <T>(
         return jsonResult({ ok: true, ...publicValue })
     })()
 
-const withWorkspaceReadResult = async <T>(extra: ToolExtra, action: (workspace: VisualNoteWorkspace, context: RequestContext) => WorkspaceOperationResult<T>) =>
+const withWorkspaceReadResult = async (extra: ToolExtra, action: (workspace: VisualNoteWorkspace, context: RequestContext) => WorkspaceOperationResult<unknown>) =>
     withWorkspace(extra, (workspace, context) => operationResult(action(workspace, context)))
 
 const requireAtLeastOne = (schema: Record<string, unknown>, fields: string[]) =>
@@ -854,11 +854,7 @@ export const registerVisualNoteMcpTools = (server: McpServer) => {
                 position: z.number().int().min(0).optional(),
             }),
         },
-        async (input, extra) =>
-            withWorkspaceMutation<Record<string, unknown>>(
-                extra,
-                (workspace, context) => workspaceOps.importDataBlock(workspace, context.userId, input) as WorkspaceOperationResult<Record<string, unknown>>,
-            ),
+        async (input, extra) => withWorkspaceMutation(extra, (workspace, context) => workspaceOps.importDataBlock(workspace, context.userId, input)),
     )
 
     server.registerTool(
