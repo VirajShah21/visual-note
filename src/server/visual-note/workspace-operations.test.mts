@@ -60,7 +60,7 @@ test("reads notebook trees in page and topic position order", () => {
     )
 })
 
-test("creates an article path while reusing existing page and topic records", () => {
+test("creates or reuses notebook page-topic paths and updates article content", () => {
     const workspace = baseWorkspace()
     const result = createArticle(workspace, "user-1", {
         notebookId: "notebook-1",
@@ -74,7 +74,7 @@ test("creates an article path while reusing existing page and topic records", ()
     if (!result.ok) return
     assert.equal(result.value.createdPage, false)
     assert.equal(result.value.createdTopic, false)
-    assert.equal(result.value.createdView, false)
+    assert.equal(result.value.createdView, true)
     assert.equal(result.value.workspace.pages.length, workspace.pages.length)
     assert.match(result.value.view.content, /## Reused/)
 })
