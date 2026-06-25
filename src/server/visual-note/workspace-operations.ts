@@ -3051,14 +3051,13 @@ export const agenticGoalToPipeline = (
     })
     if (!plan.ok) return plan
 
-    if (!input.includeOptimized) {
+    if (!input.includeOptimized)
         return ok({
             ...plan.value,
             toolChain: plan.value.plan,
             pipeline: "raw",
             prechecksEnabled: input.includePrechecks ?? false,
         })
-    }
 
     const optimized = agenticPlanOptimizer(workspace, userId, {
         plan: plan.value.plan,
@@ -3215,11 +3214,7 @@ export const makeRevertPoint = (workspace: VisualNoteWorkspace, userId: string, 
     return ok({ ...result.value, revertPointId: result.value.snapshot.id, createdAt })
 }
 
-export const agenticWorkspaceSnapshotBefore = (
-    workspace: VisualNoteWorkspace,
-    userId: string,
-    input: { notebookId?: string; name?: string; note?: string; goal?: string },
-) => {
+export const agenticWorkspaceSnapshotBefore = (workspace: VisualNoteWorkspace, userId: string, input: { notebookId?: string; name?: string; note?: string; goal?: string }) => {
     if (input.notebookId) {
         const notebook = findOwnedNotebook(workspace, userId, input.notebookId)
         if (!notebook) return notFound("Notebook not found.")
@@ -3479,11 +3474,7 @@ export const proposeSchemaEvolution = (workspace: VisualNoteWorkspace, userId: s
     })
 }
 
-export const agenticSchemaEvolutionPlan = (
-    workspace: VisualNoteWorkspace,
-    userId: string,
-    input: { notebookId?: string; apply?: boolean; maxActions?: number },
-) => {
+export const agenticSchemaEvolutionPlan = (workspace: VisualNoteWorkspace, userId: string, input: { notebookId?: string; apply?: boolean; maxActions?: number }) => {
     const proposal = proposeSchemaEvolution(workspace, userId, { notebookId: input.notebookId })
     if (!proposal.ok) return proposal
 
@@ -3518,7 +3509,7 @@ export const agenticSchemaEvolutionPlan = (
             return
         }
 
-        if (item.scope === "topic" && item.action === "populate_topic_summary" && item.id) {
+        if (item.scope === "topic" && item.action === "populate_topic_summary" && item.id)
             operations.push({
                 tool: "rename_topic",
                 input: {
@@ -3526,7 +3517,6 @@ export const agenticSchemaEvolutionPlan = (
                     summary: "This topic was auto-populated during schema evolution planning.",
                 },
             })
-        }
     })
 
     if (!input.apply) return ok({ ...proposal.value, requested: requested, operations, applied: false })
@@ -3745,11 +3735,8 @@ export const navigationRestructurePlan = (workspace: VisualNoteWorkspace, userId
     return ok({ ...planned.value, ...executed.value, plan: operations, applied: true })
 }
 
-export const agenticNavigationRestructurePlan = (
-    workspace: VisualNoteWorkspace,
-    userId: string,
-    input: { notebookId: string; execute?: boolean; dryRun?: boolean },
-) => navigationRestructurePlan(workspace, userId, input)
+export const agenticNavigationRestructurePlan = (workspace: VisualNoteWorkspace, userId: string, input: { notebookId: string; execute?: boolean; dryRun?: boolean }) =>
+    navigationRestructurePlan(workspace, userId, input)
 
 export const publishPreflightMultiNotebook = (workspace: VisualNoteWorkspace, userId: string, input: { notebookIds?: string[]; includeRecoveryPlan?: boolean }) => {
     const targetNotebooks = input.notebookIds?.length
@@ -5431,7 +5418,12 @@ export const agenticDataIngestValidateAndApply = (
         return ok({
             ...parsed.value,
             validateRequested: Boolean(input.validate),
-            validation: parsed.value.mode === "preview" ? undefined : parsed.value.workspace ? validateAfterMutation(parsed.value.workspace, userId, { notebookId: parsed.value.notebookId }).ok : false,
+            validation:
+                parsed.value.mode === "preview"
+                    ? undefined
+                    : parsed.value.workspace
+                      ? validateAfterMutation(parsed.value.workspace, userId, { notebookId: parsed.value.notebookId }).ok
+                      : false,
         })
 
     const validation = validateAfterMutation(parsed.value.workspace, userId, { notebookId: parsed.value.notebookId })
@@ -5486,11 +5478,7 @@ export const agenticComponentCompatibilityCheck = (
     })
 }
 
-export const agenticComponentContractAudit = (
-    workspace: VisualNoteWorkspace,
-    userId: string,
-    input: { notebookId?: string; viewId?: string },
-) => {
+export const agenticComponentContractAudit = (workspace: VisualNoteWorkspace, userId: string, input: { notebookId?: string; viewId?: string }) => {
     const scope = scopedWorkspaceEntities(workspace, userId, input.notebookId)
     if (scope.notebooks.length === 0) return notFound("No matching notebook found.")
 
