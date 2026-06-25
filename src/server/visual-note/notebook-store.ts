@@ -113,9 +113,7 @@ export const listNotebookIdsForUser = async (supabase: SupabaseClient, userId: s
 
 export const userOwnsNotebook = async (supabase: SupabaseClient, userId: string, notebookId: string): Promise<boolean> => {
     const { data, error } = await supabase.from("visual_note_notebooks").select("id").eq("user_id", userId).eq("id", notebookId).maybeSingle()
-    if (error) {
-        return false
-    }
+    if (error) return false
 
     return Boolean(data?.id)
 }

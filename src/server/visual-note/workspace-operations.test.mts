@@ -1,9 +1,9 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { parseArticleContent } from "../../lib/visual-note/article-content.ts"
-import { serializeVisualBlockBody } from "../../lib/visual-note/visual-blocks.ts"
-import type { VisualNoteWorkspace } from "../../lib/visual-note/types.ts"
-import { createArticle, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, upsertVisualBlock } from "./workspace-operations.ts"
+import { parseArticleContent } from "../../lib/visual-note/article-content"
+import { serializeVisualBlockBody } from "../../lib/visual-note/visual-blocks"
+import type { VisualNoteWorkspace } from "../../lib/visual-note/types"
+import { createArticle, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, upsertVisualBlock } from "./workspace-operations"
 
 const baseWorkspace = (): VisualNoteWorkspace => ({
     notebooks: [

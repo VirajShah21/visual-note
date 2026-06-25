@@ -1,9 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { loadOwnedWorkspace, normalizeWorkspace } from "@/lib/supabase/server"
+import { loadOwnedWorkspace } from "@/lib/supabase/server"
 import { createExportDocument } from "@/lib/visual-note/export/document"
 import { renderMarkdownExport } from "@/lib/visual-note/export/markdown"
 import { resolveExportAssets } from "@/lib/visual-note/export/assets"
-import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
+import { normalizeWorkspace } from "@/lib/visual-note/factories"
+import type { NotebookPage, VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { deleteNotebooksNotIn, listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { deletePagesNotIn, hydrateWorkspaceFromPageRows, listPagesForUserByNotebooks, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
 import { readPageMarkdown, savePageMarkdown } from "@/server/visual-note/page-content-store"
@@ -26,9 +27,18 @@ const pageMarkdownFromWorkspace = async (workspace: VisualNoteWorkspace, pageId:
     return renderMarkdownExport(document, { assetMode: "ignore", assetResolution: context })
 }
 
+const loadLegacyWorkspaceForUser = async (supabase: SupabaseClient, userId: string): Promise<VisualNoteWorkspace | null> => {
+    const legacy = await loadOwnedWorkspace({ supabase, userId })
+    if (!legacy) return null
+
+    return normalizeWorkspace(legacy)
+}
+
 export const loadWorkspaceForUser = async (supabase: SupabaseClient, userId: string): Promise<VisualNoteWorkspace | null> => {
-    const notebooks = await listNotebooksForUser(supabase, userId)
-    if (notebooks.length > 0) {
+    try {
+        const notebooks = await listNotebooksForUser(supabase, userId)
+        if (notebooks.length === 0) return await loadLegacyWorkspaceForUser(supabase, userId)
+
         const pageRows = await listPagesForUserByNotebooks(supabase, userId)
         const { pages, topics, views } = hydrateWorkspaceFromPageRows(pageRows)
         const orderedPages = [...pages].sort((first, second) => {
@@ -49,44 +59,46 @@ export const loadWorkspaceForUser = async (supabase: SupabaseClient, userId: str
             topics,
             views,
         }
+    } catch (error) {
+        const legacy = await loadLegacyWorkspaceForUser(supabase, userId)
+        if (legacy) return legacy
+
+        throw error
     }
-
-    const legacy = await loadOwnedWorkspace({ supabase, userId })
-    if (!legacy) return null
-
-    return normalizeWorkspace(legacy)
 }
 
 export const saveWorkspaceForUser = async (supabase: SupabaseClient, userId: string, workspace: VisualNoteWorkspace) => {
     const normalizedWorkspace = normalizeWorkspace(workspace)
-    const notebookIds = new Set(normalizedWorkspace.notebooks.filter(item => item.userId === userId).map(item => item.id))
+    const notebookIds = new Set<string>(normalizedWorkspace.notebooks.filter(item => item.userId === userId).map(item => item.id))
 
     await upsertNotebooks(supabase, userId, normalizedWorkspace.notebooks)
     await deleteNotebooksNotIn(supabase, userId, notebookIds)
 
     await Promise.all(
-        normalizedWorkspace.pages.filter(page => notebookIds.has(page.notebookId)).map(async page => {
-            const contentObjectKey = makePageObjectKey(page.notebookId, page.id)
-            const topics = normalizedWorkspace.topics.filter(topic => topic.pageId === page.id)
-            const topicIds = new Set(topics.map(topic => topic.id))
-            const views = normalizedWorkspace.views.filter(view => topicIds.has(view.topicId))
+        normalizedWorkspace.pages
+            .filter((page: NotebookPage) => notebookIds.has(page.notebookId))
+            .map(async page => {
+                const contentObjectKey = makePageObjectKey(page.notebookId, page.id)
+                const topics = normalizedWorkspace.topics.filter(topic => topic.pageId === page.id)
+                const topicIds = new Set<string>(topics.map(topic => topic.id))
+                const views = normalizedWorkspace.views.filter(view => topicIds.has(view.topicId))
 
-            await upsertPages(supabase, userId, [
-                {
-                    page,
-                    notebookId: page.notebookId,
-                    topics,
-                    views,
-                    contentObjectKey,
-                },
-            ])
+                await upsertPages(supabase, userId, [
+                    {
+                        page,
+                        notebookId: page.notebookId,
+                        topics,
+                        views,
+                        contentObjectKey,
+                    },
+                ])
 
-            const markdown = await pageMarkdownFromWorkspace(normalizedWorkspace, page.id)
-            await savePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, markdown, contentObjectKey)
-        }),
+                const markdown = await pageMarkdownFromWorkspace(normalizedWorkspace, page.id)
+                await savePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, markdown, contentObjectKey)
+            }),
     )
 
-    const pageIds = new Set(normalizedWorkspace.pages.map(page => page.id))
+    const pageIds = new Set<string>(normalizedWorkspace.pages.map(page => page.id))
     await deletePagesNotIn(supabase, userId, pageIds)
     return normalizedWorkspace
 }

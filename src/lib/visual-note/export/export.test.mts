@@ -1,14 +1,14 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import type { VisualChartType } from "../chart-data.ts"
-import { createExportDocument } from "./document.ts"
-import { renderMarkdownExport } from "./markdown.ts"
-import { createPdfChartRenderPlan } from "./pdf-chart-render-plan.ts"
-import { createPdfRenderModel } from "./pdf-model.ts"
-import { createServerPackageFiles, renderWebHtml } from "./web.ts"
-import { defaultVisualBlockData, serializeVisualBlockBody, visualBlockKinds } from "../visual-blocks.ts"
-import type { VisualNoteWorkspace } from "../types.ts"
-import type { ExportAssetMode, ExportAssetResolution, PdfRenderBlock } from "./types.ts"
+import type { VisualChartType } from "../chart-data"
+import { createExportDocument } from "./document"
+import { renderMarkdownExport } from "./markdown"
+import { createPdfChartRenderPlan } from "./pdf-chart-render-plan"
+import { createPdfRenderModel } from "./pdf-model"
+import { createServerPackageFiles, renderWebHtml } from "./web"
+import { defaultVisualBlockData, serializeVisualBlockBody, visualBlockKinds } from "../visual-blocks"
+import type { VisualNoteWorkspace } from "../types"
+import type { ExportAssetMode, ExportAssetResolution, PdfRenderBlock } from "./types"
 
 type PdfChartRenderBlock = Extract<PdfRenderBlock, { kind: "chart" }>
 

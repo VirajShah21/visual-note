@@ -35,15 +35,9 @@ const serializePageMarkdown = async (workspace, pageId) => {
 }
 
 const loadCounts = async (supabase, userId) => {
-    const { count: notebookCount, error: notebookCountError } = await supabase
-        .from("visual_note_notebooks")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
+    const { count: notebookCount, error: notebookCountError } = await supabase.from("visual_note_notebooks").select("id", { count: "exact", head: true }).eq("user_id", userId)
 
-    const { count: pageCount, error: pageCountError } = await supabase
-        .from("visual_note_pages")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
+    const { count: pageCount, error: pageCountError } = await supabase.from("visual_note_pages").select("id", { count: "exact", head: true }).eq("user_id", userId)
 
     if (notebookCountError || pageCountError) throw new Error(notebookCountError?.message || pageCountError?.message)
 
@@ -55,12 +49,7 @@ const summarizeSample = async (supabase, userId, workspace, samplePage) => {
 
     const expectedMarkdown = await serializePageMarkdown(workspace, samplePage.id)
     const expectedObjectKey = makePageObjectKey(samplePage.notebookId, samplePage.id)
-    const { data: pageRow } = await supabase
-        .from("visual_note_pages")
-        .select("id,notebook_id,content_object_key")
-        .eq("user_id", userId)
-        .eq("id", samplePage.id)
-        .maybeSingle()
+    const { data: pageRow } = await supabase.from("visual_note_pages").select("id,notebook_id,content_object_key").eq("user_id", userId).eq("id", samplePage.id).maybeSingle()
 
     const actualMarkdown = await readPageMarkdown({ supabase, userId }, samplePage.id)
 
@@ -96,12 +85,7 @@ const migrateUserWorkspace = async (supabase, userId, workspaceRow) => {
         const views = workspace.views.filter(view => topicIds.has(view.topicId))
         const contentObjectKey = makePageObjectKey(page.notebookId, page.id)
 
-        const { data: existing } = await supabase
-            .from("visual_note_pages")
-            .select("content_object_key")
-            .eq("user_id", userId)
-            .eq("id", page.id)
-            .maybeSingle()
+        const { data: existing } = await supabase.from("visual_note_pages").select("content_object_key").eq("user_id", userId).eq("id", page.id).maybeSingle()
 
         await upsertPages(supabase, userId, [
             {
@@ -182,28 +166,22 @@ const main = async () => {
             errors: result.contentChecks.errors,
         }
 
-        if (result.sourceNotebooks !== counts.notebookCount || result.sourcePages !== counts.pageCount || result.contentChecks.failedWrites > 0) {
+        if (result.sourceNotebooks !== counts.notebookCount || result.sourcePages !== counts.pageCount || result.contentChecks.failedWrites > 0)
             failures.push({
                 userId,
-                reason:
-                    result.contentChecks.failedWrites > 0
-                        ? "markdown write failures occurred"
-                        : "page/notebook parity mismatch after migration",
+                reason: result.contentChecks.failedWrites > 0 ? "markdown write failures occurred" : "page/notebook parity mismatch after migration",
                 details: result.contentChecks.errors,
             })
-        }
 
         const sampleFailed = sampleChecks.some(
-            check =>
-                !check.samplePageIdMatch || !check.sampleContentMatch || !check.sampleObjectKeyMatch || !check.sampleNotebookMatch || !check.sampleObjectExists,
+            check => !check.samplePageIdMatch || !check.sampleContentMatch || !check.sampleObjectKeyMatch || !check.sampleNotebookMatch || !check.sampleObjectExists,
         )
-        if (sampleFailed) {
+        if (sampleFailed)
             failures.push({
                 userId,
                 reason: "sample markdown parity check failed",
                 details: sampleChecks,
             })
-        }
 
         reports.push(report)
     }

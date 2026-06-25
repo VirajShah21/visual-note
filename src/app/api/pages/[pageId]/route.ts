@@ -1,8 +1,10 @@
 import { z } from "zod"
 import { authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
+import { normalizeNotebookEditorSettings } from "@/lib/visual-note/factories"
 import { savePageMarkdown } from "@/server/visual-note/page-content-store"
 import { listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
+import type { ComponentKind, Notebook } from "@/lib/visual-note/types"
 
 const topicSchema = z.object({
     id: z.string(),
@@ -12,17 +14,60 @@ const topicSchema = z.object({
     position: z.number().int().nonnegative(),
 })
 
-const displaySchema = z.record(z.unknown())
+const displaySchema = z.object({
+    id: z.string().optional(),
+    name: z.string().optional(),
+    kind: z.string().optional(),
+    data: z.record(z.string(), z.unknown()).optional(),
+})
+
+const viewModeSchema = z.enum(["article", "structured", "dashboard"])
+
+const editorSettingsSchema = z
+    .object({
+        blockInfo: z.enum(["show", "type-only", "metadata-only"]).optional(),
+        contents: z.enum(["show", "hide-title", "hide"]).optional(),
+        mode: z.enum(["editing", "source", "reader"]).optional(),
+    })
+    .partial()
+    .optional()
 
 const viewSchema = z.object({
     id: z.string(),
     topicId: z.string(),
     title: z.string(),
-    mode: z.string(),
+    mode: viewModeSchema,
     content: z.string(),
     displays: z.array(displaySchema),
     componentIds: z.array(z.string()).optional(),
 })
+
+type ParsedPageUpdate = z.infer<typeof pageUpdateSchema>
+
+const isComponentKind = (value: string | undefined): value is ComponentKind =>
+    value === "data-card" ||
+    value === "checklist" ||
+    value === "timeline" ||
+    value === "dashboard" ||
+    value === "work-logs" ||
+    value === "bugs-list" ||
+    value === "shopping-list" ||
+    value === "pull-request" ||
+    value === "url" ||
+    value === "code-block"
+
+const normalizeDisplay = (display: z.infer<typeof displaySchema>) => ({
+    id: display.id ?? `display-${crypto.randomUUID()}`,
+    name: display.name?.trim() || "Display",
+    kind: isComponentKind(display.kind) ? display.kind : "data-card",
+    data: display.data ?? {},
+})
+
+const parseDisplayInputs = (views: ParsedPageUpdate["views"]) =>
+    views.map(view => ({
+        ...view,
+        displays: view.displays.map(display => normalizeDisplay(display)),
+    }))
 
 const notebookSchema = z.object({
     id: z.string(),
@@ -32,7 +77,7 @@ const notebookSchema = z.object({
     summary: z.string(),
     color: z.string(),
     createdAt: z.string(),
-    editorSettings: z.record(z.unknown()).optional(),
+    editorSettings: editorSettingsSchema,
 })
 
 const pageSchema = z.object({
@@ -88,7 +133,12 @@ export async function PUT(request: Request, context: RouteContext<"/api/pages/[p
     const existing = await loadPageById(auth.supabase, auth.userId, pageId)
     const isCreate = !existing
 
-    let notebookPayload = notebook
+    let notebookPayload: Notebook | null = notebook
+        ? {
+              ...notebook,
+              editorSettings: notebook.editorSettings ? normalizeNotebookEditorSettings(notebook.editorSettings) : undefined,
+          }
+        : null
 
     if (isCreate) {
         if (notebookPayload) {
@@ -96,7 +146,7 @@ export async function PUT(request: Request, context: RouteContext<"/api/pages/[p
             if (notebookPayload.userId !== auth.userId) return Response.json({ error: "Notebook mismatch." }, { status: 400 })
         } else {
             const notebooks = await listNotebooksForUser(auth.supabase, auth.userId)
-            notebookPayload = notebooks.find(item => item.id === page.notebookId)
+            notebookPayload = notebooks.find(item => item.id === page.notebookId) ?? null
             if (!notebookPayload) return Response.json({ error: "Page not found." }, { status: 404 })
         }
 
@@ -121,14 +171,12 @@ export async function PUT(request: Request, context: RouteContext<"/api/pages/[p
             page,
             notebookId: page.notebookId,
             topics,
-            views,
+            views: parseDisplayInputs(views),
             contentObjectKey: objectKey,
         },
     ])
 
-    if (typeof markdown === "string") {
-        await savePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebookId, id: page.id }, markdown, objectKey)
-    }
+    if (typeof markdown === "string") await savePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebookId, id: page.id }, markdown, objectKey)
 
     return Response.json({
         page: {

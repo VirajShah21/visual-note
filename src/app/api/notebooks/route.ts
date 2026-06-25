@@ -45,8 +45,12 @@ export async function GET(request: Request) {
     const auth = await authenticateSupabaseRequest(request)
     if (auth instanceof Response) return auth
 
-    const workspace = await loadWorkspaceForUser(auth.supabase, auth.userId)
-    return Response.json({ workspace: workspace ?? { notebooks: [], pages: [], topics: [], views: [] } })
+    try {
+        const workspace = await loadWorkspaceForUser(auth.supabase, auth.userId)
+        return Response.json({ workspace: workspace ?? { notebooks: [], pages: [], topics: [], views: [] } })
+    } catch (error) {
+        return Response.json({ error: error instanceof Error ? error.message : "Unable to load workspace." }, { status: 500 })
+    }
 }
 
 export async function POST(request: Request) {

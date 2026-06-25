@@ -93,9 +93,7 @@ export const saveVisualNoteWorkspace = async (workspace: VisualNoteWorkspace) =>
             body: JSON.stringify({ markdown }),
         })
 
-        if (!contentResponse.ok) {
-            throw new Error(await parseError(contentResponse, `Unable to save content for page ${page.id}.`))
-        }
+        if (!contentResponse.ok) throw new Error(await parseError(contentResponse, `Unable to save content for page ${page.id}.`))
     })
 
     await Promise.all(requests)

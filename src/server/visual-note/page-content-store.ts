@@ -5,9 +5,7 @@ import { resolveNotebookStorage } from "@/server/storage/notebook-storage"
 
 const streamToText = async (stream: NodeJS.ReadableStream): Promise<string> => {
     const chunks: Uint8Array[] = []
-    for await (const chunk of stream) {
-        chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : Buffer.from(chunk))
-    }
+    for await (const chunk of stream) chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : Buffer.from(chunk))
 
     return Buffer.concat(chunks).toString("utf8")
 }
@@ -38,12 +36,7 @@ export const readPageMarkdown = async (context: AuthContext, pageId: string): Pr
     }
 }
 
-export const savePageMarkdown = async (
-    context: AuthContext,
-    page: { notebookId: string; id: string },
-    content: string,
-    objectKeyOverride?: string,
-) => {
+export const savePageMarkdown = async (context: AuthContext, page: { notebookId: string; id: string }, content: string, objectKeyOverride?: string) => {
     const notebookStorage = await resolveNotebookStorage(context.supabase, context.userId, page.notebookId)
     if (!notebookStorage) throw new Error("Configure notebook storage before saving page content to MinIO.")
 

@@ -135,13 +135,15 @@ export const upsertPageFromWorkspace = (supabase: SupabaseClient, userId: string
     const viewIds = new Set(topics.map(topic => topic.id))
     const views = workspace.views.filter(view => viewIds.has(view.topicId))
 
-    return upsertPages(supabase, userId, [{
-        page,
-        notebookId: page.notebookId,
-        topics,
-        views,
-        contentObjectKey,
-    }])
+    return upsertPages(supabase, userId, [
+        {
+            page,
+            notebookId: page.notebookId,
+            topics,
+            views,
+            contentObjectKey,
+        },
+    ])
 }
 
 export const deletePagesNotIn = async (supabase: SupabaseClient, userId: string, allowedPageIds: Set<string>) => {
@@ -168,11 +170,9 @@ export const hydrateWorkspaceFromPageRows = (rows: PageRow[]) => {
     const topics = rows.flatMap(row => row.topics)
     const viewById = new Map<string, NotebookView>()
 
-    rows
-        .flatMap(row => row.views)
-        .forEach(view => {
-            if (!viewById.has(view.id)) viewById.set(view.id, view)
-        })
+    rows.flatMap(row => row.views).forEach(view => {
+        if (!viewById.has(view.id)) viewById.set(view.id, view)
+    })
 
     return {
         pages,

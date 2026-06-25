@@ -2,13 +2,23 @@ import { z } from "zod"
 import { authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
 import { loadWorkspaceForUser } from "@/server/visual-note/workspace-store"
 import { upsertNotebooks } from "@/server/visual-note/notebook-store"
+import { normalizeNotebookEditorSettings } from "@/lib/visual-note/factories"
+
+const editorSettingsSchema = z
+    .object({
+        blockInfo: z.enum(["show", "type-only", "metadata-only"]).optional(),
+        contents: z.enum(["show", "hide-title", "hide"]).optional(),
+        mode: z.enum(["editing", "source", "reader"]).optional(),
+    })
+    .partial()
+    .optional()
 
 const notebookUpdateSchema = z.object({
     title: z.string().min(1).optional(),
     slug: z.string().min(1).optional(),
     summary: z.string().optional(),
     color: z.string().optional(),
-    editorSettings: z.record(z.unknown()).optional(),
+    editorSettings: editorSettingsSchema,
 })
 
 export const runtime = "nodejs"
@@ -54,11 +64,14 @@ export async function PUT(request: Request, context: RouteContext<"/api/notebook
     const parse = notebookUpdateSchema.safeParse(payload)
     if (!parse.success) return Response.json({ error: "Invalid notebook payload." }, { status: 400 })
 
+    const editorSettings = parse.data.editorSettings ? normalizeNotebookEditorSettings(parse.data.editorSettings) : notebook.editorSettings
+
     const next = {
         ...notebook,
         ...parse.data,
         id: notebook.id,
         userId: auth.userId,
+        editorSettings,
     }
 
     await upsertNotebooks(auth.supabase, auth.userId, [next])

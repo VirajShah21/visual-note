@@ -42,12 +42,7 @@ export const loadOwnedWorkspace = async ({ supabase, userId }: AuthenticatedSupa
 }
 
 export const userOwnsNotebook = async (context: AuthenticatedSupabaseContext, notebookId: string) => {
-    const { data, error } = await context.supabase
-        .from("visual_note_notebooks")
-        .select("id")
-        .eq("user_id", context.userId)
-        .eq("id", notebookId)
-        .maybeSingle()
+    const { data, error } = await context.supabase.from("visual_note_notebooks").select("id").eq("user_id", context.userId).eq("id", notebookId).maybeSingle()
 
     if (!error && data?.id) return true
 
