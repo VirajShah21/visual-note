@@ -1,1 +1,5 @@
-export * from "./workspace-operations-split/workspace-operations-part-039"
+export { listNotebooks, readNotebookTree } from "./workspace-operations-split/workspace-operations-part-005"
+export { createArticle } from "./workspace-operations-split/workspace-operations-part-006"
+export { readArticle, replaceArticleContent } from "./workspace-operations-split/workspace-operations-part-009"
+export { removeVisualBlock, upsertVisualBlock } from "./workspace-operations-split/workspace-operations-part-037"
+export type { WorkspaceOperationResult } from "./workspace-operations-split/workspace-operations-part-001"
