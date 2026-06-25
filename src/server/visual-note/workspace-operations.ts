@@ -16,7 +16,7 @@ import { renderMarkdownExport } from "@/lib/visual-note/export/markdown"
 import { renderWebHtml } from "@/lib/visual-note/export/web"
 import type { ArticleBlockInfoMode, ArticleContentsMode, NotebookEditorSettings } from "@/lib/visual-note/types"
 
-export type WorkspaceOperationResult<T> = { ok: true; value: T & Record<string, any> } | { ok: false; error: "not_found" | "invalid_input"; message: string }
+export type WorkspaceOperationResult<T> = { ok: true; value: T & Record<string, unknown> } | { ok: false; error: "not_found" | "invalid_input"; message: string }
 
 export type NotebookSummary = {
     id: string
@@ -283,6 +283,9 @@ type ArticlePatchOperation =
     | { op: "move"; from: number; to: number }
 
 type WorkspaceMutationResultValue = object & { workspace: VisualNoteWorkspace }
+type PassableContractPayload = {
+    passed?: boolean
+}
 
 export type ToolImpactReport = {
     tool: string
@@ -355,7 +358,7 @@ const defaultEditorSettings = {
     mode: "editing" as const,
 }
 
-const ok = <T>(value: T): WorkspaceOperationResult<T> => ({ ok: true, value: value as T & Record<string, any> })
+const ok = <T>(value: T): WorkspaceOperationResult<T> => ({ ok: true, value: value as T & Record<string, unknown> })
 const notFound = (message: string): WorkspaceOperationResult<never> => ({ ok: false, error: "not_found", message })
 const invalidInput = (message: string): WorkspaceOperationResult<never> => ({ ok: false, error: "invalid_input", message })
 
@@ -364,6 +367,7 @@ const normalizeTitle = (value: string) => value.trim().toLowerCase()
 const safeTrim = (value?: string) => (value ? value.trim() : "")
 const clampIndex = (value: number, max: number) => Math.max(0, Math.min(Math.floor(value), max))
 const cloneWorkspace = (workspace: VisualNoteWorkspace) => JSON.parse(JSON.stringify(workspace)) as VisualNoteWorkspace
+const hasPassedContract = (value: PassableContractPayload) => value.passed === true
 
 const slugify = (value: string) =>
     value
@@ -643,44 +647,6 @@ const appendAgenticObservation = (
                 id: observationId(),
                 createdAt: new Date().toISOString(),
                 ...record,
-            },
-        ],
-    }
-}
-
-const appendAgenticMemory = (
-    workspace: VisualNoteWorkspace,
-    record: {
-        goal: string
-        assumptions: string[]
-        constraints: string[]
-        nextActions: string[]
-        scope?: "workspace" | "notebook"
-        notebookId?: string
-        status?: "ok" | "warning" | "failed"
-        plan?: Array<{ tool: string; input: Record<string, unknown> }>
-        summary?: string
-        note?: string
-    },
-) => {
-    const existing = [...(workspace.agenticMemory ?? [])].slice(-79)
-    return {
-        ...workspace,
-        agenticMemory: [
-            ...existing,
-            {
-                id: `agentic-memory-${createId()}`,
-                createdAt: new Date().toISOString(),
-                goal: safeTrim(record.goal),
-                assumptions: (record.assumptions ?? []).map(item => safeTrim(item)).filter(Boolean),
-                constraints: (record.constraints ?? []).map(item => safeTrim(item)).filter(Boolean),
-                nextActions: (record.nextActions ?? []).map(item => safeTrim(item)).filter(Boolean),
-                scope: record.scope || "workspace",
-                notebookId: record.scope === "notebook" ? record.notebookId : undefined,
-                status: record.status ?? "ok",
-                plan: record.plan ?? [],
-                summary: record.summary ? safeTrim(record.summary) : undefined,
-                note: record.note ? safeTrim(record.note) : undefined,
             },
         ],
     }
@@ -1685,7 +1651,7 @@ export const moveViewToTopic = (workspace: VisualNoteWorkspace, userId: string, 
 
     if (context.topic.id === targetTopic.topic.id) {
         const siblings = byPosition(workspace.views.filter(item => item.topicId === context.topic.id))
-        const position = input.position === undefined ? context.view.position ?? 0 : clampIndex(input.position, siblings.length - 1)
+        const position = input.position === undefined ? (context.view.position ?? 0) : clampIndex(input.position, siblings.length - 1)
         const reordered = moveById(siblings, context.view.id, position)
         if (!reordered) return invalidInput("Unable to reorder view.")
         return ok({
@@ -2085,11 +2051,13 @@ export const setDisplayOrder = (workspace: VisualNoteWorkspace, userId: string, 
 
 export const listDisplayKinds = () =>
     ok({
-        kinds: (["data-card", "checklist", "timeline", "dashboard", "work-logs", "bugs-list", "shopping-list", "pull-request", "url", "code-block"] satisfies ComponentKind[]).map(kind => ({
-            kind,
-            label: defaultDisplayName(kind),
-            defaultData: defaultComponentData(kind),
-        })),
+        kinds: (["data-card", "checklist", "timeline", "dashboard", "work-logs", "bugs-list", "shopping-list", "pull-request", "url", "code-block"] satisfies ComponentKind[]).map(
+            kind => ({
+                kind,
+                label: defaultDisplayName(kind),
+                defaultData: defaultComponentData(kind),
+            }),
+        ),
     })
 
 export const searchWorkspace = (workspace: VisualNoteWorkspace, userId: string, input: { query: string; kinds?: Array<"notebook" | "page" | "topic" | "view" | "display"> }) => {
@@ -4366,7 +4334,6 @@ export const agenticChangeSet = (
     const stepResults: Array<{ step: number; tool: string; blocked: boolean; issueCount: number; warnings: string[]; touched: ReturnType<typeof touchedFromInput> }> = []
     for (let index = 0; index < operations.length; index += 1) {
         const operation = operations[index]
-        const beforeWorkspace = nextWorkspace
         const applied = applyChangePlanOperation(nextWorkspace, userId, operation)
         if (!applied.ok) return invalidInput(`Invalid operation at step ${index + 1}: ${operation.tool}. ${applied.message}`)
 
@@ -4411,7 +4378,8 @@ export const agenticChangeSet = (
         after: afterCount,
         added,
         removed,
-        changed: added.notebooks + added.pages + added.topics + added.views + added.displays + removed.notebooks + removed.pages + removed.topics + removed.views + removed.displays,
+        changed:
+            added.notebooks + added.pages + added.topics + added.views + added.displays + removed.notebooks + removed.pages + removed.topics + removed.views + removed.displays,
         touchedEntityCount: touched.size,
         stepResults,
         plan: operations,
@@ -4426,8 +4394,11 @@ export const agenticContractEnforcer = (workspace: VisualNoteWorkspace, userId: 
     const checks = contract.value.scope === "notebook" ? [contract.value] : contract.value.checks
     const passed =
         contract.value.scope === "notebook"
-            ? "passed" in contract.value.contract && contract.value.contract.passed && (contract.value.policy ? !("passed" in contract.value.policy) || contract.value.policy.passed : true)
-            : checks.every((item: any) => "passed" in item.contract && item.contract.passed && (input.includePolicy ? !item.policy || !("passed" in item.policy) || item.policy.passed : true))
+            ? hasPassedContract(contract.value.contract) && (contract.value.policy ? !("passed" in contract.value.policy) || hasPassedContract(contract.value.policy) : true)
+            : checks.every(
+                  (item: { contract: PassableContractPayload; policy?: PassableContractPayload }) =>
+                      hasPassedContract(item.contract) && (input.includePolicy ? !item.policy || !("passed" in item.policy) || hasPassedContract(item.policy) : true),
+              )
     const invariant = assertWorkspaceInvariants(workspace, userId, { notebookId: input.notebookId })
     if (!invariant.ok) return invariant
 
@@ -4746,10 +4717,7 @@ export const agenticPreflightGate = (
         : undefined
     if (publishReadiness && !publishReadiness.ok) return publishReadiness
 
-    const blockers = [
-        ...(observation.value.health?.blockers ? [`Health blockers: ${observation.value.health.blockers}`] : []),
-        ...(!guardrail ? [] : []),
-    ]
+    const blockers = [...(observation.value.health?.blockers ? [`Health blockers: ${observation.value.health.blockers}`] : []), ...(!guardrail ? [] : [])]
 
     const guardrailBlockers = guardrail?.ok ? (guardrail.value.blockers ?? []) : []
     return ok({
@@ -5665,13 +5633,15 @@ export const driftReasoningReport = (workspace: VisualNoteWorkspace, userId: str
     const reasons: DriftReason[] = drift.value.staleItems.flatMap(item => {
         if (item.scope === "display") return []
         const recommendation = item.scope === "view" ? "Review content and add structured display blocks if content is stable." : "Review and either repurpose or remove."
-        return [{
-            scope: item.scope,
-            id: item.id,
-            title: item.title,
-            reason: item.reason,
-            suggestion: recommendation,
-        }]
+        return [
+            {
+                scope: item.scope,
+                id: item.id,
+                title: item.title,
+                reason: item.reason,
+                suggestion: recommendation,
+            },
+        ]
     })
 
     return ok({

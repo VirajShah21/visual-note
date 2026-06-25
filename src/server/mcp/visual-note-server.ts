@@ -73,7 +73,10 @@ const withWorkspace = async <T>(extra: ToolExtra, action: (workspace: VisualNote
 
 const withWorkspaceMutation = async (
     extra: ToolExtra,
-    action: (workspace: VisualNoteWorkspace, context: RequestContext) => Promise<WorkspaceOperationResult<object & { workspace?: VisualNoteWorkspace }>> | WorkspaceOperationResult<object & { workspace?: VisualNoteWorkspace }>,
+    action: (
+        workspace: VisualNoteWorkspace,
+        context: RequestContext,
+    ) => Promise<WorkspaceOperationResult<object & { workspace?: VisualNoteWorkspace }>> | WorkspaceOperationResult<object & { workspace?: VisualNoteWorkspace }>,
 ) =>
     (async () => {
         const context = requestContextFrom(extra.authInfo)
