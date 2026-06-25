@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 import { parseArticleContent, serializeArticleContent, type ArticleBlock } from "@/lib/visual-note/article-content"
 import {
     createDisplayInstance,
