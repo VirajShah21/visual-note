@@ -5,13 +5,14 @@ import { useCallback, useMemo, useState } from "react"
 import { Stack } from "../primitives"
 import { Button } from "../button"
 import { ModalDialog } from "../overlays"
-import { NotebookGallery, NotebookHomeContent, NotebookHomeShell, NotebookNavigationRail, NotebookTitleField, NotebookTopBar } from "./components"
-import type { NotebookHomeProps } from "./types/notebook-home.types"
+import { NotebookGallery, NotebookHomeContent, NotebookHomeShell, NotebookMcpSetup, NotebookNavigationRail, NotebookTitleField, NotebookTopBar } from "./components"
+import type { NotebookHomeProps, NotebookHomeView } from "./types/notebook-home.types"
 
-export function NotebookHome({ userLabel, storageLabel, notebooks, onCreateNotebook, onSignOut }: NotebookHomeProps) {
+export function NotebookHome({ mcpTokensEnabled, userLabel, storageLabel, notebooks, onCreateNotebook, onSignOut }: NotebookHomeProps) {
     const [query, setQuery] = useState("")
     const [isCreateOpen, setIsCreateOpen] = useState(false)
     const [title, setTitle] = useState("New web notebook")
+    const [activeView, setActiveView] = useState<NotebookHomeView>("notebooks")
 
     const filteredNotebooks = useMemo(() => {
         const normalizedQuery = query.trim().toLowerCase()
@@ -32,10 +33,16 @@ export function NotebookHome({ userLabel, storageLabel, notebooks, onCreateNoteb
 
     return (
         <NotebookHomeShell>
-            <NotebookNavigationRail userLabel={userLabel} storageLabel={storageLabel} onSignOut={onSignOut} />
+            <NotebookNavigationRail activeView={activeView} userLabel={userLabel} storageLabel={storageLabel} onViewChange={setActiveView} onSignOut={onSignOut} />
             <NotebookHomeContent>
-                <NotebookTopBar query={query} onQueryChange={setQuery} onCreate={openCreateDialog} />
-                <NotebookGallery notebooks={filteredNotebooks} />
+                {activeView === "mcp" ? (
+                    <NotebookMcpSetup tokensEnabled={mcpTokensEnabled} />
+                ) : (
+                    <>
+                        <NotebookTopBar query={query} onQueryChange={setQuery} onCreate={openCreateDialog} />
+                        <NotebookGallery notebooks={filteredNotebooks} />
+                    </>
+                )}
             </NotebookHomeContent>
             <ModalDialog open={isCreateOpen} title="Create notebook" description="Start a structured notebook website." onOpenChange={setIsCreateOpen}>
                 <Stack gap="md">

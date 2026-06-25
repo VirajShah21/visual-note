@@ -1,23 +1,11 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
+import { findUserBySessionToken } from "@/server/auth/app-auth-store"
+import { readSessionCookie } from "@/server/auth/session-cookie"
 
 export type AuthenticatedSupabaseContext = {
     supabase: SupabaseClient
     userId: string
-}
-
-export const getSupabaseServerClient = (accessToken: string) => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    if (!url || !key) return null
-
-    return createClient(url, key, {
-        global: {
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-            },
-        },
-    })
 }
 
 export const getSupabaseServiceRoleClient = () => {
@@ -34,17 +22,16 @@ export const getSupabaseServiceRoleClient = () => {
 }
 
 export const authenticateSupabaseRequest = async (request: Request): Promise<AuthenticatedSupabaseContext | Response> => {
-    const header = request.headers.get("authorization") ?? ""
-    const token = header.toLowerCase().startsWith("bearer ") ? header.slice(7).trim() : ""
+    const token = readSessionCookie(request)
     if (!token) return Response.json({ error: "Authentication required." }, { status: 401 })
 
-    const supabase = getSupabaseServerClient(token)
-    if (!supabase) return Response.json({ error: "Supabase is not configured for server routes." }, { status: 503 })
+    const supabase = getSupabaseServiceRoleClient()
+    if (!supabase) return Response.json({ error: "Application database auth is not configured." }, { status: 503 })
 
-    const { data, error } = await supabase.auth.getUser(token)
-    if (error || !data.user) return Response.json({ error: "Authentication required." }, { status: 401 })
+    const user = await findUserBySessionToken(supabase, token)
+    if (!user) return Response.json({ error: "Authentication required." }, { status: 401 })
 
-    return { supabase, userId: data.user.id }
+    return { supabase, userId: user.id }
 }
 
 export const loadOwnedWorkspace = async ({ supabase, userId }: AuthenticatedSupabaseContext) => {
@@ -55,6 +42,10 @@ export const loadOwnedWorkspace = async ({ supabase, userId }: AuthenticatedSupa
 }
 
 export const userOwnsNotebook = async (context: AuthenticatedSupabaseContext, notebookId: string) => {
+    const { data, error } = await context.supabase.from("visual_note_notebooks").select("id").eq("user_id", context.userId).eq("id", notebookId).maybeSingle()
+
+    if (!error && data?.id) return true
+
     const workspace = await loadOwnedWorkspace(context)
     return Boolean(workspace?.notebooks.some(notebook => notebook.id === notebookId && notebook.userId === context.userId))
 }

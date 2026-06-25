@@ -11,7 +11,7 @@ export async function GET(request: Request, context: RouteContext<"/api/notebook
     const { notebookId } = await context.params
     if (!(await userOwnsNotebook(auth, notebookId))) return Response.json({ error: "Notebook not found." }, { status: 404 })
     const storageSupabase = getSupabaseServiceRoleClient()
-    if (!storageSupabase) return Response.json({ error: "Supabase service role is not configured for storage routes." }, { status: 503 })
+    if (!storageSupabase) return Response.json({ error: "Server database access is not configured for storage routes." }, { status: 503 })
 
     try {
         const settings = await loadNotebookStorageSettings(storageSupabase, auth.userId, notebookId)
@@ -28,7 +28,7 @@ export async function PUT(request: Request, context: RouteContext<"/api/notebook
     const { notebookId } = await context.params
     if (!(await userOwnsNotebook(auth, notebookId))) return Response.json({ error: "Notebook not found." }, { status: 404 })
     const storageSupabase = getSupabaseServiceRoleClient()
-    if (!storageSupabase) return Response.json({ error: "Supabase service role is not configured for storage routes." }, { status: 503 })
+    if (!storageSupabase) return Response.json({ error: "Server database access is not configured for storage routes." }, { status: 503 })
 
     try {
         const input = (await request.json()) as NotebookStorageSettingsInput

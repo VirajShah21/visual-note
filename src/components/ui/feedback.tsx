@@ -2,7 +2,7 @@
 
 import { Toast } from "@base-ui/react/toast"
 import { X } from "lucide-react"
-import { useEffect, useMemo } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { cx } from "./class-name"
 import styles from "./feedback.module.css"
 
@@ -33,23 +33,35 @@ export function ToastShelf({ messages, onDismiss }: ToastShelfProps) {
 function ToastShelfContent({ messages, onDismiss }: ToastShelfProps) {
     const manager = Toast.useToastManager()
     const activeIds = useMemo(() => new Set(messages.map(message => message.id)), [messages])
+    const addedIds = useRef(new Set<string>())
+    const closingIds = useRef(new Set<string>())
 
     useEffect(() => {
         messages.forEach(message => {
+            if (addedIds.current.has(message.id)) return
+
+            addedIds.current.add(message.id)
             manager.add({
                 id: message.id,
                 title: message.title,
                 description: message.description,
                 type: message.tone,
                 priority: message.tone === "error" ? "high" : "low",
-                onClose: () => onDismiss(message.id),
+                onClose: () => {
+                    addedIds.current.delete(message.id)
+                    closingIds.current.delete(message.id)
+                    onDismiss(message.id)
+                },
             })
         })
     }, [manager, messages, onDismiss])
 
     useEffect(() => {
         manager.toasts.forEach(toast => {
-            if (!activeIds.has(toast.id)) manager.close(toast.id)
+            if (activeIds.has(toast.id) || closingIds.current.has(toast.id)) return
+
+            closingIds.current.add(toast.id)
+            manager.close(toast.id)
         })
     }, [activeIds, manager])
 

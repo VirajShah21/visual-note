@@ -12,7 +12,7 @@ import { createNotebookSearchResults } from "./utils/notebook-search"
 import styles from "../visual-note-app.module.css"
 
 export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualNoteAppProps) {
-    const { actions, galleryItems, isLoading, notice, sections, selected, supabaseStatus, toastMessages, user, workspace } = useVisualNoteAppController(initialNotebookId)
+    const { actions, authStatus, galleryItems, isLoading, notice, sections, selected, toastMessages, user, workspace } = useVisualNoteAppController(initialNotebookId)
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
     const [isExportOpen, setIsExportOpen] = useState(false)
     const [workspaceView, setWorkspaceView] = useState<"editor" | "settings">("editor")
@@ -22,6 +22,7 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
         [searchQuery, selected.currentSelection, workspace],
     )
     const editorSettings = selected.notebook?.editorSettings ?? defaultNotebookEditorSettings
+    const appAuthReady = authStatus === "ready"
     const openExportDialog = useCallback(() => setIsExportOpen(true), [])
     const toggleSidebar = useCallback(() => setIsSidebarOpen(current => !current), [])
     const openSettings = useCallback(() => setWorkspaceView("settings"), [])
@@ -67,7 +68,7 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     if (!user || !workspace)
         return (
             <>
-                <AuthPanel notice={notice} supabaseStatus={supabaseStatus} onSignIn={actions.signIn} onRegister={actions.register} />
+                <AuthPanel authStatus={authStatus} notice={notice} onSignIn={actions.signIn} onRegister={actions.register} />
                 <ToastShelf messages={toastMessages} onDismiss={actions.dismissToast} />
             </>
         )
@@ -76,8 +77,9 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
         return (
             <Stack className={styles.app}>
                 <NotebookHome
+                    mcpTokensEnabled={appAuthReady}
                     userLabel={user.email}
-                    storageLabel={supabaseStatus === "configured" ? "Supabase connected" : "Demo storage"}
+                    storageLabel="Database storage"
                     notebooks={galleryItems}
                     onCreateNotebook={actions.createNotebookAndOpen}
                     onSignOut={actions.signOut}
@@ -132,7 +134,7 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                             <NotebookSettingsWorkspace
                                 notebookId={selected.currentSelection.notebookId}
                                 notebookTitle={selected.notebook?.title ?? "Notebook"}
-                                storageEnabled={supabaseStatus === "configured"}
+                                storageEnabled={appAuthReady}
                                 onDone={openEditor}
                             />
                         ) : (
@@ -141,7 +143,7 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                                 editorSettings={editorSettings}
                                 onUpdateView={actions.updateView}
                                 onUpdateDisplay={actions.updateDisplay}
-                                onUploadImage={actions.uploadImage}
+                                onUploadImage={appAuthReady ? actions.uploadImage : undefined}
                             />
                         )}
                     </ScrollArea>

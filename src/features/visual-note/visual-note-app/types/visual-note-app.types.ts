@@ -7,8 +7,8 @@ export type VisualNoteAppProps = {
 }
 
 export type AuthPanelProps = {
+    authStatus: "ready" | "unconfigured"
     notice: string
-    supabaseStatus: "configured" | "demo"
     onSignIn: (email: string, password: string, name?: string) => Promise<void>
     onRegister: (email: string, password: string, name: string) => Promise<void>
 }

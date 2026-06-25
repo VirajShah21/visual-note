@@ -3,11 +3,11 @@
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { ToastMessage, ToastTone } from "@/components/ui"
-import { getSupabaseBrowserClient, getSupabaseStatus } from "@/lib/supabase/client"
-import { loadSupabaseWorkspace, saveSupabaseWorkspace } from "@/lib/supabase/workspace"
+import { logoutVisualNoteUser } from "@/lib/visual-note/auth-api"
 import { uploadNotebookImage } from "@/lib/visual-note/storage-api"
-import { createLocalUser, createNotebook, createPage, createSeedWorkspace, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
-import { clearStoredUser, loadStoredUser, loadStoredWorkspace, storeUser, storeWorkspace } from "@/lib/visual-note/storage"
+import { createNotebook, createPage, createSeedWorkspace, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
+import { clearStoredUser, loadStoredWorkspace, storeUser, storeWorkspace } from "@/lib/visual-note/storage"
+import { loadVisualNoteWorkspace, saveVisualNoteWorkspace } from "@/lib/visual-note/workspace-api"
 import type { DisplayInstance, NotebookEditorSettings, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
 import type { NotebookEditorSearchResult } from "@/components/ui"
 import { updateWorkspaceNotebookEditorSettings } from "../utils/notebook-editor-settings"
@@ -20,6 +20,8 @@ import {
     deriveSelection,
     ensureSelectionHasArticleView,
 } from "../utils/visual-note-app.utils"
+import { restoreVisualNoteSession } from "./restore-visual-note-session"
+import { registerVisualNoteAccount, signInVisualNoteUser } from "./visual-note-auth-actions"
 export const useVisualNoteAppController = (initialNotebookId: string) => {
     const router = useRouter()
     const [user, setUser] = useState<VisualUser | null>(null)
@@ -28,7 +30,7 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const [isLoading, setIsLoading] = useState(true)
     const [notice, setNotice] = useState("")
     const [toastMessages, setToastMessages] = useState<ToastMessage[]>([])
-    const supabaseStatus = getSupabaseStatus()
+    const [authStatus, setAuthStatus] = useState<"ready" | "unconfigured">("ready")
     const pushToast = useCallback((title: string, description?: string, tone: ToastTone = "success") => {
         const id = globalThis.crypto?.randomUUID() ?? `${Date.now()}-${Math.random()}`
         setToastMessages(current => [...current.slice(-2), { id, title, description, tone }])
@@ -36,17 +38,18 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const dismissToast = useCallback((id: string) => setToastMessages(current => current.filter(message => message.id !== id)), [])
     useEffect(() => {
         const restore = async () => {
-            const storedUser = loadStoredUser()
-            if (!storedUser) {
+            const restored = await restoreVisualNoteSession(initialNotebookId)
+            if (!restored.user || !restored.workspace || !restored.selection) {
+                setAuthStatus(restored.authStatus)
+                setNotice(restored.authStatus === "unconfigured" ? "Visual Note server database authentication is not configured." : "")
                 setIsLoading(false)
                 return
             }
-            setUser(storedUser)
-            const remoteWorkspace = await loadSupabaseWorkspace(storedUser.id)
-            const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? loadStoredWorkspace(storedUser.id) ?? createSeedWorkspace(storedUser)))
-            const resolved = ensureSelectionHasArticleView(nextWorkspace, { ...blankSelection, notebookId: initialNotebookId })
-            setWorkspace(resolved.workspace)
-            setSelection(resolved.selection)
+            setUser(restored.user)
+            setWorkspace(restored.workspace)
+            setSelection(restored.selection)
+            setAuthStatus(restored.authStatus)
+            setNotice("")
             setIsLoading(false)
         }
         void restore()
@@ -54,7 +57,7 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     useEffect(() => {
         if (!user || !workspace) return
         storeWorkspace(user.id, workspace)
-        void saveSupabaseWorkspace(user.id, workspace)
+        void saveVisualNoteWorkspace(workspace)
     }, [user, workspace])
     const selected = useMemo(() => {
         const currentSelection = deriveSelection(workspace, selection)
@@ -65,56 +68,27 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         return { currentSelection, notebook, page, topic, view }
     }, [selection, workspace])
     const openWorkspaceForUser = async (nextUser: VisualUser) => {
+        setAuthStatus("ready")
         storeUser(nextUser)
         setUser(nextUser)
-        const remoteWorkspace = await loadSupabaseWorkspace(nextUser.id)
+        const remoteWorkspace = await loadVisualNoteWorkspace()
         const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? loadStoredWorkspace(nextUser.id) ?? createSeedWorkspace(nextUser)))
         const resolved = ensureSelectionHasArticleView(nextWorkspace, { ...blankSelection, notebookId: initialNotebookId })
         setWorkspace(resolved.workspace)
         setSelection(resolved.selection)
-        setNotice(
-            supabaseStatus === "configured"
-                ? "Supabase is configured. Workspace changes are mirrored to the configured project."
-                : "Demo mode is active because Supabase env vars are not configured.",
-        )
-        pushToast("Workspace opened", supabaseStatus === "configured" ? "Changes will sync to Supabase." : "Changes will be saved locally in demo mode.", "info")
+        setNotice("Workspace changes are saved to the Visual Note workspace store.")
+        pushToast("Workspace opened", "Changes will save to the workspace database.", "info")
     }
-    const signIn = async (email: string, password: string, name?: string) => {
-        const supabase = getSupabaseBrowserClient()
-        if (supabase) {
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-            if (!error && data.user) {
-                await openWorkspaceForUser({ id: data.user.id, email: data.user.email ?? email, name: data.user.user_metadata.name ?? name ?? email })
-                return
-            }
-            const message = error?.message ?? "Falling back to local demo auth."
-            setNotice(message)
-            pushToast("Using demo auth", message, "info")
-        }
-        await openWorkspaceForUser(createLocalUser(email, name))
-    }
-    const register = async (email: string, password: string, name: string) => {
-        const supabase = getSupabaseBrowserClient()
-        if (supabase) {
-            const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name } } })
-            if (!error && data.user) {
-                await openWorkspaceForUser({ id: data.user.id, email: data.user.email ?? email, name })
-                return
-            }
-
-            const message = error?.message ?? "Falling back to local demo registration."
-            setNotice(message)
-            pushToast("Using demo registration", message, "info")
-        }
-        await openWorkspaceForUser(createLocalUser(email, name))
-    }
+    const authContext = { openWorkspaceForUser, pushToast, setNotice }
+    const signIn = (email: string, password: string) => signInVisualNoteUser(authContext, email, password)
+    const register = (email: string, password: string, name: string) => registerVisualNoteAccount(authContext, email, password, name)
     const signOut = async () => {
-        const supabase = getSupabaseBrowserClient()
-        if (supabase) await supabase.auth.signOut()
+        await logoutVisualNoteUser()
         clearStoredUser()
         setUser(null)
         setWorkspace(null)
         setSelection(blankSelection)
+        setAuthStatus("ready")
         setNotice("")
     }
     const updateWorkspace = (updater: (current: VisualNoteWorkspace) => VisualNoteWorkspace) => setWorkspace(current => (current ? updater(current) : current))
@@ -270,7 +244,7 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         notice,
         sections,
         selected,
-        supabaseStatus,
+        authStatus,
         toastMessages,
         user,
         workspace,

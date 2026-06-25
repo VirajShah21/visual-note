@@ -1,5 +1,7 @@
 import type { ReactNode } from "react"
 
+export type NotebookHomeView = "notebooks" | "mcp"
+
 export type NotebookGalleryItem = {
     id: string
     title: string
@@ -17,6 +19,7 @@ export type NotebookGalleryItem = {
 }
 
 export type NotebookHomeProps = {
+    mcpTokensEnabled: boolean
     userLabel: string
     storageLabel: string
     notebooks: NotebookGalleryItem[]
@@ -33,8 +36,10 @@ export type NotebookHomeContentProps = {
 }
 
 export type NotebookNavigationRailProps = {
+    activeView: NotebookHomeView
     userLabel: string
     storageLabel: string
+    onViewChange: (view: NotebookHomeView) => void
     onSignOut: () => void
 }
 
@@ -42,6 +47,7 @@ export type NotebookNavItemProps = {
     active?: boolean
     icon: ReactNode
     label: string
+    onSelect?: () => void
 }
 
 export type NotebookTopBarProps = {

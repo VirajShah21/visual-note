@@ -1,8 +1,7 @@
 "use client"
 
-/* eslint-disable @next/next/no-img-element -- Inline markdown images use arbitrary URLs and must keep native aspect behavior. */
-
 import { type FocusEvent, type KeyboardEvent, type MouseEvent, useCallback, useReducer, type ReactNode } from "react"
+import Image from "next/image"
 import { cx } from "../../class-name"
 import styles from "../../article-editor.module.css"
 import { BlockTextarea, type BlockTextareaProps } from "./block-textarea"
@@ -34,7 +33,7 @@ const renderInlineMedia = (text: string) => {
         const isImage = match[1] === "!"
         const label = match[2]
         const href = safeInlineUrl(match[3])
-        if (isImage) parts.push(<img key={`${matchStart}-${href}`} className={styles.inlineImage} src={href} alt={label} />)
+        if (isImage) parts.push(<Image key={`${matchStart}-${href}`} className={styles.inlineImage} src={href} alt={label} width={800} height={450} sizes="100vw" unoptimized />)
         else
             parts.push(
                 <a key={`${matchStart}-${href}`} className={styles.inlineLink} href={href} target="_blank" rel="noreferrer">

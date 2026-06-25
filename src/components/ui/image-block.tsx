@@ -1,8 +1,7 @@
 "use client"
 
-/* eslint-disable @next/next/no-img-element -- User-authored article images use arbitrary URLs and need native intrinsic sizing. */
-
 import { Button as BaseButton } from "@base-ui/react/button"
+import Image from "next/image"
 import { createElement, useEffect, useState, type CSSProperties } from "react"
 import { cx } from "./class-name"
 import { fetchPrivateAssetUrl } from "@/lib/visual-note/storage-api"
@@ -97,7 +96,11 @@ export function ImageBlockFigure({
     }, [isPrivateAsset, src])
     const content = (
         <>
-            {resolvedSrc ? <img className={styles.image} src={resolvedSrc} alt={alt} title={title || undefined} /> : <div className={styles.placeholder}>Paste an image URL</div>}
+            {resolvedSrc ? (
+                <Image className={styles.image} src={resolvedSrc} alt={alt} title={title || undefined} width={1200} height={675} sizes="100vw" unoptimized />
+            ) : (
+                <div className={styles.placeholder}>Paste an image URL</div>
+            )}
             {overlayText ? <div className={styles.overlay}>{overlayText}</div> : null}
             {onEdit && !isEditing ? <span className={styles.editOverlay}>{editLabel}</span> : null}
         </>

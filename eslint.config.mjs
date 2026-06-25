@@ -2,6 +2,7 @@ import { defineConfig, globalIgnores } from "eslint/config"
 import css from "@eslint/css"
 import nextVitals from "eslint-config-next/core-web-vitals"
 import nextTs from "eslint-config-next/typescript"
+import noEslintDisable from "./eslint-rules/no-eslint-disable.mjs"
 import prettierConfig from "eslint-config-prettier"
 import prettierRecommended from "eslint-plugin-prettier/recommended"
 import react from "eslint-plugin-react"
@@ -23,6 +24,15 @@ const eslintConfig = defineConfig([
     {
         ...reactHooks.configs.flat["recommended-latest"],
         files: codeFiles,
+    },
+    {
+        files: codeFiles,
+        plugins: {
+            "local-eslint": noEslintDisable,
+        },
+        rules: {
+            "local-eslint/no-eslint-disable": "error",
+        },
     },
     prettierConfig,
     prettierRecommended,
@@ -58,6 +68,7 @@ const eslintConfig = defineConfig([
                 },
             ],
             "no-tabs": "error",
+            "@next/next/no-img-element": "error",
             "react-hooks/exhaustive-deps": "error",
             "react-hooks/memo-dependencies": "error",
             "react-hooks/memoized-effect-dependencies": "error",

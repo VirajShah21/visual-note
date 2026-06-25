@@ -31,7 +31,16 @@ export type Notebook = {
     summary: string
     color: string
     createdAt: string
+    published?: boolean
+    publishedAt?: string
     editorSettings?: NotebookEditorSettings
+}
+
+export type PageSeo = {
+    title?: string
+    description?: string
+    keywords?: string[]
+    canonicalUrl?: string
 }
 
 export type NotebookPage = {
@@ -39,6 +48,8 @@ export type NotebookPage = {
     notebookId: string
     title: string
     position: number
+    content?: string
+    seo?: PageSeo
 }
 
 export type NotebookSection = NotebookPage
@@ -57,6 +68,7 @@ export type NotebookView = {
     title: string
     mode: ViewMode
     content: string
+    position?: number
     displays: DisplayInstance[]
     componentIds?: string[]
 }
@@ -65,6 +77,7 @@ export type DisplayInstance = {
     id: string
     name: string
     kind: ComponentKind
+    position?: number
     data: Record<string, unknown>
 }
 
@@ -73,12 +86,47 @@ export type VisualComponent = DisplayInstance & {
     description: string
 }
 
+export type AgenticMemoryEntry = {
+    id: string
+    createdAt: string
+    scope: "workspace" | "notebook"
+    notebookId?: string
+    goal: string
+    assumptions: string[]
+    constraints: string[]
+    nextActions: string[]
+    status?: "ok" | "warning" | "failed"
+    plan?: Array<{ tool: string; input: Record<string, unknown> }>
+    summary?: string
+    note?: string
+}
+
 export type VisualNoteWorkspace = {
     notebooks: Notebook[]
     pages: NotebookPage[]
     topics: Topic[]
     views: NotebookView[]
     components?: VisualComponent[]
+    agenticMemory?: AgenticMemoryEntry[]
+    agenticObservations?: Array<{
+        id: string
+        createdAt: string
+        goal: string
+        status: "ok" | "warning" | "failed"
+        summary: string
+        plan: Array<{ tool: string; input: Record<string, unknown> }>
+        blockers: string[]
+        note?: string
+    }>
+    snapshots?: WorkspaceSnapshot[]
+}
+
+export type WorkspaceSnapshot = {
+    id: string
+    name: string
+    createdAt: string
+    note?: string
+    workspace: Omit<VisualNoteWorkspace, "snapshots">
 }
 
 export type SelectionState = {

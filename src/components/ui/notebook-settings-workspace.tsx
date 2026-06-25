@@ -140,7 +140,7 @@ export function NotebookSettingsWorkspace({ notebookId, notebookTitle, storageEn
                         </Heading>
                     </Stack>
                     {!storageEnabled ? (
-                        <Text>S3 storage requires Supabase authentication and server encryption configuration.</Text>
+                        <Text>S3 storage requires Visual Note app authentication and server encryption configuration.</Text>
                     ) : (
                         <>
                             <Grid columns="two" gap="sm">

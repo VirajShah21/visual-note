@@ -1,16 +1,4 @@
-import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { NotebookStorageSettings, NotebookStorageSettingsInput, UploadedNotebookAsset } from "./storage-settings"
-
-const authHeaders = async () => {
-    const supabase = getSupabaseBrowserClient()
-    if (!supabase) throw new Error("Supabase is required for S3 storage.")
-
-    const { data, error } = await supabase.auth.getSession()
-    const token = data.session?.access_token
-    if (error || !token) throw new Error("Log in with Supabase before using S3 storage.")
-
-    return { Authorization: `Bearer ${token}` }
-}
 
 const parseError = async (response: Response, fallback: string) => {
     const body = (await response.json().catch(() => null)) as { error?: string } | null
@@ -18,11 +6,9 @@ const parseError = async (response: Response, fallback: string) => {
 }
 
 export const authorizedStorageFetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
-    const headers = await authHeaders()
     return fetch(input, {
         ...init,
         headers: {
-            ...headers,
             ...init.headers,
         },
     })
