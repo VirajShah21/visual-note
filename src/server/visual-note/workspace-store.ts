@@ -34,11 +34,44 @@ const loadLegacyWorkspaceForUser = async (supabase: SupabaseClient, userId: stri
     return normalizeWorkspace(legacy)
 }
 
+const errorText = (error: unknown) => {
+    if (!error || typeof error !== "object") return ""
+
+    const values = ["code", "message", "details", "hint"].map(key => (error as Record<string, unknown>)[key]).filter((value): value is string => typeof value === "string")
+
+    return values.join(" ").toLowerCase()
+}
+
+const isWorkspaceSchemaUnavailable = (error: unknown) => {
+    const text = errorText(error)
+    if (!text) return false
+
+    const isMissingRelation = text.includes("pgrst205") || text.includes("42p01") || text.includes("schema cache") || text.includes("does not exist")
+    const isMissingWorkspaceShape =
+        text.includes("visual_note_notebooks") || text.includes("visual_note_pages") || text.includes("editor_settings") || text.includes("content_object_key")
+
+    return isMissingRelation && isMissingWorkspaceShape
+}
+
 export const loadWorkspaceForUser = async (supabase: SupabaseClient, userId: string): Promise<VisualNoteWorkspace | null> => {
-    const notebooks = await listNotebooksForUser(supabase, userId)
+    let notebooks: VisualNoteWorkspace["notebooks"]
+    try {
+        notebooks = await listNotebooksForUser(supabase, userId)
+    } catch (error) {
+        if (isWorkspaceSchemaUnavailable(error)) return await loadLegacyWorkspaceForUser(supabase, userId)
+        throw error
+    }
+
     if (notebooks.length === 0) return await loadLegacyWorkspaceForUser(supabase, userId)
 
-    const pageRows = await listPagesForUserByNotebooks(supabase, userId)
+    let pageRows: Awaited<ReturnType<typeof listPagesForUserByNotebooks>>
+    try {
+        pageRows = await listPagesForUserByNotebooks(supabase, userId)
+    } catch (error) {
+        if (isWorkspaceSchemaUnavailable(error)) return await loadLegacyWorkspaceForUser(supabase, userId)
+        throw error
+    }
+
     const { pages, topics, views } = hydrateWorkspaceFromPageRows(pageRows)
     const orderedPages = [...pages].sort((first, second) => {
         if (first.notebookId === second.notebookId) return first.position - second.position
