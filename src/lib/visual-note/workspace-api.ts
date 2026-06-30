@@ -1,8 +1,5 @@
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { normalizeWorkspace } from "@/lib/visual-note/factories"
-import { createExportDocument } from "@/lib/visual-note/export/document"
-import { renderMarkdownExport } from "@/lib/visual-note/export/markdown"
-import { resolveExportAssets } from "@/lib/visual-note/export/assets"
 
 const parseError = async (response: Response, fallback: string) => {
     const body = (await response.json().catch(() => null)) as { error?: string } | null
@@ -27,33 +24,8 @@ const asVisualNoteWorkspace = (payload: ApiWorkspaceEnvelope | null): VisualNote
     return normalizeWorkspace({ notebooks, pages, topics, views, components: [] })
 }
 
-const pageSelection = (notebookId: string, pageId: string) => ({
-    notebookId,
-    pageId,
-    topicId: "",
-    viewId: "",
-})
-
-const serializePageMarkdown = async (workspace: VisualNoteWorkspace, pageId: string) => {
-    const page = workspace.pages.find(item => item.id === pageId)
-    if (!page) return ""
-
-    const document = createExportDocument({
-        scope: "page",
-        selection: pageSelection(page.notebookId, page.id),
-        workspace,
-    })
-    if (!document) return ""
-
-    const context = await resolveExportAssets(document, "ignore")
-    return renderMarkdownExport(document, {
-        assetMode: "ignore",
-        assetResolution: context,
-    })
-}
-
 export const loadVisualNoteWorkspace = async (): Promise<VisualNoteWorkspace | null> => {
-    const response = await fetch("/api/notebooks")
+    const response = await fetch("/api/workspace")
     if (response.status === 401) return null
     if (!response.ok) throw new Error(await parseError(response, "Unable to load workspace."))
 
@@ -62,39 +34,13 @@ export const loadVisualNoteWorkspace = async (): Promise<VisualNoteWorkspace | n
 }
 
 export const saveVisualNoteWorkspace = async (workspace: VisualNoteWorkspace) => {
-    const requests = workspace.pages.map(async page => {
-        const pageTopics = workspace.topics.filter(topic => topic.pageId === page.id)
-        const topicIds = new Set(pageTopics.map(topic => topic.id))
-        const views = workspace.views.filter(view => topicIds.has(view.topicId))
-        const notebook = workspace.notebooks.find(item => item.id === page.notebookId)
-
-        const markdown = await serializePageMarkdown(workspace, page.id)
-
-        const response = await fetch(`/api/pages/${encodeURIComponent(page.id)}`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                notebook,
-                page,
-                topics: pageTopics,
-                views,
-            }),
-        })
-
-        if (!response.ok) throw new Error(await parseError(response, `Unable to save page ${page.id}.`))
-
-        const contentResponse = await fetch(`/api/pages/${encodeURIComponent(page.id)}/content`, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ markdown }),
-        })
-
-        if (!contentResponse.ok) throw new Error(await parseError(contentResponse, `Unable to save content for page ${page.id}.`))
+    const response = await fetch("/api/workspace", {
+        method: "PUT",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ workspace }),
     })
 
-    await Promise.all(requests)
+    if (!response.ok) throw new Error(await parseError(response, "Unable to save workspace."))
 }

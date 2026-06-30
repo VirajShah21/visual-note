@@ -35,35 +35,28 @@ const loadLegacyWorkspaceForUser = async (supabase: SupabaseClient, userId: stri
 }
 
 export const loadWorkspaceForUser = async (supabase: SupabaseClient, userId: string): Promise<VisualNoteWorkspace | null> => {
-    try {
-        const notebooks = await listNotebooksForUser(supabase, userId)
-        if (notebooks.length === 0) return await loadLegacyWorkspaceForUser(supabase, userId)
+    const notebooks = await listNotebooksForUser(supabase, userId)
+    if (notebooks.length === 0) return await loadLegacyWorkspaceForUser(supabase, userId)
 
-        const pageRows = await listPagesForUserByNotebooks(supabase, userId)
-        const { pages, topics, views } = hydrateWorkspaceFromPageRows(pageRows)
-        const orderedPages = [...pages].sort((first, second) => {
-            if (first.notebookId === second.notebookId) return first.position - second.position
-            return first.notebookId.localeCompare(second.notebookId)
-        })
+    const pageRows = await listPagesForUserByNotebooks(supabase, userId)
+    const { pages, topics, views } = hydrateWorkspaceFromPageRows(pageRows)
+    const orderedPages = [...pages].sort((first, second) => {
+        if (first.notebookId === second.notebookId) return first.position - second.position
+        return first.notebookId.localeCompare(second.notebookId)
+    })
 
-        const pagesWithContent = await Promise.all(
-            orderedPages.map(async page => ({
-                ...page,
-                content: (await readPageMarkdown({ supabase, userId }, page.id)) ?? undefined,
-            })),
-        )
+    const pagesWithContent = await Promise.all(
+        orderedPages.map(async page => ({
+            ...page,
+            content: (await readPageMarkdown({ supabase, userId }, page.id)) ?? undefined,
+        })),
+    )
 
-        return {
-            notebooks,
-            pages: pagesWithContent,
-            topics,
-            views,
-        }
-    } catch (error) {
-        const legacy = await loadLegacyWorkspaceForUser(supabase, userId)
-        if (legacy) return legacy
-
-        throw error
+    return {
+        notebooks,
+        pages: pagesWithContent,
+        topics,
+        views,
     }
 }
 
@@ -98,7 +91,7 @@ export const saveWorkspaceForUser = async (supabase: SupabaseClient, userId: str
             }),
     )
 
-    const pageIds = new Set<string>(normalizedWorkspace.pages.map(page => page.id))
+    const pageIds = new Set<string>(normalizedWorkspace.pages.filter(page => notebookIds.has(page.notebookId)).map(page => page.id))
     await deletePagesNotIn(supabase, userId, pageIds)
     return normalizedWorkspace
 }

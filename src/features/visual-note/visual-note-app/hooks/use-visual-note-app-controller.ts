@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ToastMessage, ToastTone } from "@/components/ui"
 import { logoutVisualNoteUser } from "@/lib/visual-note/auth-api"
 import { uploadNotebookImage } from "@/lib/visual-note/storage-api"
@@ -31,6 +31,8 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const [notice, setNotice] = useState("")
     const [toastMessages, setToastMessages] = useState<ToastMessage[]>([])
     const [authStatus, setAuthStatus] = useState<"ready" | "unconfigured">("ready")
+    const saveRequestIdRef = useRef(0)
+    const hasActiveSaveErrorRef = useRef(false)
     const pushToast = useCallback((title: string, description?: string, tone: ToastTone = "success") => {
         const id = globalThis.crypto?.randomUUID() ?? `${Date.now()}-${Math.random()}`
         setToastMessages(current => [...current.slice(-2), { id, title, description, tone }])
@@ -57,8 +59,27 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     useEffect(() => {
         if (!user || !workspace) return
         storeWorkspace(user.id, workspace)
+        const requestId = saveRequestIdRef.current + 1
+        saveRequestIdRef.current = requestId
+
         void saveVisualNoteWorkspace(workspace)
-    }, [user, workspace])
+            .then(() => {
+                if (saveRequestIdRef.current !== requestId) return
+                if (!hasActiveSaveErrorRef.current) return
+
+                hasActiveSaveErrorRef.current = false
+                setNotice("Workspace changes are saved to the Visual Note workspace store.")
+                pushToast("Workspace saved", "Remote workspace saves have recovered.", "info")
+            })
+            .catch(error => {
+                if (saveRequestIdRef.current !== requestId) return
+
+                const message = error instanceof Error ? error.message : "Unable to save workspace."
+                hasActiveSaveErrorRef.current = true
+                setNotice(message)
+                pushToast("Workspace save failed", message, "error")
+            })
+    }, [pushToast, user, workspace])
     const selected = useMemo(() => {
         const currentSelection = deriveSelection(workspace, selection)
         const notebook = workspace?.notebooks.find(item => item.id === currentSelection.notebookId) ?? null
@@ -76,6 +97,7 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         const resolved = ensureSelectionHasArticleView(nextWorkspace, { ...blankSelection, notebookId: initialNotebookId })
         setWorkspace(resolved.workspace)
         setSelection(resolved.selection)
+        hasActiveSaveErrorRef.current = false
         setNotice("Workspace changes are saved to the Visual Note workspace store.")
         pushToast("Workspace opened", "Changes will save to the workspace database.", "info")
     }
