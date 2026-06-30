@@ -9,6 +9,7 @@ import { articleHeadingTargetId } from "../utils/heading-target"
 import { denormalizeParagraphText } from "../utils/text"
 import styles from "../../article-editor.module.css"
 import { DisplayBlock } from "./article-display-block"
+import { HighlightedCodeBlock } from "./highlighted-code-block"
 import { ReadableInlineContent } from "./inline-link-textarea"
 import { MarkdownImageBlock } from "./markdown-image-block"
 
@@ -47,15 +48,7 @@ export function ReadableArticleBlock({ block, blockIndex, displays, handlers, re
             </Stack>
         )
 
-    if (block.kind === "code")
-        return (
-            <Stack gap="xs" className={cx(styles.articleBlock, styles.codeBlock)}>
-                <Text tone="muted" size="small">{`Code block (${block.language})`}</Text>
-                <Text as="code" className={styles.readerCode} tone="code">
-                    {block.code}
-                </Text>
-            </Stack>
-        )
+    if (block.kind === "code") return <HighlightedCodeBlock code={block.code} language={block.language} />
 
     if (isListBlock(block))
         return (

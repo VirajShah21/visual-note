@@ -190,16 +190,58 @@
     padding: 0.35rem 0 0.35rem 0.7rem;
 }
 
-.readerCode {
+.readerCodeFrame {
     display: block;
     overflow-x: auto;
     border: 1px solid color-mix(in srgb, var(--surface-border, #d7dce3) 72%, transparent);
     border-radius: 8px;
     background: color-mix(in srgb, var(--surface, #fff) 93%, transparent);
+    margin: 0;
+    padding: 0.75rem 0.85rem;
+}
+
+.readerCode {
+    display: block;
+    color: color-mix(in srgb, var(--text, #101828) 88%, #0f172a);
     font-size: 0.92rem;
     line-height: 1.5;
-    padding: 0.65rem 0.75rem;
     white-space: pre;
+}
+
+.readerCode :global(.hljs-keyword),
+.readerCode :global(.hljs-selector-tag),
+.readerCode :global(.hljs-title.function_) {
+    color: #7c3aed;
+    font-weight: 650;
+}
+
+.readerCode :global(.hljs-built_in),
+.readerCode :global(.hljs-name),
+.readerCode :global(.hljs-title.class_) {
+    color: #0f766e;
+}
+
+.readerCode :global(.hljs-string),
+.readerCode :global(.hljs-attr),
+.readerCode :global(.hljs-symbol) {
+    color: #b45309;
+}
+
+.readerCode :global(.hljs-number),
+.readerCode :global(.hljs-literal),
+.readerCode :global(.hljs-variable) {
+    color: #0369a1;
+}
+
+.readerCode :global(.hljs-comment),
+.readerCode :global(.hljs-quote) {
+    color: color-mix(in srgb, var(--muted, #667085) 88%, #475467);
+    font-style: italic;
+}
+
+.readerCode :global(.hljs-meta),
+.readerCode :global(.hljs-tag) {
+    color: #be123c;
 }
 
 .inlineLink {
