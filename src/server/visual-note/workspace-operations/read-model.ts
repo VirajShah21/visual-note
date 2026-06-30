@@ -133,8 +133,6 @@ export const readPageContext = (workspace: VisualNoteWorkspace, userId: string, 
     })
 }
 
-export const readPage = readPageContext
-
 export const resolveNotebook = (workspace: VisualNoteWorkspace, userId: string, input: { notebookId?: string; title?: string }) => {
     if (input.notebookId) {
         const notebook = findOwnedNotebook(workspace, userId, input.notebookId)
