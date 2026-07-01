@@ -34,6 +34,18 @@ const loadLegacyWorkspaceForUser = async (supabase: SupabaseClient, userId: stri
     return normalizeWorkspace(legacy)
 }
 
+const saveLegacyWorkspaceForUser = async (supabase: SupabaseClient, userId: string, workspace: VisualNoteWorkspace) => {
+    const { error } = await supabase.from("visual_note_workspaces").upsert(
+        {
+            user_id: userId,
+            workspace,
+            updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+    )
+    if (error) throw error
+}
+
 const errorText = (error: unknown) => {
     if (!error || typeof error !== "object") return ""
 
@@ -97,35 +109,41 @@ export const saveWorkspaceForUser = async (supabase: SupabaseClient, userId: str
     const normalizedWorkspace = normalizeWorkspace(workspace)
     const notebookIds = new Set<string>(normalizedWorkspace.notebooks.filter(item => item.userId === userId).map(item => item.id))
 
-    await upsertNotebooks(supabase, userId, normalizedWorkspace.notebooks)
-    await deleteNotebooksNotIn(supabase, userId, notebookIds)
+    try {
+        await upsertNotebooks(supabase, userId, normalizedWorkspace.notebooks)
+        await deleteNotebooksNotIn(supabase, userId, notebookIds)
 
-    await Promise.all(
-        normalizedWorkspace.pages
-            .filter((page: NotebookPage) => notebookIds.has(page.notebookId))
-            .map(async page => {
-                const contentObjectKey = makePageObjectKey(page.notebookId, page.id)
-                const topics = normalizedWorkspace.topics.filter(topic => topic.pageId === page.id)
-                const topicIds = new Set<string>(topics.map(topic => topic.id))
-                const views = normalizedWorkspace.views.filter(view => topicIds.has(view.topicId))
+        await Promise.all(
+            normalizedWorkspace.pages
+                .filter((page: NotebookPage) => notebookIds.has(page.notebookId))
+                .map(async page => {
+                    const contentObjectKey = makePageObjectKey(page.notebookId, page.id)
+                    const topics = normalizedWorkspace.topics.filter(topic => topic.pageId === page.id)
+                    const topicIds = new Set<string>(topics.map(topic => topic.id))
+                    const views = normalizedWorkspace.views.filter(view => topicIds.has(view.topicId))
 
-                await upsertPages(supabase, userId, [
-                    {
-                        page,
-                        notebookId: page.notebookId,
-                        topics,
-                        views,
-                        contentObjectKey,
-                    },
-                ])
+                    await upsertPages(supabase, userId, [
+                        {
+                            page,
+                            notebookId: page.notebookId,
+                            topics,
+                            views,
+                            contentObjectKey,
+                        },
+                    ])
 
-                const markdown = await pageMarkdownFromWorkspace(normalizedWorkspace, page.id)
-                await savePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, markdown, contentObjectKey)
-            }),
-    )
+                    const markdown = await pageMarkdownFromWorkspace(normalizedWorkspace, page.id)
+                    await savePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, markdown, contentObjectKey)
+                }),
+        )
 
-    const pageIds = new Set<string>(normalizedWorkspace.pages.filter(page => notebookIds.has(page.notebookId)).map(page => page.id))
-    await deletePagesNotIn(supabase, userId, pageIds)
+        const pageIds = new Set<string>(normalizedWorkspace.pages.filter(page => notebookIds.has(page.notebookId)).map(page => page.id))
+        await deletePagesNotIn(supabase, userId, pageIds)
+    } catch (error) {
+        if (!isWorkspaceSchemaUnavailable(error)) throw error
+        await saveLegacyWorkspaceForUser(supabase, userId, normalizedWorkspace)
+    }
+
     return normalizedWorkspace
 }
 

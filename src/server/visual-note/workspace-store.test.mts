@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
-import { loadWorkspaceForUser } from "./workspace-store"
+import { loadWorkspaceForUser, saveWorkspaceForUser } from "./workspace-store"
 
 const legacyWorkspace: VisualNoteWorkspace = {
     notebooks: [
@@ -48,6 +48,32 @@ const supabaseWithResults = (results: Record<string, QueryResult>) =>
         },
     }) as unknown as SupabaseClient
 
+const saveFallbackSupabase = () => {
+    const upserts: Array<{ table: string; payload: unknown }> = []
+
+    return {
+        upserts,
+        supabase: {
+            from(table: string) {
+                return {
+                    upsert(payload: unknown) {
+                        upserts.push({ table, payload })
+                        if (table === "visual_note_notebooks")
+                            return Promise.resolve({
+                                error: {
+                                    code: "PGRST205",
+                                    message: "Could not find the table public.visual_note_notebooks in the schema cache",
+                                },
+                            })
+
+                        return Promise.resolve({ error: null })
+                    },
+                }
+            },
+        } as unknown as SupabaseClient,
+    }
+}
+
 test("falls back to the legacy workspace when normalized workspace tables are unavailable", async () => {
     const supabase = supabaseWithResults({
         visual_note_notebooks: {
@@ -89,4 +115,17 @@ test("does not hide non-schema workspace load errors behind legacy fallback", as
             return true
         },
     )
+})
+
+test("saves to the legacy workspace table when normalized workspace tables are unavailable", async () => {
+    const { supabase, upserts } = saveFallbackSupabase()
+
+    const saved = await saveWorkspaceForUser(supabase, "user-1", legacyWorkspace)
+
+    assert.equal(saved.views[0]?.content, "# Article")
+    assert.equal(upserts.length, 2)
+    assert.equal(upserts[0]?.table, "visual_note_notebooks")
+    assert.equal(upserts[1]?.table, "visual_note_workspaces")
+    assert.equal((upserts[1]?.payload as { user_id?: string }).user_id, "user-1")
+    assert.equal((upserts[1]?.payload as { workspace?: VisualNoteWorkspace }).workspace?.views[0]?.content, "# Article")
 })
