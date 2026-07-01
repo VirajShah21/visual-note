@@ -6,7 +6,6 @@ import type { ToastMessage, ToastTone } from "@/components/ui"
 import { logoutVisualNoteUser } from "@/lib/visual-note/auth-api"
 import { uploadNotebookImage } from "@/lib/visual-note/storage-api"
 import { createNotebook, createPage, createSeedWorkspace, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
-import { clearStoredUser, loadStoredWorkspace, storeUser, storeWorkspace } from "@/lib/visual-note/storage"
 import { loadVisualNoteWorkspace, saveVisualNoteWorkspace } from "@/lib/visual-note/workspace-api"
 import type { DisplayInstance, NotebookEditorSettings, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
 import type { NotebookEditorSearchResult } from "@/components/ui"
@@ -58,7 +57,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     }, [initialNotebookId])
     useEffect(() => {
         if (!user || !workspace) return
-        storeWorkspace(user.id, workspace)
         const requestId = saveRequestIdRef.current + 1
         saveRequestIdRef.current = requestId
 
@@ -90,10 +88,9 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     }, [selection, workspace])
     const openWorkspaceForUser = async (nextUser: VisualUser) => {
         setAuthStatus("ready")
-        storeUser(nextUser)
         setUser(nextUser)
         const remoteWorkspace = await loadVisualNoteWorkspace()
-        const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? loadStoredWorkspace(nextUser.id) ?? createSeedWorkspace(nextUser)))
+        const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? createSeedWorkspace(nextUser)))
         const resolved = ensureSelectionHasArticleView(nextWorkspace, { ...blankSelection, notebookId: initialNotebookId })
         setWorkspace(resolved.workspace)
         setSelection(resolved.selection)
@@ -106,7 +103,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const register = (email: string, password: string, name: string) => registerVisualNoteAccount(authContext, email, password, name)
     const signOut = async () => {
         await logoutVisualNoteUser()
-        clearStoredUser()
         setUser(null)
         setWorkspace(null)
         setSelection(blankSelection)

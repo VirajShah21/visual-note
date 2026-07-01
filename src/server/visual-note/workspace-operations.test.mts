@@ -47,7 +47,6 @@ const baseWorkspace = (): VisualNoteWorkspace => ({
         { id: "view-2", topicId: "topic-2", title: "Beta article", mode: "article", content: "Beta", displays: [] },
         { id: "view-3", topicId: "topic-4", title: "Hidden article", mode: "article", content: "Hidden", displays: [] },
     ],
-    components: [],
 })
 
 test("exports the core workspace operation facade at runtime", () => {

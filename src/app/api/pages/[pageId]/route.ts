@@ -39,7 +39,6 @@ const viewSchema = z.object({
     mode: viewModeSchema,
     content: z.string(),
     displays: z.array(displaySchema),
-    componentIds: z.array(z.string()).optional(),
 })
 
 type ParsedPageUpdate = z.infer<typeof pageUpdateSchema>

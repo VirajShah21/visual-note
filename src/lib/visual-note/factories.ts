@@ -8,7 +8,6 @@ import {
     type NotebookView,
     type Topic,
     type ViewMode,
-    type VisualComponent,
     type VisualNoteWorkspace,
     type VisualUser,
 } from "./types"
@@ -76,15 +75,6 @@ export const createDisplayInstance = (kind: ComponentKind, name: string = defaul
     name,
     kind,
     position: 0,
-    data: defaultComponentData(kind),
-})
-
-export const createVisualComponent = (notebookId: string, kind: ComponentKind, name: string): VisualComponent => ({
-    id: createId("component"),
-    notebookId,
-    name,
-    kind,
-    description: "Reusable display component for structured notebook data.",
     data: defaultComponentData(kind),
 })
 
@@ -205,32 +195,13 @@ export const normalizeNotebookEditorSettings = (settings?: Partial<NotebookEdito
 })
 
 export const normalizeWorkspace = (workspace: VisualNoteWorkspace): VisualNoteWorkspace => {
-    const legacyComponents = workspace.components ?? []
-
     return {
         ...workspace,
         notebooks: workspace.notebooks.map(notebook => ({ ...notebook, editorSettings: normalizeNotebookEditorSettings(notebook.editorSettings) })),
-        views: workspace.views.map(view => {
-            if (Array.isArray(view.displays))
-                return {
-                    ...view,
-                    displays: view.displays.map(display => ({ ...display, data: display.data ?? defaultComponentData(display.kind) })),
-                }
-
-            return {
-                ...view,
-                displays: (view.componentIds ?? [])
-                    .map(componentId => legacyComponents.find(component => component.id === componentId))
-                    .filter(component => Boolean(component))
-                    .map(component => ({
-                        id: createId("display"),
-                        name: component?.name ?? "Display",
-                        kind: component?.kind ?? "data-card",
-                        data: { ...(component?.data ?? defaultComponentData(component?.kind ?? "data-card")) },
-                    })),
-            }
-        }),
-        components: [],
+        views: workspace.views.map(view => ({
+            ...view,
+            displays: view.displays.map(display => ({ ...display, data: display.data ?? defaultComponentData(display.kind) })),
+        })),
     }
 }
 
@@ -249,6 +220,5 @@ export const createSeedWorkspace = (user: VisualUser): VisualNoteWorkspace => {
         pages: [overviewPage, researchPage],
         topics: [conceptTopic, architectureTopic],
         views: [{ ...view, displays: [dataCard, timeline] }],
-        components: [],
     }
 }

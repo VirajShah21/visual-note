@@ -1,4 +1,4 @@
-import type { DisplayInstance, NotebookEditorSettings, NotebookSection, NotebookView, VisualNoteWorkspace } from "@/lib/visual-note/types"
+import type { DisplayInstance, NotebookEditorSettings, NotebookPage, NotebookView, VisualNoteWorkspace } from "@/lib/visual-note/types"
 import type { VisualBlockData, VisualBlockKind } from "@/lib/visual-note/visual-blocks"
 
 export type VisualNoteAppProps = {
@@ -14,7 +14,7 @@ export type AuthPanelProps = {
 }
 
 export type SectionSidebarProps = {
-    sections: NotebookSection[]
+    sections: NotebookPage[]
     topics: VisualNoteWorkspace["topics"]
     activeSectionId: string
     activeTopicId: string

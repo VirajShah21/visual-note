@@ -21,7 +21,7 @@ const asVisualNoteWorkspace = (payload: ApiWorkspaceEnvelope | null): VisualNote
     const { notebooks, pages, topics, views } = workspace
     if (!Array.isArray(notebooks) || !Array.isArray(pages) || !Array.isArray(topics) || !Array.isArray(views)) return null
 
-    return normalizeWorkspace({ notebooks, pages, topics, views, components: [] })
+    return normalizeWorkspace({ notebooks, pages, topics, views })
 }
 
 export const loadVisualNoteWorkspace = async (): Promise<VisualNoteWorkspace | null> => {

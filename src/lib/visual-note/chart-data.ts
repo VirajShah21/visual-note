@@ -33,12 +33,6 @@ export const chartTypeFrom = (value: unknown): VisualChartType => {
     return "bar"
 }
 
-const objectArrayFrom = (value: unknown) => {
-    if (Array.isArray(value)) return value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item))
-
-    return []
-}
-
 const stringFrom = (value: unknown, fallback = "") => {
     if (typeof value === "string" && value.trim()) return value
     if (typeof value === "number" || typeof value === "boolean") return String(value)
@@ -70,22 +64,12 @@ const chartSheetFromRows = (value: unknown) => {
     return value.filter((row): row is unknown[] => Array.isArray(row)).map(row => row.map(chartCellFrom))
 }
 
-const legacyChartSheetFromData = (value: unknown) => {
-    const legacyRows = objectArrayFrom(value)
-    if (legacyRows.length === 0) return []
-
-    return [["", "Value"], ...legacyRows.map((item, index) => [stringFrom(item.label, `Item ${index + 1}`), String(numberFrom(item.value, 0))])]
-}
-
 export const compactChartSheetFromData = (data: Record<string, unknown>) => {
     const sheet = chartSheetFromRows(data.dataSheet)
     if (sheet.length > 0) return sheet
 
     const alternateSheet = chartSheetFromRows(data.sheet)
     if (alternateSheet.length > 0) return alternateSheet
-
-    const legacySheet = legacyChartSheetFromData(data.data)
-    if (legacySheet.length > 0) return legacySheet
 
     return defaultChartSheet.map(row => [...row])
 }

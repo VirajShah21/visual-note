@@ -15,19 +15,6 @@ create table if not exists public.visual_note_sessions (
   created_at timestamptz not null default now()
 );
 
-create table if not exists public.visual_note_workspaces (
-  user_id uuid primary key references public.visual_note_users(id) on delete cascade,
-  workspace jsonb not null default '{}'::jsonb,
-  updated_at timestamptz not null default now()
-);
-
-alter table public.visual_note_workspaces
-  drop constraint if exists visual_note_workspaces_user_id_fkey;
-
-alter table public.visual_note_workspaces
-  add constraint visual_note_workspaces_user_id_fkey
-  foreign key (user_id) references public.visual_note_users(id) on delete cascade;
-
 create table if not exists public.visual_note_notebooks (
   id text primary key,
   user_id uuid not null references public.visual_note_users(id) on delete cascade,
@@ -137,7 +124,6 @@ create index if not exists visual_note_assets_user_notebook_idx
 
 alter table public.visual_note_users enable row level security;
 alter table public.visual_note_sessions enable row level security;
-alter table public.visual_note_workspaces enable row level security;
 alter table public.visual_note_mcp_tokens enable row level security;
 alter table public.visual_note_s3_connections enable row level security;
 alter table public.visual_note_notebook_storage enable row level security;
@@ -149,8 +135,6 @@ revoke all on public.visual_note_users from anon;
 revoke all on public.visual_note_users from authenticated;
 revoke all on public.visual_note_sessions from anon;
 revoke all on public.visual_note_sessions from authenticated;
-revoke all on public.visual_note_workspaces from anon;
-revoke all on public.visual_note_workspaces from authenticated;
 revoke all on public.visual_note_mcp_tokens from anon;
 revoke all on public.visual_note_mcp_tokens from authenticated;
 revoke all on public.visual_note_s3_connections from anon;
@@ -162,7 +146,6 @@ revoke all on public.visual_note_assets from authenticated;
 
 grant select, insert, update, delete on public.visual_note_users to service_role;
 grant select, insert, update, delete on public.visual_note_sessions to service_role;
-grant select, insert, update, delete on public.visual_note_workspaces to service_role;
 grant select, insert, update, delete on public.visual_note_mcp_tokens to service_role;
 grant select, insert, update, delete on public.visual_note_s3_connections to service_role;
 grant select, insert, update, delete on public.visual_note_notebook_storage to service_role;
@@ -170,9 +153,6 @@ grant select, insert, update, delete on public.visual_note_assets to service_rol
 grant select, insert, update, delete on public.visual_note_notebooks to service_role;
 grant select, insert, update, delete on public.visual_note_pages to service_role;
 
-drop policy if exists read_workspace on public.visual_note_workspaces;
-drop policy if exists insert_workspace on public.visual_note_workspaces;
-drop policy if exists update_workspace on public.visual_note_workspaces;
 drop policy if exists read_s3_connections on public.visual_note_s3_connections;
 drop policy if exists insert_s3_connections on public.visual_note_s3_connections;
 drop policy if exists update_s3_connections on public.visual_note_s3_connections;

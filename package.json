@@ -9,7 +9,6 @@
         "lint": "eslint --fix",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
-        "migrate:visual-note-workspaces": "tsx scripts/migrate-visual-note-workspaces.mjs",
         "test:chart": "tsx --test src/features/visual-note/visual-note-app/utils/chart-data.test.mts",
         "test:export": "tsx --test src/lib/visual-note/export/export.test.mts",
         "test:mcp": "tsx --test src/server/visual-note/workspace-operations.test.mts src/server/visual-note/workspace-store.test.mts src/features/visual-note/visual-note-app/hooks/restore-visual-note-session.test.mts",

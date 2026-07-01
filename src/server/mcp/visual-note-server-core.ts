@@ -21,7 +21,6 @@ export const emptyWorkspace: VisualNoteWorkspace = {
     pages: [],
     topics: [],
     views: [],
-    components: [],
 }
 
 export const visualBlockKindSchema = z.enum(visualBlockKinds)

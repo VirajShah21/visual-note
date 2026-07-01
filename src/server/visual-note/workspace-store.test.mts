@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { loadWorkspaceForUser, saveWorkspaceForUser } from "./workspace-store"
 
-const legacyWorkspace: VisualNoteWorkspace = {
+const workspace: VisualNoteWorkspace = {
     notebooks: [
         {
             id: "notebook-1",
@@ -48,7 +48,7 @@ const supabaseWithResults = (results: Record<string, QueryResult>) =>
         },
     }) as unknown as SupabaseClient
 
-const saveFallbackSupabase = () => {
+const failingSaveSupabase = () => {
     const upserts: Array<{ table: string; payload: unknown }> = []
 
     return {
@@ -74,7 +74,20 @@ const saveFallbackSupabase = () => {
     }
 }
 
-test("falls back to the legacy workspace when normalized workspace tables are unavailable", async () => {
+test("returns null when a user has no normalized notebooks", async () => {
+    const supabase = supabaseWithResults({
+        visual_note_notebooks: {
+            data: [],
+            error: null,
+        },
+    })
+
+    const loaded = await loadWorkspaceForUser(supabase, "user-1")
+
+    assert.equal(loaded, null)
+})
+
+test("does not hide normalized workspace load schema errors", async () => {
     const supabase = supabaseWithResults({
         visual_note_notebooks: {
             error: {
@@ -82,50 +95,28 @@ test("falls back to the legacy workspace when normalized workspace tables are un
                 message: "Could not find the table public.visual_note_notebooks in the schema cache",
             },
         },
-        visual_note_workspaces: {
-            data: { workspace: legacyWorkspace },
-            error: null,
-        },
-    })
-
-    const workspace = await loadWorkspaceForUser(supabase, "user-1")
-
-    assert.equal(workspace?.notebooks[0]?.id, "notebook-1")
-    assert.equal(workspace?.views[0]?.id, "view-1")
-})
-
-test("does not hide non-schema workspace load errors behind legacy fallback", async () => {
-    const supabase = supabaseWithResults({
-        visual_note_notebooks: {
-            error: {
-                code: "42501",
-                message: "permission denied for table visual_note_notebooks",
-            },
-        },
-        visual_note_workspaces: {
-            data: { workspace: legacyWorkspace },
-            error: null,
-        },
     })
 
     await assert.rejects(
         () => loadWorkspaceForUser(supabase, "user-1"),
         (error: unknown) => {
-            assert.equal((error as { code?: string }).code, "42501")
+            assert.equal((error as { code?: string }).code, "PGRST205")
             return true
         },
     )
 })
 
-test("saves to the legacy workspace table when normalized workspace tables are unavailable", async () => {
-    const { supabase, upserts } = saveFallbackSupabase()
+test("surfaces normalized workspace save schema errors", async () => {
+    const { supabase, upserts } = failingSaveSupabase()
 
-    const saved = await saveWorkspaceForUser(supabase, "user-1", legacyWorkspace)
+    await assert.rejects(
+        () => saveWorkspaceForUser(supabase, "user-1", workspace),
+        (error: unknown) => {
+            assert.equal((error as { code?: string }).code, "PGRST205")
+            return true
+        },
+    )
 
-    assert.equal(saved.views[0]?.content, "# Article")
-    assert.equal(upserts.length, 2)
+    assert.equal(upserts.length, 1)
     assert.equal(upserts[0]?.table, "visual_note_notebooks")
-    assert.equal(upserts[1]?.table, "visual_note_workspaces")
-    assert.equal((upserts[1]?.payload as { user_id?: string }).user_id, "user-1")
-    assert.equal((upserts[1]?.payload as { workspace?: VisualNoteWorkspace }).workspace?.views[0]?.content, "# Article")
 })

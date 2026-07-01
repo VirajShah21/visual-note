@@ -32,32 +32,6 @@ const workspace: VisualNoteWorkspace = {
     ],
 }
 
-class MemoryStorage {
-    private values = new Map<string, string>()
-
-    getItem(key: string) {
-        return this.values.get(key) ?? null
-    }
-
-    setItem(key: string, value: string) {
-        this.values.set(key, value)
-    }
-
-    removeItem(key: string) {
-        this.values.delete(key)
-    }
-}
-
-const setWindowStorage = () => {
-    const localStorage = new MemoryStorage()
-    Object.defineProperty(globalThis, "window", {
-        configurable: true,
-        value: { localStorage },
-    })
-    localStorage.setItem("visual-note:user", JSON.stringify({ id: "stale-user", email: "stale@example.com", name: "Stale" }))
-    return localStorage
-}
-
 const setFetch = (sessionBody: unknown, workspaceBody: unknown = { workspace }) => {
     Object.defineProperty(globalThis, "fetch", {
         configurable: true,
@@ -70,8 +44,7 @@ const setFetch = (sessionBody: unknown, workspaceBody: unknown = { workspace }) 
     })
 }
 
-test("does not restore browser-stored users when app auth is unconfigured", async () => {
-    setWindowStorage()
+test("returns no user when app auth is unconfigured", async () => {
     setFetch({ authReady: false, user: null })
 
     const restored = await restoreVisualNoteSession("")
@@ -81,8 +54,7 @@ test("does not restore browser-stored users when app auth is unconfigured", asyn
     assert.equal(restored.workspace, undefined)
 })
 
-test("does not restore browser-stored users without a server session", async () => {
-    setWindowStorage()
+test("returns no user without a server session", async () => {
     setFetch({ authReady: true, user: null })
 
     const restored = await restoreVisualNoteSession("")
@@ -93,7 +65,6 @@ test("does not restore browser-stored users without a server session", async () 
 })
 
 test("restores workspace only for a valid Visual Note server session", async () => {
-    setWindowStorage()
     setFetch({ authReady: true, user })
 
     const restored = await restoreVisualNoteSession("notebook-1")

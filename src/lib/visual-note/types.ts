@@ -52,8 +52,6 @@ export type NotebookPage = {
     seo?: PageSeo
 }
 
-export type NotebookSection = NotebookPage
-
 export type Topic = {
     id: string
     pageId: string
@@ -70,7 +68,6 @@ export type NotebookView = {
     content: string
     position?: number
     displays: DisplayInstance[]
-    componentIds?: string[]
 }
 
 export type DisplayInstance = {
@@ -81,17 +78,11 @@ export type DisplayInstance = {
     data: Record<string, unknown>
 }
 
-export type VisualComponent = DisplayInstance & {
-    notebookId: string
-    description: string
-}
-
 export type VisualNoteWorkspace = {
     notebooks: Notebook[]
     pages: NotebookPage[]
     topics: Topic[]
     views: NotebookView[]
-    components?: VisualComponent[]
     snapshots?: WorkspaceSnapshot[]
 }
 

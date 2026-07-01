@@ -59,7 +59,6 @@ const workspace: VisualNoteWorkspace = {
             displays: [],
         },
     ],
-    components: [],
 }
 
 const selection = {
