@@ -61,7 +61,7 @@ This roadmap focuses on the current codebase in `/Users/viraj/WebstormProjects/v
     - No background cleanup job or hard delete path tied to page/topic/view deletion.
     - Files: `src/app/api/pages/[pageId]/route.ts`, `src/app/api/notebooks/[notebookId]/assets/route.ts`, `src/app/api/assets/[assetId]/route.ts`, `src/server/storage/notebook-storage.ts`.
 
-8. Limited observability and operational insight
+7. Limited observability and operational insight
     - No production telemetry around save conflicts, auth failures, MCP call failures, or storage errors.
     - Incident recovery and debugging currently depends on logs and manual UI notices.
     - Files: API routes and controllers emit generic notices without structured metrics.

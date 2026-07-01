@@ -33,7 +33,7 @@ If this key is missing, `/api/auth/session` returns `authReady: false`, login/re
 
 ## Project planning
 
-- [Visual Note Roadmap](./Visual%20Note%20Roadmap.md)
+- [Visual Note Roadmap](./Roadmap.md)
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
