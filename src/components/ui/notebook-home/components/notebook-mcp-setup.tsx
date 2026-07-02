@@ -75,9 +75,10 @@ export function NotebookMcpSetup({ tokensEnabled }: { tokensEnabled: boolean }) 
 
     const updateScope = useCallback((scope: string, checked: boolean) => {
         setSelectedScopes(current => {
+            if (!checked && current.length === 1 && current.includes(scope)) return current
+
             const next = checked ? [...current, scope] : current.filter(existing => existing !== scope)
-            const unique = [...new Set(next)]
-            return unique.length === 0 ? ["visual-note:mcp:read", "visual-note:mcp:write"] : unique
+            return [...new Set(next)]
         })
     }, [])
 
