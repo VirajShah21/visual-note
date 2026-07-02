@@ -2,6 +2,7 @@ import { authenticateSupabaseRequest, getSupabaseServiceRoleClient, userOwnsNote
 import { createAssetObjectKey, createAssetRecord, resolveNotebookStorage } from "@/server/storage/notebook-storage"
 import { uploadS3Object } from "@/server/storage/s3"
 import { validateImageUpload, validateUploadContentLength } from "@/server/storage/upload-validation"
+import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
 
 export const runtime = "nodejs"
 
@@ -14,7 +15,10 @@ export async function POST(request: Request, context: RouteContext<"/api/noteboo
     const storageSupabase = getSupabaseServiceRoleClient()
     if (!storageSupabase) return Response.json({ error: "Server database access is not configured for storage routes." }, { status: 503 })
     const contentLengthError = validateUploadContentLength(request)
-    if (contentLengthError) return Response.json({ error: contentLengthError.message }, { status: contentLengthError.status })
+    if (contentLengthError) {
+        recordVisualNoteEvent({ event: "asset.upload_rejected", severity: "warn", userId: auth.userId, metadata: { notebookId, reason: contentLengthError.message } })
+        return Response.json({ error: contentLengthError.message }, { status: contentLengthError.status })
+    }
 
     try {
         const formData = await request.formData()
@@ -26,7 +30,15 @@ export async function POST(request: Request, context: RouteContext<"/api/noteboo
 
         const body = Buffer.from(await file.arrayBuffer())
         const uploadError = validateImageUpload(file, body)
-        if (uploadError) return Response.json({ error: uploadError.message }, { status: uploadError.status })
+        if (uploadError) {
+            recordVisualNoteEvent({
+                event: "asset.upload_rejected",
+                severity: "warn",
+                userId: auth.userId,
+                metadata: { contentType: file.type, notebookId, reason: uploadError.message },
+            })
+            return Response.json({ error: uploadError.message }, { status: uploadError.status })
+        }
 
         const objectKey = createAssetObjectKey(notebookId, file.name)
         await uploadS3Object({
@@ -58,6 +70,7 @@ export async function POST(request: Request, context: RouteContext<"/api/noteboo
             },
         })
     } catch (error) {
+        recordVisualNoteEvent({ event: "asset.upload_failed", severity: "error", userId: auth.userId, metadata: { notebookId }, error })
         return Response.json({ error: error instanceof Error ? error.message : "Unable to upload image." }, { status: 500 })
     }
 }

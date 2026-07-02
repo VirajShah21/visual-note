@@ -1,6 +1,7 @@
 import { authenticateSupabaseRequest } from "@/lib/supabase/server"
 import { loadWorkspaceForUserWithRevision, resolveWorkspaceRevision, saveWorkspaceForUser } from "@/server/visual-note/workspace-store"
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
+import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
 
 export const runtime = "nodejs"
 
@@ -12,6 +13,7 @@ export async function GET(request: Request) {
         const { workspace, revision } = await loadWorkspaceForUserWithRevision(auth.supabase, auth.userId)
         return Response.json({ workspace, revision })
     } catch (error) {
+        recordVisualNoteEvent({ event: "workspace.load_failed", severity: "error", userId: auth.userId, error })
         return Response.json({ error: error instanceof Error ? error.message : "Unable to load workspace." }, { status: 500 })
     }
 }
@@ -30,8 +32,12 @@ export async function PUT(request: Request) {
         const nextRevision = await resolveWorkspaceRevision(auth.supabase, auth.userId)
         return Response.json({ revision: nextRevision })
     } catch (error) {
-        if (error instanceof Error && (error as { code?: string }).code === "workspace_conflict") return Response.json({ error: error.message }, { status: 409 })
+        if (error instanceof Error && (error as { code?: string }).code === "workspace_conflict") {
+            recordVisualNoteEvent({ event: "workspace.save_conflict", severity: "warn", userId: auth.userId, error })
+            return Response.json({ error: error.message }, { status: 409 })
+        }
 
+        recordVisualNoteEvent({ event: "workspace.save_failed", severity: "error", userId: auth.userId, error })
         return Response.json({ error: error instanceof Error ? error.message : "Unable to save workspace." }, { status: 500 })
     }
 }

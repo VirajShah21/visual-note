@@ -2,6 +2,7 @@ import { Readable } from "stream"
 import { authenticateSupabaseRequest, getSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { loadAssetStorage } from "@/server/storage/notebook-storage"
 import { deleteS3Object, readS3Object } from "@/server/storage/s3"
+import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
 
 export const runtime = "nodejs"
 
@@ -32,6 +33,7 @@ export async function GET(request: Request, context: RouteContext<"/api/assets/[
 
         return new Response(Readable.toWeb(object.body) as ReadableStream, { headers })
     } catch (error) {
+        recordVisualNoteEvent({ event: "asset.read_failed", severity: "error", userId: auth.userId, metadata: { assetId }, error })
         return Response.json({ error: error instanceof Error ? error.message : "Unable to read asset." }, { status: 500 })
     }
 }
@@ -49,14 +51,19 @@ export async function DELETE(request: Request, context: RouteContext<"/api/asset
 
     const { data, error: deleteError } = await storageSupabase.from("visual_note_assets").delete().eq("id", assetId).eq("user_id", auth.userId).select("id").maybeSingle()
 
-    if (deleteError) return Response.json({ error: deleteError.message ?? "Unable to delete asset." }, { status: 500 })
+    if (deleteError) {
+        recordVisualNoteEvent({ event: "asset.delete_record_failed", severity: "error", userId: auth.userId, metadata: { assetId }, error: deleteError })
+        return Response.json({ error: deleteError.message ?? "Unable to delete asset." }, { status: 500 })
+    }
     if (!data) return Response.json({ error: "Asset not found." }, { status: 404 })
 
     await deleteS3Object({
         bucketName: resolved.asset.bucketName,
         connection: resolved.connection,
         objectKey: resolved.asset.objectKey,
-    }).catch(() => {})
+    }).catch(error =>
+        recordVisualNoteEvent({ event: "asset.delete_object_failed", severity: "warn", userId: auth.userId, metadata: { assetId, objectKey: resolved.asset.objectKey }, error }),
+    )
 
     return Response.json({ ok: true })
 }

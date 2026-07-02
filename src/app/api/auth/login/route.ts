@@ -4,6 +4,7 @@ import { createAppSession, verifyAppUserCredentials } from "@/server/auth/app-au
 import { errorMessage } from "@/server/auth/route-errors"
 import { createSessionCookie } from "@/server/auth/session-cookie"
 import { checkLoginRateLimit, recordLoginFailure, recordLoginSuccess } from "@/server/auth/login-rate-limit"
+import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
 
 export const runtime = "nodejs"
 
@@ -19,22 +20,29 @@ export async function POST(request: Request) {
     try {
         const input = loginSchema.parse(await request.json().catch(() => ({})))
         const rateLimit = checkLoginRateLimit(request, input.email)
-        if (!rateLimit.allowed)
+        if (!rateLimit.allowed) {
+            recordVisualNoteEvent({ event: "auth.login_rate_limited", severity: "warn", metadata: { email: input.email } })
             return Response.json({ error: `Too many failed login attempts. Try again in ${Math.max(1, Math.ceil(rateLimit.retryAfterMs / 1000))} seconds.` }, { status: 429 })
+        }
 
         const user = await verifyAppUserCredentials(supabase, input.email, input.password)
         if (!user) {
             const failure = recordLoginFailure(request, input.email)
-            if (failure.blocked)
+            if (failure.blocked) {
+                recordVisualNoteEvent({ event: "auth.login_lockout_started", severity: "warn", metadata: { attempts: failure.attempts, email: input.email } })
                 return Response.json({ error: `Too many failed login attempts. Try again in ${Math.max(1, Math.ceil(failure.retryAfterMs / 1000))} seconds.` }, { status: 429 })
+            }
 
+            recordVisualNoteEvent({ event: "auth.login_failed", severity: "warn", metadata: { attempts: failure.attempts, email: input.email } })
             return Response.json({ error: "Invalid login credentials." }, { status: 401 })
         }
 
         const token = await createAppSession(supabase, user.id)
         recordLoginSuccess(request, input.email)
+        recordVisualNoteEvent({ event: "auth.login_succeeded", userId: user.id })
         return Response.json({ user }, { headers: { "Set-Cookie": createSessionCookie(token) } })
     } catch (error) {
+        recordVisualNoteEvent({ event: "auth.login_error", severity: "error", error })
         return Response.json({ error: errorMessage(error, "Unable to log in.") }, { status: 400 })
     }
 }
