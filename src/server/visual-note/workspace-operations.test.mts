@@ -6,7 +6,7 @@ import type { VisualNoteWorkspace } from "../../lib/visual-note/types"
 import * as workspaceOperations from "./workspace-operations"
 import { visualNoteCoreToolNames, visualNoteToolDefinitions } from "../mcp/visual-note-tools"
 
-const { createArticle, createNotebook, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, upsertVisualBlock } = workspaceOperations
+const { createArticle, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, upsertVisualBlock } = workspaceOperations
 
 const expectedCoreToolNames = [
     "list_notebooks",
