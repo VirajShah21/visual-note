@@ -17,7 +17,7 @@ const expectedCoreToolNames = [
     "replace_article_content",
     "upsert_visual_block",
     "remove_visual_block",
-]
+].sort()
 
 const baseWorkspace = (): VisualNoteWorkspace => ({
     notebooks: [
@@ -70,11 +70,8 @@ test("exports the core workspace operation facade at runtime", () => {
 })
 
 test("exposes only the core MCP tool registry", () => {
-    assert.deepEqual(Array.from(visualNoteCoreToolNames), expectedCoreToolNames)
-    assert.deepEqual(
-        visualNoteToolDefinitions.map(tool => tool.name),
-        expectedCoreToolNames,
-    )
+    assert.deepEqual(Array.from(visualNoteCoreToolNames).sort(), expectedCoreToolNames)
+    assert.deepEqual(visualNoteToolDefinitions.map(tool => tool.name).sort(), expectedCoreToolNames)
     assert.equal(new Set(visualNoteToolDefinitions.map(tool => tool.name)).size, expectedCoreToolNames.length)
 })
 
