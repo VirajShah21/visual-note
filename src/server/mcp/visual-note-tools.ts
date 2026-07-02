@@ -49,10 +49,10 @@ const toolRequirements = {
     read_notebook: { toolName: "read_notebook", requiredScopes: [mcpScopeRead] },
     read_article: { toolName: "read_article", requiredScopes: [mcpScopeRead] },
     create_notebook: { toolName: "create_notebook", requiredScopes: [mcpScopeWrite] },
-    create_article: { toolName: "create_article", requiredScopes: [mcpScopeWrite] },
-    replace_article_content: { toolName: "replace_article_content", requiredScopes: [mcpScopeWrite] },
-    upsert_visual_block: { toolName: "upsert_visual_block", requiredScopes: [mcpScopeWrite] },
-    remove_visual_block: { toolName: "remove_visual_block", requiredScopes: [mcpScopeWrite] },
+    create_article: { toolName: "create_article", requiredScopes: [mcpScopeRead, mcpScopeWrite] },
+    replace_article_content: { toolName: "replace_article_content", requiredScopes: [mcpScopeRead, mcpScopeWrite] },
+    upsert_visual_block: { toolName: "upsert_visual_block", requiredScopes: [mcpScopeRead, mcpScopeWrite] },
+    remove_visual_block: { toolName: "remove_visual_block", requiredScopes: [mcpScopeRead, mcpScopeWrite] },
 } as const
 
 export const visualNoteToolDefinitions: VisualNoteToolDefinition[] = [

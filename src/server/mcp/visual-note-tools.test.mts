@@ -65,11 +65,11 @@ test("request context treats missing MCP auth scopes as empty", () => {
 test("write tools require write scope", () => {
     const definitions = Object.fromEntries(visualNoteToolDefinitions.map(tool => [tool.name, tool.requiredScopes.requiredScopes])) as Record<VisualNoteToolName, string[]>
 
-    assert.deepEqual(definitions.create_article, [mcpScopeWrite])
     assert.deepEqual(definitions.create_notebook, [mcpScopeWrite])
-    assert.deepEqual(definitions.replace_article_content, [mcpScopeWrite])
-    assert.deepEqual(definitions.upsert_visual_block, [mcpScopeWrite])
-    assert.deepEqual(definitions.remove_visual_block, [mcpScopeWrite])
+    assert.deepEqual(definitions.create_article, [mcpScopeRead, mcpScopeWrite])
+    assert.deepEqual(definitions.replace_article_content, [mcpScopeRead, mcpScopeWrite])
+    assert.deepEqual(definitions.upsert_visual_block, [mcpScopeRead, mcpScopeWrite])
+    assert.deepEqual(definitions.remove_visual_block, [mcpScopeRead, mcpScopeWrite])
 })
 
 test("read tool returns deterministic forbidden payload when scope is missing", async () => {
@@ -85,13 +85,25 @@ test("read tool returns deterministic forbidden payload when scope is missing", 
 })
 
 test("write tool returns deterministic forbidden payload when scope is missing", async () => {
-    const result = await readToolPayload("create_article", [mcpScopeRead])
+    const result = await readToolPayload("create_notebook", [mcpScopeRead])
     const payload = await parsePayload(result)
 
     assert.equal(payload.ok, false)
     assert.equal(payload.error, "forbidden")
-    assert.equal(payload.tool, "create_article")
+    assert.equal(payload.tool, "create_notebook")
     assert.deepEqual(payload.requiredScopes, [mcpScopeWrite])
     assert.deepEqual(payload.scopeSatisfied, [mcpScopeRead])
     assert.deepEqual(payload.missingScopes, [mcpScopeWrite])
+})
+
+test("article mutation tools require read and write scopes before returning view content", async () => {
+    const result = await readToolPayload("upsert_visual_block", [mcpScopeWrite])
+    const payload = await parsePayload(result)
+
+    assert.equal(payload.ok, false)
+    assert.equal(payload.error, "forbidden")
+    assert.equal(payload.tool, "upsert_visual_block")
+    assert.deepEqual(payload.requiredScopes, [mcpScopeRead, mcpScopeWrite])
+    assert.deepEqual(payload.scopeSatisfied, [mcpScopeWrite])
+    assert.deepEqual(payload.missingScopes, [mcpScopeRead])
 })
