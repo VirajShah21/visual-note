@@ -6,9 +6,18 @@ import type { VisualNoteWorkspace } from "../../lib/visual-note/types"
 import * as workspaceOperations from "./workspace-operations"
 import { visualNoteCoreToolNames, visualNoteToolDefinitions } from "../mcp/visual-note-tools"
 
-const { createArticle, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, upsertVisualBlock } = workspaceOperations
+const { createArticle, createNotebook, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, upsertVisualBlock } = workspaceOperations
 
-const expectedCoreToolNames = ["list_notebooks", "read_notebook", "create_article", "read_article", "replace_article_content", "upsert_visual_block", "remove_visual_block"]
+const expectedCoreToolNames = [
+    "list_notebooks",
+    "read_notebook",
+    "create_article",
+    "create_notebook",
+    "read_article",
+    "replace_article_content",
+    "upsert_visual_block",
+    "remove_visual_block",
+]
 
 const baseWorkspace = (): VisualNoteWorkspace => ({
     notebooks: [
@@ -53,6 +62,7 @@ test("exports the core workspace operation facade at runtime", () => {
     assert.equal(typeof workspaceOperations.listNotebooks, "function")
     assert.equal(typeof workspaceOperations.readNotebookTree, "function")
     assert.equal(typeof workspaceOperations.createArticle, "function")
+    assert.equal(typeof workspaceOperations.createNotebook, "function")
     assert.equal(typeof workspaceOperations.readArticle, "function")
     assert.equal(typeof workspaceOperations.replaceArticleContent, "function")
     assert.equal(typeof workspaceOperations.upsertVisualBlock, "function")

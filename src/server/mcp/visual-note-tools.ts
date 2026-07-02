@@ -2,9 +2,26 @@ import { operationResult, visualBlockKindSchema, withWorkspace, withWorkspaceMut
 import type { ToolExtra } from "./visual-note-server-core"
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
-import { createArticle, listNotebooks, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, upsertVisualBlock } from "@/server/visual-note/workspace-operations"
+import {
+    createArticle,
+    createNotebook,
+    listNotebooks,
+    readArticle,
+    readNotebookTree,
+    removeVisualBlock,
+    replaceArticleContent,
+    upsertVisualBlock,
+} from "@/server/visual-note/workspace-operations"
 
-type VisualNoteToolName = "list_notebooks" | "read_notebook" | "create_article" | "read_article" | "replace_article_content" | "upsert_visual_block" | "remove_visual_block"
+type VisualNoteToolName =
+    | "list_notebooks"
+    | "read_notebook"
+    | "create_notebook"
+    | "create_article"
+    | "read_article"
+    | "replace_article_content"
+    | "upsert_visual_block"
+    | "remove_visual_block"
 
 type VisualNoteToolDefinition = {
     name: VisualNoteToolName
@@ -17,6 +34,7 @@ type VisualNoteToolDefinition = {
 export const visualNoteCoreToolNames = [
     "list_notebooks",
     "read_notebook",
+    "create_notebook",
     "create_article",
     "read_article",
     "replace_article_content",
@@ -66,6 +84,26 @@ export const visualNoteToolDefinitions: VisualNoteToolDefinition[] = [
                     articleTitle: typeof input.articleTitle === "string" ? input.articleTitle : undefined,
                     content: typeof input.content === "string" ? input.content : undefined,
                     mode: input.mode === "structured" || input.mode === "dashboard" ? input.mode : "article",
+                }),
+            ),
+    },
+    {
+        name: "create_notebook",
+        title: "Create notebook",
+        description: "Create a new notebook for the authenticated user.",
+        inputSchema: z.object({
+            title: z.string().min(1),
+            summary: z.string().optional(),
+            color: z.string().optional(),
+            slug: z.string().optional(),
+        }),
+        handler: async (input, extra) =>
+            withWorkspaceMutation(extra, (workspace, context) =>
+                createNotebook(workspace, context.userId, {
+                    title: String(input.title),
+                    summary: typeof input.summary === "string" ? input.summary : undefined,
+                    color: typeof input.color === "string" ? input.color : undefined,
+                    slug: typeof input.slug === "string" ? input.slug : undefined,
                 }),
             ),
     },
