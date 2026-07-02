@@ -1,11 +1,11 @@
 "use client"
 
 import { type MouseEvent, type RefObject, useCallback } from "react"
-import { Button } from "../../button"
-import { cx } from "../../class-name"
-import { Card, Stack, Text } from "../../primitives"
+import { Button } from "@ui/button"
+import { cx } from "@ui/class-name"
+import { Card, Stack, Text } from "@ui/primitives"
 import styles from "../../article-editor.module.css"
-import type { ArticleEditorCommand } from "../types"
+import type { ArticleEditorCommand } from "@ui/article-editor/types"
 
 type CommandMenuProps = {
     commandRef: RefObject<HTMLDivElement | null>

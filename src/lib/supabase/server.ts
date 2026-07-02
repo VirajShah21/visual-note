@@ -1,5 +1,4 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
-import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { findUserBySessionToken } from "@/server/auth/app-auth-store"
 import { readSessionCookie } from "@/server/auth/session-cookie"
 
@@ -34,18 +33,10 @@ export const authenticateSupabaseRequest = async (request: Request): Promise<Aut
     return { supabase, userId: user.id }
 }
 
-export const loadOwnedWorkspace = async ({ supabase, userId }: AuthenticatedSupabaseContext) => {
-    const { data, error } = await supabase.from("visual_note_workspaces").select("workspace").eq("user_id", userId).maybeSingle()
-    if (error) return null
-
-    return (data?.workspace as VisualNoteWorkspace | undefined) ?? null
-}
-
 export const userOwnsNotebook = async (context: AuthenticatedSupabaseContext, notebookId: string) => {
     const { data, error } = await context.supabase.from("visual_note_notebooks").select("id").eq("user_id", context.userId).eq("id", notebookId).maybeSingle()
 
-    if (!error && data?.id) return true
+    if (error) throw error
 
-    const workspace = await loadOwnedWorkspace(context)
-    return Boolean(workspace?.notebooks.some(notebook => notebook.id === notebookId && notebook.userId === context.userId))
+    return Boolean(data?.id)
 }

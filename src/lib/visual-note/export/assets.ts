@@ -1,5 +1,5 @@
-import { parseArticleContent } from "../article-content"
-import { authorizedStorageFetch } from "../storage-api"
+import { parseArticleContent } from "@lib/visual-note/article-content"
+import { authorizedStorageFetch } from "@lib/visual-note/storage-api"
 import type { ExportAssetMode, ExportAssetReference, ExportAssetResolution, ExportDocument, ExportResolvedAsset } from "./types"
 
 type AssetFetcher = (source: string) => Promise<Blob>

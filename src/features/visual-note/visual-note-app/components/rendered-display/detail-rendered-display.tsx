@@ -2,7 +2,7 @@ import { Bug, CheckCircle2, Code2, ExternalLink as ExternalLinkIcon, GitPullRequ
 import type { ReactNode } from "react"
 import { DetailCell, ExternalLink, Grid, Heading, MediaImage, Pill, Stack, Text } from "@/components/ui"
 import type { DisplayInstance } from "@/lib/visual-note/types"
-import { arrayFrom, objectArrayFrom, stringFrom } from "../../utils/visual-note-app.utils"
+import { arrayFrom, objectArrayFrom, stringFrom } from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
 import styles from "../../../visual-note-app.module.css"
 
 type DetailRenderedDisplayProps = {

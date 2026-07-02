@@ -1,13 +1,14 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { chartDatasetFromData, compactChartSheetFromData, minimumChartColumns, minimumChartRows } from "../../../../lib/visual-note/chart-data"
+import { chartDatasetFromData, compactChartSheetFromData, minimumChartColumns, minimumChartRows } from "@lib/visual-note/chart-data"
 import { chartDataLayoutFrom, chartDatasetFromSheet, chartSheetFromData, chartTypeFrom } from "./chart-data"
 
-test("normalizes legacy label/value chart data into a columns sheet", () => {
+test("pads current chart sheet data for the editor", () => {
     const data = {
-        data: [
-            { label: "Mon", value: 4 },
-            { label: "Tue", value: "7" },
+        dataSheet: [
+            ["", "Value"],
+            ["Mon", "4"],
+            ["Tue", "7"],
         ],
     }
     const compactSheet = compactChartSheetFromData(data)

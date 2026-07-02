@@ -1,6 +1,6 @@
-import { findOwnedTopic, findOwnedView, writeViewContent } from "./workspace-operations-part-005"
-import { moveById } from "./workspace-operations-part-004"
-import { byPosition, clampIndex, invalidInput, notFound, ok, safeTrim } from "./workspace-operations-part-002"
+import { findOwnedTopic, findOwnedView, writeViewContent } from "./read-model"
+import { moveById } from "./selectors"
+import { byPosition, clampIndex, invalidInput, notFound, ok, safeTrim } from "./result"
 import {
     ArticleBlock,
     createExportDocument,
@@ -11,8 +11,7 @@ import {
     serializeArticleContent,
     ViewMode,
     VisualNoteWorkspace,
-} from "./workspace-operations-part-001"
-export * from "./workspace-operations-part-008"
+} from "./types"
 
 export const moveViewToTopic = (workspace: VisualNoteWorkspace, userId: string, input: { viewId: string; targetTopicId: string; position?: number }) => {
     const context = findOwnedView(workspace, userId, input.viewId)

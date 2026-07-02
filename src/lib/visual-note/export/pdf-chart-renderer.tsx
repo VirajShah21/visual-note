@@ -1,5 +1,5 @@
 import { Circle, G, Line, Path, Rect, Svg, StyleSheet, Text, View } from "@react-pdf/renderer"
-import { chartMargin, chartPieMargin } from "../chart-data"
+import { chartMargin, chartPieMargin } from "@lib/visual-note/chart-data"
 import { createPdfChartRenderPlan, type PdfChartLegendItem, type PdfChartPieMark, type PdfChartRenderPlan } from "./pdf-chart-render-plan"
 import type { PdfRenderBlock } from "./types"
 

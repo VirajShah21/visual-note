@@ -2,9 +2,9 @@
 
 import { Plus } from "lucide-react"
 import { useCallback, useMemo, useState } from "react"
-import { Stack } from "../primitives"
-import { Button } from "../button"
-import { ModalDialog } from "../overlays"
+import { Stack } from "@ui/primitives"
+import { Button } from "@ui/button"
+import { ModalDialog } from "@ui/overlays"
 import { NotebookGallery, NotebookHomeContent, NotebookHomeShell, NotebookMcpSetup, NotebookNavigationRail, NotebookTitleField, NotebookTopBar } from "./components"
 import type { NotebookHomeProps, NotebookHomeView } from "./types/notebook-home.types"
 

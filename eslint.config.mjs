@@ -1,8 +1,10 @@
 import { defineConfig, globalIgnores } from "eslint/config"
 import css from "@eslint/css"
+import importPlugin from "eslint-plugin-import"
 import nextVitals from "eslint-config-next/core-web-vitals"
 import nextTs from "eslint-config-next/typescript"
 import noEslintDisable from "./eslint-rules/no-eslint-disable.mjs"
+import preferTsconfigPaths from "./eslint-rules/prefer-tsconfig-paths.mjs"
 import prettierConfig from "eslint-config-prettier"
 import prettierRecommended from "eslint-plugin-prettier/recommended"
 import react from "eslint-plugin-react"
@@ -28,10 +30,24 @@ const eslintConfig = defineConfig([
     {
         files: codeFiles,
         plugins: {
-            "local-eslint": noEslintDisable,
+            import: importPlugin,
+            "local-eslint": {
+                rules: {
+                    ...noEslintDisable.rules,
+                    "prefer-tsconfig-paths": preferTsconfigPaths,
+                },
+            },
+        },
+        settings: {
+            "import/resolver": {
+                typescript: {
+                    project: "./tsconfig.json",
+                },
+            },
         },
         rules: {
             "local-eslint/no-eslint-disable": "error",
+            "local-eslint/prefer-tsconfig-paths": "error",
         },
     },
     prettierConfig,

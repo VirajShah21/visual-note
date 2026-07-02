@@ -1,4 +1,4 @@
-import type { NotebookPage, NotebookView, Topic } from "../types"
+import type { NotebookPage, NotebookView, Topic } from "@lib/visual-note/types"
 import type { ExportDocument, ExportDocumentInput, ExportPage, ExportTopic } from "./types"
 
 export const slugifyExportName = (value: string, fallback = "visual-note") => {

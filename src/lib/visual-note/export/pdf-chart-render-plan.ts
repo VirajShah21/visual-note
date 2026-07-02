@@ -1,6 +1,6 @@
 import { arc as d3Arc, area as d3Area, line as d3Line, max, pie as d3Pie, scaleBand, scaleLinear } from "d3"
 import type { PieArcDatum } from "d3"
-import { chartColors, chartMargin, chartPieMargin, chartSize, type ChartDataset, type ChartSeries, type VisualChartType } from "../chart-data"
+import { chartColors, chartMargin, chartPieMargin, chartSize, type ChartDataset, type ChartSeries, type VisualChartType } from "@lib/visual-note/chart-data"
 
 type PlotPoint = {
     label: string

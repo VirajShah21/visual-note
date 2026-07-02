@@ -52,8 +52,6 @@ export type NotebookPage = {
     seo?: PageSeo
 }
 
-export type NotebookSection = NotebookPage
-
 export type Topic = {
     id: string
     pageId: string
@@ -70,7 +68,6 @@ export type NotebookView = {
     content: string
     position?: number
     displays: DisplayInstance[]
-    componentIds?: string[]
 }
 
 export type DisplayInstance = {
@@ -81,43 +78,11 @@ export type DisplayInstance = {
     data: Record<string, unknown>
 }
 
-export type VisualComponent = DisplayInstance & {
-    notebookId: string
-    description: string
-}
-
-export type AgenticMemoryEntry = {
-    id: string
-    createdAt: string
-    scope: "workspace" | "notebook"
-    notebookId?: string
-    goal: string
-    assumptions: string[]
-    constraints: string[]
-    nextActions: string[]
-    status?: "ok" | "warning" | "failed"
-    plan?: Array<{ tool: string; input: Record<string, unknown> }>
-    summary?: string
-    note?: string
-}
-
 export type VisualNoteWorkspace = {
     notebooks: Notebook[]
     pages: NotebookPage[]
     topics: Topic[]
     views: NotebookView[]
-    components?: VisualComponent[]
-    agenticMemory?: AgenticMemoryEntry[]
-    agenticObservations?: Array<{
-        id: string
-        createdAt: string
-        goal: string
-        status: "ok" | "warning" | "failed"
-        summary: string
-        plan: Array<{ tool: string; input: Record<string, unknown> }>
-        blockers: string[]
-        note?: string
-    }>
     snapshots?: WorkspaceSnapshot[]
 }
 

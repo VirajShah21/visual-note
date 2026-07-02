@@ -1,13 +1,13 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import type { VisualChartType } from "../chart-data"
+import type { VisualChartType } from "@lib/visual-note/chart-data"
 import { createExportDocument } from "./document"
 import { renderMarkdownExport } from "./markdown"
 import { createPdfChartRenderPlan } from "./pdf-chart-render-plan"
 import { createPdfRenderModel } from "./pdf-model"
 import { createServerPackageFiles, renderWebHtml } from "./web"
-import { defaultVisualBlockData, serializeVisualBlockBody, visualBlockKinds } from "../visual-blocks"
-import type { VisualNoteWorkspace } from "../types"
+import { defaultVisualBlockData, serializeVisualBlockBody, visualBlockKinds } from "@lib/visual-note/visual-blocks"
+import type { VisualNoteWorkspace } from "@lib/visual-note/types"
 import type { ExportAssetMode, ExportAssetResolution, PdfRenderBlock } from "./types"
 
 type PdfChartRenderBlock = Extract<PdfRenderBlock, { kind: "chart" }>
@@ -59,7 +59,6 @@ const workspace: VisualNoteWorkspace = {
             displays: [],
         },
     ],
-    components: [],
 }
 
 const selection = {
@@ -153,7 +152,7 @@ test("renders Markdown with include, base64, and ignore asset modes", () => {
     assert.ok(document)
 
     const included = renderMarkdownExport(document, renderContext("include"))
-    assert.match(included, /!\[Photo\]\(assets\/photo\.png\)/)
+    assert.match(included, /!\[Photo]\(assets\/photo\.png\)/)
     assert.match(included, /assets\/photo\.png/)
     assert.doesNotMatch(included, /\/api\/assets\/asset-1/)
 
@@ -161,7 +160,7 @@ test("renders Markdown with include, base64, and ignore asset modes", () => {
     assert.match(base64, /data:image\/png;base64,AAAA/)
 
     const ignored = renderMarkdownExport(document, renderContext("ignore"))
-    assert.doesNotMatch(ignored, /!\[Photo\]/)
+    assert.doesNotMatch(ignored, /!\[Photo]/)
     assert.doesNotMatch(ignored, /visual:image/)
 })
 

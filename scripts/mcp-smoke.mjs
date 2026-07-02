@@ -4,6 +4,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 
 const url = process.env.VISUAL_NOTE_MCP_URL
 const token = process.env.VISUAL_NOTE_MCP_TOKEN
+const expectedToolNames = ["list_notebooks", "read_notebook", "create_article", "read_article", "replace_article_content", "upsert_visual_block", "remove_visual_block"]
 
 if (!url || !token) {
     console.error("Set VISUAL_NOTE_MCP_URL and VISUAL_NOTE_MCP_TOKEN to a Visual Note MCP API token before running the MCP smoke test.")
@@ -28,7 +29,7 @@ const transport = new StreamableHTTPClientTransport(new URL(url), {
 try {
     await client.connect(transport)
     const tools = await client.listTools()
-    assert.ok(tools.tools.some(tool => tool.name === "list_notebooks"))
+    assert.deepEqual(tools.tools.map(tool => tool.name).sort(), [...expectedToolNames].sort())
 
     const notebooks = readJsonText(await client.callTool({ name: "list_notebooks", arguments: {} }))
     assert.equal(notebooks.ok, true)

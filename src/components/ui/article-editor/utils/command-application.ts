@@ -1,5 +1,5 @@
 import { articleBlockCanReceiveTextFocus, isListBlock, type ArticleBlock } from "@/lib/visual-note/article-content"
-import type { ArticleEditorCommand } from "../types"
+import type { ArticleEditorCommand } from "@ui/article-editor/types"
 import { EMPTY_PARAGRAPH_TEXT, getBlockTextLength, getLineEnd, getLineStart } from "./text"
 
 export const createCommandReplacement = (command: ArticleEditorCommand, selectedDisplayIndex: number, contextText: string, triggerIndex: number, selectionEnd: number) => {

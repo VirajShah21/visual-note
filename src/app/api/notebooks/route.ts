@@ -98,7 +98,6 @@ export async function POST(request: Request) {
                     pages,
                     topics,
                     views,
-                    components: [],
                 },
                 page.id,
             )

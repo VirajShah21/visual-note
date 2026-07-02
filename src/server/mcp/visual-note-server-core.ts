@@ -7,7 +7,6 @@ import { normalizeWorkspace } from "@/lib/visual-note/factories"
 import { visualBlockKinds } from "@/lib/visual-note/visual-blocks"
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { loadWorkspaceForUser, saveWorkspaceForUser } from "@/server/visual-note/workspace-store"
-import * as workspaceOps from "@/server/visual-note/workspace-operations"
 import type { WorkspaceOperationResult } from "@/server/visual-note/workspace-operations"
 
 export type ToolExtra = RequestHandlerExtra<ServerRequest, ServerNotification>
@@ -22,7 +21,6 @@ export const emptyWorkspace: VisualNoteWorkspace = {
     pages: [],
     topics: [],
     views: [],
-    components: [],
 }
 
 export const visualBlockKindSchema = z.enum(visualBlockKinds)
@@ -141,5 +139,4 @@ export const resolveViewInput = requireAtLeastOne(
     ["viewId", "title"],
 )
 
-export { workspaceOps }
 export { z }

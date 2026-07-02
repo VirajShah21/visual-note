@@ -8,9 +8,7 @@ import {
     type NotebookView,
     type Topic,
     type ViewMode,
-    type VisualComponent,
     type VisualNoteWorkspace,
-    type VisualUser,
 } from "./types"
 
 const createId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
@@ -76,15 +74,6 @@ export const createDisplayInstance = (kind: ComponentKind, name: string = defaul
     name,
     kind,
     position: 0,
-    data: defaultComponentData(kind),
-})
-
-export const createVisualComponent = (notebookId: string, kind: ComponentKind, name: string): VisualComponent => ({
-    id: createId("component"),
-    notebookId,
-    name,
-    kind,
-    description: "Reusable display component for structured notebook data.",
     data: defaultComponentData(kind),
 })
 
@@ -205,50 +194,19 @@ export const normalizeNotebookEditorSettings = (settings?: Partial<NotebookEdito
 })
 
 export const normalizeWorkspace = (workspace: VisualNoteWorkspace): VisualNoteWorkspace => {
-    const legacyComponents = workspace.components ?? []
-
     return {
         ...workspace,
         notebooks: workspace.notebooks.map(notebook => ({ ...notebook, editorSettings: normalizeNotebookEditorSettings(notebook.editorSettings) })),
-        views: workspace.views.map(view => {
-            if (Array.isArray(view.displays))
-                return {
-                    ...view,
-                    displays: view.displays.map(display => ({ ...display, data: display.data ?? defaultComponentData(display.kind) })),
-                }
-
-            return {
-                ...view,
-                displays: (view.componentIds ?? [])
-                    .map(componentId => legacyComponents.find(component => component.id === componentId))
-                    .filter(component => Boolean(component))
-                    .map(component => ({
-                        id: createId("display"),
-                        name: component?.name ?? "Display",
-                        kind: component?.kind ?? "data-card",
-                        data: { ...(component?.data ?? defaultComponentData(component?.kind ?? "data-card")) },
-                    })),
-            }
-        }),
-        components: [],
+        views: workspace.views.map(view => ({
+            ...view,
+            displays: view.displays.map(display => ({ ...display, data: display.data ?? defaultComponentData(display.kind) })),
+        })),
     }
 }
 
-export const createSeedWorkspace = (user: VisualUser): VisualNoteWorkspace => {
-    const notebook = createNotebook(user.id, "Web Notebook Prototype")
-    const overviewPage = createPage(notebook.id, "Overview", 0)
-    const researchPage = createPage(notebook.id, "Research", 1)
-    const conceptTopic = createTopic(overviewPage.id, "Concept", 0)
-    const architectureTopic = createTopic(overviewPage.id, "Architecture", 1)
-    const view = createView(conceptTopic.id, "Why web-shaped notes matter", "article")
-    const dataCard = createDisplayInstance("data-card", "Core thesis")
-    const timeline = createDisplayInstance("timeline", "Notebook evolution")
-
-    return {
-        notebooks: [notebook],
-        pages: [overviewPage, researchPage],
-        topics: [conceptTopic, architectureTopic],
-        views: [{ ...view, displays: [dataCard, timeline] }],
-        components: [],
-    }
-}
+export const createEmptyWorkspace = (): VisualNoteWorkspace => ({
+    notebooks: [],
+    pages: [],
+    topics: [],
+    views: [],
+})

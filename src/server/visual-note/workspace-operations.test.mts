@@ -1,9 +1,23 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { parseArticleContent } from "../../lib/visual-note/article-content"
-import { serializeVisualBlockBody } from "../../lib/visual-note/visual-blocks"
-import type { VisualNoteWorkspace } from "../../lib/visual-note/types"
-import { createArticle, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, upsertVisualBlock } from "./workspace-operations"
+import { parseArticleContent } from "@lib/visual-note/article-content"
+import { serializeVisualBlockBody } from "@lib/visual-note/visual-blocks"
+import type { VisualNoteWorkspace } from "@lib/visual-note/types"
+import * as workspaceOperations from "./workspace-operations"
+import { visualNoteCoreToolNames, visualNoteToolDefinitions } from "@server/mcp/visual-note-tools"
+
+const { createArticle, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, upsertVisualBlock } = workspaceOperations
+
+const expectedCoreToolNames = [
+    "list_notebooks",
+    "read_notebook",
+    "create_article",
+    "create_notebook",
+    "read_article",
+    "replace_article_content",
+    "upsert_visual_block",
+    "remove_visual_block",
+]
 
 const baseWorkspace = (): VisualNoteWorkspace => ({
     notebooks: [
@@ -42,7 +56,26 @@ const baseWorkspace = (): VisualNoteWorkspace => ({
         { id: "view-2", topicId: "topic-2", title: "Beta article", mode: "article", content: "Beta", displays: [] },
         { id: "view-3", topicId: "topic-4", title: "Hidden article", mode: "article", content: "Hidden", displays: [] },
     ],
-    components: [],
+})
+
+test("exports the core workspace operation facade at runtime", () => {
+    assert.equal(typeof workspaceOperations.listNotebooks, "function")
+    assert.equal(typeof workspaceOperations.readNotebookTree, "function")
+    assert.equal(typeof workspaceOperations.createArticle, "function")
+    assert.equal(typeof workspaceOperations.createNotebook, "function")
+    assert.equal(typeof workspaceOperations.readArticle, "function")
+    assert.equal(typeof workspaceOperations.replaceArticleContent, "function")
+    assert.equal(typeof workspaceOperations.upsertVisualBlock, "function")
+    assert.equal(typeof workspaceOperations.removeVisualBlock, "function")
+})
+
+test("exposes only the core MCP tool registry", () => {
+    assert.deepEqual(Array.from(visualNoteCoreToolNames), expectedCoreToolNames)
+    assert.deepEqual(
+        visualNoteToolDefinitions.map(tool => tool.name),
+        expectedCoreToolNames,
+    )
+    assert.equal(new Set(visualNoteToolDefinitions.map(tool => tool.name)).size, expectedCoreToolNames.length)
 })
 
 test("reads notebook trees in page and topic position order", () => {

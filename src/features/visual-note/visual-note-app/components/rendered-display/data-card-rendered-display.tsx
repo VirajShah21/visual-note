@@ -4,9 +4,9 @@ import { Pencil } from "lucide-react"
 import { useCallback, useState } from "react"
 import { Button, Heading, Stack, Text } from "@/components/ui"
 import type { DisplayInstance } from "@/lib/visual-note/types"
-import { stringFrom } from "../../utils/visual-note-app.utils"
+import { stringFrom } from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
 import styles from "../../../visual-note-app.module.css"
-import { DisplayDataEditor } from "../display-data-editor"
+import { DisplayDataEditor } from "@features/visual-note/visual-note-app/components/display-data-editor"
 
 type DataCardRenderedDisplayProps = {
     data: Record<string, unknown>

@@ -31,7 +31,7 @@ The application should make this hierarchy visible in the interface. Avoid rever
 - Use CSS Modules for shared component styling.
 - Use React with TypeScript.
 - Keep the lint and format configuration aligned:
-    - 300 character maximum line length for TypeScript and TSX files.
+    - 180 character maximum line length for TypeScript and TSX files.
     - 4 spaces for indentation.
     - No semicolons.
     - Do not use parentheses for arrow functions with exactly one untyped parameter unless syntax requires them.
@@ -67,8 +67,8 @@ The application should make this hierarchy visible in the interface. Avoid rever
 ## Agent Workflow
 
 - Before making framework-sensitive changes, inspect existing files and the relevant local Next docs when needed.
-- After code changes, run `npm run lint:fix` first so fixable lint warnings and errors are handled automatically before manual cleanup.
-- Then run `npm run lint`, `npm run format:check`, and `npm run build`.
+- After code changes, run `npm run lint` first so fixable lint warnings and errors are handled automatically before manual cleanup.
+- Then run `npm run format:check` and `npm run build`.
 - If a lint warning or error is not auto-fixable, fix it manually instead of weakening the rule.
 - Do not satisfy implementation requests with documentation-only changes.
 - Do not bypass the shared UI layer to move faster; add or extend a shared component instead.

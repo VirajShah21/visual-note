@@ -1,10 +1,9 @@
-import { createVisualArticleBlock } from "./workspace-operations-part-039"
-import { exportNotebook } from "./workspace-operations-part-038"
-import { findOwnedView, readNotebookTree, writeViewContent } from "./workspace-operations-part-005"
-import { byIds, findOwnedNotebook } from "./workspace-operations-part-004"
-import { byPosition, HealthCheckIssue, HealthCheckResult, invalidInput, notFound, ok, OrphanAnalysisResult } from "./workspace-operations-part-002"
-import { parseArticleContent, serializeArticleContent, VisualBlockData, VisualBlockKind, VisualNoteWorkspace, WorkspaceOperationResult } from "./workspace-operations-part-001"
-export * from "./workspace-operations-part-036"
+import { createVisualArticleBlock } from "./visual-blocks"
+import { exportNotebook } from "./exports"
+import { findOwnedView, readNotebookTree, writeViewContent } from "./read-model"
+import { byIds, findOwnedNotebook } from "./selectors"
+import { byPosition, HealthCheckIssue, HealthCheckResult, invalidInput, notFound, ok, OrphanAnalysisResult } from "./result"
+import { parseArticleContent, serializeArticleContent, VisualBlockData, VisualBlockKind, VisualNoteWorkspace, WorkspaceOperationResult } from "./types"
 
 export const exportPublishBundle = (workspace: VisualNoteWorkspace, userId: string, input: { notebookId: string; includeHtml?: boolean; includeJson?: boolean }) => {
     const notebook = findOwnedNotebook(workspace, userId, input.notebookId)

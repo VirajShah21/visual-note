@@ -1,8 +1,7 @@
-import { ensureUniqueSlug, findOwnedView } from "./workspace-operations-part-005"
-import { findOwnedNotebook } from "./workspace-operations-part-004"
-import { byPosition, cloneWorkspace, invalidInput, normalizeTitle, notFound, ok, safeTrim, slugify } from "./workspace-operations-part-002"
-import { createNotebookRecord, createPageRecord, createTopicRecord, createViewRecord, Notebook, ViewMode, VisualNoteWorkspace } from "./workspace-operations-part-001"
-export * from "./workspace-operations-part-005"
+import { ensureUniqueSlug, findOwnedView } from "./read-model"
+import { findOwnedNotebook } from "./selectors"
+import { byPosition, cloneWorkspace, invalidInput, normalizeTitle, notFound, ok, safeTrim, slugify } from "./result"
+import { createNotebookRecord, createPageRecord, createTopicRecord, createViewRecord, Notebook, ViewMode, VisualNoteWorkspace } from "./types"
 
 export const resolveView = (workspace: VisualNoteWorkspace, userId: string, input: { viewId?: string; title?: string; topicId?: string }) => {
     if (input.viewId) {

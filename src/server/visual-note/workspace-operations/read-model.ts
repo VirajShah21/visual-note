@@ -1,7 +1,6 @@
-import { byIds, findOwnedNotebook, findOwnedPage } from "./workspace-operations-part-004"
-import { byPosition, invalidInput, normalizeTitle, notFound, ok, safeTrim } from "./workspace-operations-part-002"
-import { NotebookSummary, parseArticleContent, serializeArticleContent, VisualNoteWorkspace } from "./workspace-operations-part-001"
-export * from "./workspace-operations-part-004"
+import { byIds, findOwnedNotebook, findOwnedPage } from "./selectors"
+import { byPosition, invalidInput, normalizeTitle, notFound, ok, safeTrim } from "./result"
+import { NotebookSummary, parseArticleContent, serializeArticleContent, VisualNoteWorkspace } from "./types"
 
 export const findOwnedTopic = (workspace: VisualNoteWorkspace, userId: string, topicId: string) => {
     const topic = workspace.topics.find(item => item.id === topicId)
@@ -133,8 +132,6 @@ export const readPageContext = (workspace: VisualNoteWorkspace, userId: string, 
         })),
     })
 }
-
-export const readPage = readPageContext
 
 export const resolveNotebook = (workspace: VisualNoteWorkspace, userId: string, input: { notebookId?: string; title?: string }) => {
     if (input.notebookId) {

@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from "react"
 import { cryptoId, isListBlock, type ArticleBlock } from "@/lib/visual-note/article-content"
-import type { ArticleEditorCommand, CommandState, EditorField } from "../types"
+import type { ArticleEditorCommand, CommandState, EditorField } from "@ui/article-editor/types"
 import { removeEmptyListItemBeforeCursor, splitListItem } from "./keyboard-list"
 import { handleSubtitleShortcut } from "./keyboard-subtitle"
 import { getLineEnd, getLineStart, isBlockEmpty, normalizeParagraphText } from "./text"

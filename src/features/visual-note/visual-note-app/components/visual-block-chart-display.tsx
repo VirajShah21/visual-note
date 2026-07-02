@@ -3,8 +3,8 @@
 import { useCallback } from "react"
 import { ChartDataSheet, DataSelectField, DataTextField, EditableVisualBlock, Grid, Heading, SimpleChart, Stack } from "@/components/ui"
 import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
-import { chartDataLayoutFrom, chartDatasetFromSheet, chartSheetFromData, chartTypeFrom } from "../utils/chart-data"
-import { stringFrom } from "../utils/visual-note-app.utils"
+import { chartDataLayoutFrom, chartDatasetFromSheet, chartSheetFromData, chartTypeFrom } from "@features/visual-note/visual-note-app/utils/chart-data"
+import { stringFrom } from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
 import styles from "../../visual-note-app.module.css"
 
 type VisualBlockChartDisplayProps = {

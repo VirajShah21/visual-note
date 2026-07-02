@@ -26,8 +26,8 @@ import {
     timeInputValue,
     timelineEventsFromData,
     timelineItemRevealTransition,
-} from "../utils/visual-note-app.utils"
-import type { DisplayDataEditorProps } from "../types/visual-note-app.types"
+} from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
+import type { DisplayDataEditorProps } from "@features/visual-note/visual-note-app/types/visual-note-app.types"
 import { BugsEditorSection, ShoppingItemsEditorSection, WorkLogsEditorSection } from "./display-data-editor-sections"
 
 const MotionCard = motion(Card)

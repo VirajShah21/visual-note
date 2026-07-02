@@ -1,10 +1,10 @@
 import { Grid2X2, Plus } from "lucide-react"
 import { motion } from "motion/react"
-import { Button } from "../../button"
-import { Heading, Pill, Stack } from "../../primitives"
+import { Button } from "@ui/button"
+import { Heading, Pill, Stack } from "@ui/primitives"
 import { NotebookSearchField } from "./notebook-search-field"
 import styles from "../../notebook-home.module.css"
-import type { NotebookTopBarProps } from "../types/notebook-home.types"
+import type { NotebookTopBarProps } from "@ui/notebook-home/types/notebook-home.types"
 
 export function NotebookTopBar({ query, onQueryChange, onCreate }: NotebookTopBarProps) {
     return (

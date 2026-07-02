@@ -4,7 +4,7 @@ import { CheckCircle2, CircleDot, GitBranch, GitPullRequest, XCircle } from "luc
 import { useCallback } from "react"
 import { DataTextField, EditableVisualBlock, Grid, Heading, InlineStringListForField, Pill, Stack, Text } from "@/components/ui"
 import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
-import { arrayFrom, replaceStringAt, stringFrom } from "../../utils/visual-note-app.utils"
+import { arrayFrom, replaceStringAt, stringFrom } from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
 import styles from "./visual-pull-request-block.module.css"
 
 type VisualPullRequestBlockProps = {

@@ -1,10 +1,10 @@
 import Link from "next/link"
 import { motion } from "motion/react"
 import { MoreHorizontal } from "lucide-react"
-import { Heading, Stack, Text } from "../../primitives"
+import { Heading, Stack, Text } from "@ui/primitives"
 import { NotebookStat } from "./notebook-stat"
 import { NotebookWebsitePreview } from "./notebook-website-preview"
-import { NotebookGalleryCardProps } from "../types/notebook-home.types"
+import { NotebookGalleryCardProps } from "@ui/notebook-home/types/notebook-home.types"
 import styles from "../../notebook-home.module.css"
 
 export function NotebookGalleryCard({ notebook, index }: NotebookGalleryCardProps) {

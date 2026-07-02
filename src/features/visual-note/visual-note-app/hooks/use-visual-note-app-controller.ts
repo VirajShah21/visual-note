@@ -1,16 +1,15 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ToastMessage, ToastTone } from "@/components/ui"
 import { logoutVisualNoteUser } from "@/lib/visual-note/auth-api"
 import { uploadNotebookImage } from "@/lib/visual-note/storage-api"
-import { createNotebook, createPage, createSeedWorkspace, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
-import { clearStoredUser, loadStoredWorkspace, storeUser, storeWorkspace } from "@/lib/visual-note/storage"
-import { loadVisualNoteWorkspace, saveVisualNoteWorkspace } from "@/lib/visual-note/workspace-api"
+import { createEmptyWorkspace, createNotebook, createPage, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
+import { loadVisualNoteWorkspace } from "@/lib/visual-note/workspace-api"
 import type { DisplayInstance, NotebookEditorSettings, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
 import type { NotebookEditorSearchResult } from "@/components/ui"
-import { updateWorkspaceNotebookEditorSettings } from "../utils/notebook-editor-settings"
+import { updateWorkspaceNotebookEditorSettings } from "@features/visual-note/visual-note-app/utils/notebook-editor-settings"
 import {
     blankSelection,
     coerceSingleArticleViewPerTopic,
@@ -19,9 +18,10 @@ import {
     deleteTopicFromWorkspace,
     deriveSelection,
     ensureSelectionHasArticleView,
-} from "../utils/visual-note-app.utils"
+} from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
 import { restoreVisualNoteSession } from "./restore-visual-note-session"
 import { registerVisualNoteAccount, signInVisualNoteUser } from "./visual-note-auth-actions"
+import { useVisualNoteWorkspaceAutosave } from "./use-visual-note-workspace-autosave"
 export const useVisualNoteAppController = (initialNotebookId: string) => {
     const router = useRouter()
     const [user, setUser] = useState<VisualUser | null>(null)
@@ -31,6 +31,8 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const [notice, setNotice] = useState("")
     const [toastMessages, setToastMessages] = useState<ToastMessage[]>([])
     const [authStatus, setAuthStatus] = useState<"ready" | "unconfigured">("ready")
+    const syncedWorkspaceRef = useRef("")
+    const hasActiveSaveErrorRef = useRef(false)
     const pushToast = useCallback((title: string, description?: string, tone: ToastTone = "success") => {
         const id = globalThis.crypto?.randomUUID() ?? `${Date.now()}-${Math.random()}`
         setToastMessages(current => [...current.slice(-2), { id, title, description, tone }])
@@ -46,6 +48,7 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
                 return
             }
             setUser(restored.user)
+            syncedWorkspaceRef.current = JSON.stringify(restored.workspace)
             setWorkspace(restored.workspace)
             setSelection(restored.selection)
             setAuthStatus(restored.authStatus)
@@ -54,11 +57,14 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         }
         void restore()
     }, [initialNotebookId])
-    useEffect(() => {
-        if (!user || !workspace) return
-        storeWorkspace(user.id, workspace)
-        void saveVisualNoteWorkspace(workspace)
-    }, [user, workspace])
+    useVisualNoteWorkspaceAutosave({
+        user,
+        workspace,
+        setNotice,
+        pushToast,
+        hasActiveSaveErrorRef,
+        syncedWorkspaceRef,
+    })
     const selected = useMemo(() => {
         const currentSelection = deriveSelection(workspace, selection)
         const notebook = workspace?.notebooks.find(item => item.id === currentSelection.notebookId) ?? null
@@ -69,13 +75,14 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     }, [selection, workspace])
     const openWorkspaceForUser = async (nextUser: VisualUser) => {
         setAuthStatus("ready")
-        storeUser(nextUser)
         setUser(nextUser)
         const remoteWorkspace = await loadVisualNoteWorkspace()
-        const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? loadStoredWorkspace(nextUser.id) ?? createSeedWorkspace(nextUser)))
+        const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? createEmptyWorkspace()))
         const resolved = ensureSelectionHasArticleView(nextWorkspace, { ...blankSelection, notebookId: initialNotebookId })
+        syncedWorkspaceRef.current = JSON.stringify(resolved.workspace)
         setWorkspace(resolved.workspace)
         setSelection(resolved.selection)
+        hasActiveSaveErrorRef.current = false
         setNotice("Workspace changes are saved to the Visual Note workspace store.")
         pushToast("Workspace opened", "Changes will save to the workspace database.", "info")
     }
@@ -84,7 +91,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const register = (email: string, password: string, name: string) => registerVisualNoteAccount(authContext, email, password, name)
     const signOut = async () => {
         await logoutVisualNoteUser()
-        clearStoredUser()
         setUser(null)
         setWorkspace(null)
         setSelection(blankSelection)
@@ -238,37 +244,28 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         pushToast("Image uploaded", asset.fileName)
         return { url: asset.url, alt: asset.fileName }
     }
-    return {
-        galleryItems,
-        isLoading,
-        notice,
-        sections,
-        selected,
-        authStatus,
-        toastMessages,
-        user,
-        workspace,
-        actions: {
-            addSection,
-            addTopic,
-            createNotebookAndOpen,
-            deleteSection,
-            deleteTopic,
-            dismissToast,
-            register,
-            renameSection,
-            renameTopic,
-            openHome,
-            selectSection,
-            selectSearchResult,
-            selectNotebook,
-            selectTopic,
-            signIn,
-            signOut,
-            updateDisplay,
-            updateNotebookEditorSettings,
-            updateView,
-            uploadImage,
-        },
+    const actions = {
+        addSection,
+        addTopic,
+        createNotebookAndOpen,
+        deleteSection,
+        deleteTopic,
+        dismissToast,
+        register,
+        renameSection,
+        renameTopic,
+        openHome,
+        selectSection,
+        selectSearchResult,
+        selectNotebook,
+        selectTopic,
+        signIn,
+        signOut,
+        updateDisplay,
+        updateNotebookEditorSettings,
+        updateView,
+        uploadImage,
     }
+
+    return { galleryItems, isLoading, notice, sections, selected, authStatus, toastMessages, user, workspace, actions }
 }

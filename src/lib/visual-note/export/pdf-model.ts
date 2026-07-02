@@ -1,4 +1,4 @@
-import { parseArticleContent, type ArticleBlock } from "../article-content"
+import { parseArticleContent, type ArticleBlock } from "@lib/visual-note/article-content"
 import { createPdfImageBlocks, createPdfVisualBlocks } from "./pdf-visual-blocks"
 import type { ExportDocument, ExportRenderContext, PdfExportOptions, PdfRenderBlock, PdfRenderModel } from "./types"
 

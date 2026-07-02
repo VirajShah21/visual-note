@@ -1,6 +1,6 @@
 import { motion } from "motion/react"
 import type { CSSProperties } from "react"
-import { NotebookWebsitePreviewProps } from "../types/notebook-home.types"
+import { NotebookWebsitePreviewProps } from "@ui/notebook-home/types/notebook-home.types"
 import styles from "../../notebook-home.module.css"
 
 export function NotebookWebsitePreview({ notebook }: NotebookWebsitePreviewProps) {

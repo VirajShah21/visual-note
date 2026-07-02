@@ -1,12 +1,12 @@
 import { BookOpen, Home, LayoutTemplate, LogOut, Share2, Sparkles, TerminalSquare } from "lucide-react"
 import { motion } from "motion/react"
 import { useCallback } from "react"
-import { Stack } from "../../primitives"
-import { Button } from "../../button"
-import { cx } from "../../class-name"
+import { Stack } from "@ui/primitives"
+import { Button } from "@ui/button"
+import { cx } from "@ui/class-name"
 import { NotebookNavItem } from "./notebook-nav-item"
 import styles from "../../notebook-home.module.css"
-import type { NotebookNavigationRailProps } from "../types/notebook-home.types"
+import type { NotebookNavigationRailProps } from "@ui/notebook-home/types/notebook-home.types"
 
 export function NotebookNavigationRail({ activeView, userLabel, storageLabel, onViewChange, onSignOut }: NotebookNavigationRailProps) {
     const selectNotebooks = useCallback(() => onViewChange("notebooks"), [onViewChange])
