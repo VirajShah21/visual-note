@@ -160,7 +160,7 @@ test("renders Markdown with include, base64, and ignore asset modes", () => {
     assert.match(base64, /data:image\/png;base64,AAAA/)
 
     const ignored = renderMarkdownExport(document, renderContext("ignore"))
-    assert.doesNotMatch(ignored, /!\[Photo\]/)
+    assert.doesNotMatch(ignored, /!\[Photo]/)
     assert.doesNotMatch(ignored, /visual:image/)
 })
 
