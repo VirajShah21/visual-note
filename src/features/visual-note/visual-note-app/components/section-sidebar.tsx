@@ -3,7 +3,7 @@
 import { PanelLeft, Pencil, Plus, Trash2 } from "lucide-react"
 import { useCallback, useMemo, useState } from "react"
 import { Button, ContextActions, Heading, InfoPopover, Pill, ScrollArea, Stack } from "@/components/ui"
-import type { SectionSidebarProps } from "../types/visual-note-app.types"
+import type { SectionSidebarProps } from "@features/visual-note/visual-note-app/types/visual-note-app.types"
 import styles from "../../visual-note-app.module.css"
 import { SectionDialogs } from "./section-sidebar-dialogs"
 

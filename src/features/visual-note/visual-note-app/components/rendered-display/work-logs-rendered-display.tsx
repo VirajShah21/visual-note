@@ -4,7 +4,7 @@ import { Clock, ExternalLink as ExternalLinkIcon, Pencil, Plus } from "lucide-re
 import { AnimatePresence, motion } from "motion/react"
 import { type ChangeEvent, useCallback, useState } from "react"
 import { Button, ExternalLink, Grid, Heading, Pill, Stack, Text, TextAreaField, TextField } from "@/components/ui"
-import { defaultListItems, objectArrayFrom, replaceObjectAt, stringFrom, timelineItemRevealTransition } from "../../utils/visual-note-app.utils"
+import { defaultListItems, objectArrayFrom, replaceObjectAt, stringFrom, timelineItemRevealTransition } from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
 import styles from "../../../visual-note-app.module.css"
 
 const MotionStack = motion(Stack)

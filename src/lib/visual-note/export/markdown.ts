@@ -1,4 +1,4 @@
-import { parseArticleContent, serializeArticleContent, type ArticleBlock } from "../article-content"
+import { parseArticleContent, serializeArticleContent, type ArticleBlock } from "@lib/visual-note/article-content"
 import type { ExportDocument, ExportRenderContext } from "./types"
 import { assetUrlFor } from "./assets"
 

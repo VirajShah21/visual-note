@@ -2,8 +2,8 @@
 
 import { AnimatePresence, motion } from "motion/react"
 import { useCallback } from "react"
-import { MarkdownSourceEditor } from "../markdown-source-editor"
-import { Stack } from "../primitives"
+import { MarkdownSourceEditor } from "@ui/markdown-source-editor"
+import { Stack } from "@ui/primitives"
 import styles from "../article-editor.module.css"
 import { ArticleBlockChip, ArticleBlockRenderer, ArticleTableOfContents, CommandMenu } from "./components"
 import { useArticleEditorController } from "./hooks/use-article-editor-controller"

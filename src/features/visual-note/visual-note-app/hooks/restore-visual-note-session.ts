@@ -2,7 +2,7 @@ import { loadCurrentVisualNoteSession } from "@/lib/visual-note/auth-api"
 import { createEmptyWorkspace, normalizeWorkspace } from "@/lib/visual-note/factories"
 import { loadVisualNoteWorkspace } from "@/lib/visual-note/workspace-api"
 import type { SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
-import { blankSelection, coerceSingleArticleViewPerTopic, ensureSelectionHasArticleView } from "../utils/visual-note-app.utils"
+import { blankSelection, coerceSingleArticleViewPerTopic, ensureSelectionHasArticleView } from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
 
 export type AppAuthStatus = "ready" | "unconfigured"
 

@@ -4,9 +4,9 @@ import { CheckCircle2, Copy, KeyRound, PlugZap, Server, ShieldCheck, TerminalSqu
 import { motion } from "motion/react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { ChangeEvent, ReactNode } from "react"
-import { Button } from "../../button"
-import { TextField } from "../../form-controls"
-import { Heading, Pill, Stack, Text } from "../../primitives"
+import { Button } from "@ui/button"
+import { TextField } from "@ui/form-controls"
+import { Heading, Pill, Stack, Text } from "@ui/primitives"
 import { createMcpToken, listMcpTokens, revokeMcpToken, type McpTokenRecord } from "@/lib/visual-note/mcp-token-api"
 import styles from "../../notebook-home.module.css"
 

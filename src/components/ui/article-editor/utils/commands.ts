@@ -1,7 +1,7 @@
 import { cryptoId, type ArticleBlock } from "@/lib/visual-note/article-content"
 import type { DisplayInstance } from "@/lib/visual-note/types"
 import { defaultVisualBlockData, visualBlockKinds, visualBlockLabel, type VisualBlockKind } from "@/lib/visual-note/visual-blocks"
-import type { ArticleEditorCommand, CommandAction, CommandReducerState } from "../types"
+import type { ArticleEditorCommand, CommandAction, CommandReducerState } from "@ui/article-editor/types"
 
 export const CLOSED_COMMAND_STATE: CommandReducerState = {
     commandState: null,

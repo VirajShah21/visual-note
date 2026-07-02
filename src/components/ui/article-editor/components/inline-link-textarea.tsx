@@ -2,7 +2,7 @@
 
 import { type FocusEvent, type KeyboardEvent, type MouseEvent, useCallback, useReducer, type ReactNode } from "react"
 import Image from "next/image"
-import { cx } from "../../class-name"
+import { cx } from "@ui/class-name"
 import styles from "../../article-editor.module.css"
 import { BlockTextarea, type BlockTextareaProps } from "./block-textarea"
 

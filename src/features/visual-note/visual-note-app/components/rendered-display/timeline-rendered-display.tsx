@@ -12,7 +12,7 @@ import {
     timelineEventsFromData,
     timelineItemRevealTransition,
     timelineScheduleText,
-} from "../../utils/visual-note-app.utils"
+} from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
 import styles from "../../../visual-note-app.module.css"
 
 const MotionStack = motion(Stack)

@@ -1,6 +1,6 @@
-import type { ArticleBlock } from "../article-content"
-import { chartDatasetFromData, chartTypeFrom } from "../chart-data"
-import { visualBlockLabel, type VisualBlockData } from "../visual-blocks"
+import type { ArticleBlock } from "@lib/visual-note/article-content"
+import { chartDatasetFromData, chartTypeFrom } from "@lib/visual-note/chart-data"
+import { visualBlockLabel, type VisualBlockData } from "@lib/visual-note/visual-blocks"
 import { assetUrlFor } from "./assets"
 import {
     arrayFrom,

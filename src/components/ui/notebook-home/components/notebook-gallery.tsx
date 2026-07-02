@@ -1,7 +1,7 @@
 import { motion } from "motion/react"
-import { Heading, Text } from "../../primitives"
+import { Heading, Text } from "@ui/primitives"
 import { NotebookGalleryCard } from "./notebook-gallery-card"
-import { NotebookGalleryProps } from "../types/notebook-home.types"
+import { NotebookGalleryProps } from "@ui/notebook-home/types/notebook-home.types"
 import styles from "../../notebook-home.module.css"
 
 export function NotebookGallery({ notebooks }: NotebookGalleryProps) {

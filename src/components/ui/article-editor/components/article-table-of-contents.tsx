@@ -3,7 +3,7 @@
 import { Button as BaseButton } from "@base-ui/react/button"
 import { useCallback } from "react"
 import type { ArticleHeadingIndex } from "@/lib/visual-note/article-content"
-import { articleHeadingTargetId } from "../utils/heading-target"
+import { articleHeadingTargetId } from "@ui/article-editor/utils/heading-target"
 import styles from "./article-table-of-contents.module.css"
 
 type ArticleTableOfContentsProps = {

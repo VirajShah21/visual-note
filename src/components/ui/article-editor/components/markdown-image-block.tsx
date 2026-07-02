@@ -2,11 +2,11 @@
 
 import { Upload } from "lucide-react"
 import { type ChangeEvent, useCallback, useRef, useState } from "react"
-import { Button } from "../../button"
-import { TextField } from "../../form-controls"
-import { ImageBlockFigure } from "../../image-block"
-import { Stack, Text } from "../../primitives"
-import type { ArticleBlockHandlers } from "../types"
+import { Button } from "@ui/button"
+import { TextField } from "@ui/form-controls"
+import { ImageBlockFigure } from "@ui/image-block"
+import { Stack, Text } from "@ui/primitives"
+import type { ArticleBlockHandlers } from "@ui/article-editor/types"
 import styles from "../../article-editor.module.css"
 
 type MarkdownImageBlockProps = {

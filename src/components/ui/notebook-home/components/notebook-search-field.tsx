@@ -3,7 +3,7 @@ import { Input } from "@base-ui/react/input"
 import { motion } from "motion/react"
 import { type ChangeEvent, useCallback } from "react"
 import styles from "../../notebook-home.module.css"
-import type { NotebookSearchFieldProps } from "../types/notebook-home.types"
+import type { NotebookSearchFieldProps } from "@ui/notebook-home/types/notebook-home.types"
 
 export function NotebookSearchField({ value, onChange }: NotebookSearchFieldProps) {
     const handleChange = useCallback((event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value), [onChange])

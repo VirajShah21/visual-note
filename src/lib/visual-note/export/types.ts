@@ -1,6 +1,6 @@
-import type { ArticleBlock } from "../article-content"
-import type { ChartDataset, ChartSeries, VisualChartType } from "../chart-data"
-import type { DisplayInstance, SelectionState, VisualNoteWorkspace } from "../types"
+import type { ArticleBlock } from "@lib/visual-note/article-content"
+import type { ChartDataset, ChartSeries, VisualChartType } from "@lib/visual-note/chart-data"
+import type { DisplayInstance, SelectionState, VisualNoteWorkspace } from "@lib/visual-note/types"
 
 export type ExportScope = "page" | "notebook"
 export type ExportAssetMode = "ignore" | "include" | "base64"

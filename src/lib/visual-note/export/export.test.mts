@@ -1,13 +1,13 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import type { VisualChartType } from "../chart-data"
+import type { VisualChartType } from "@lib/visual-note/chart-data"
 import { createExportDocument } from "./document"
 import { renderMarkdownExport } from "./markdown"
 import { createPdfChartRenderPlan } from "./pdf-chart-render-plan"
 import { createPdfRenderModel } from "./pdf-model"
 import { createServerPackageFiles, renderWebHtml } from "./web"
-import { defaultVisualBlockData, serializeVisualBlockBody, visualBlockKinds } from "../visual-blocks"
-import type { VisualNoteWorkspace } from "../types"
+import { defaultVisualBlockData, serializeVisualBlockBody, visualBlockKinds } from "@lib/visual-note/visual-blocks"
+import type { VisualNoteWorkspace } from "@lib/visual-note/types"
 import type { ExportAssetMode, ExportAssetResolution, PdfRenderBlock } from "./types"
 
 type PdfChartRenderBlock = Extract<PdfRenderBlock, { kind: "chart" }>

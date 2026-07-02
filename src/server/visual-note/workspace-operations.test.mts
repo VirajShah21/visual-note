@@ -1,10 +1,10 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { parseArticleContent } from "../../lib/visual-note/article-content"
-import { serializeVisualBlockBody } from "../../lib/visual-note/visual-blocks"
-import type { VisualNoteWorkspace } from "../../lib/visual-note/types"
+import { parseArticleContent } from "@lib/visual-note/article-content"
+import { serializeVisualBlockBody } from "@lib/visual-note/visual-blocks"
+import type { VisualNoteWorkspace } from "@lib/visual-note/types"
 import * as workspaceOperations from "./workspace-operations"
-import { visualNoteCoreToolNames, visualNoteToolDefinitions } from "../mcp/visual-note-tools"
+import { visualNoteCoreToolNames, visualNoteToolDefinitions } from "@server/mcp/visual-note-tools"
 
 const { createArticle, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, upsertVisualBlock } = workspaceOperations
 

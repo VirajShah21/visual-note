@@ -9,7 +9,7 @@ import { createEmptyWorkspace, createNotebook, createPage, createTopic, createVi
 import { loadVisualNoteWorkspace } from "@/lib/visual-note/workspace-api"
 import type { DisplayInstance, NotebookEditorSettings, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
 import type { NotebookEditorSearchResult } from "@/components/ui"
-import { updateWorkspaceNotebookEditorSettings } from "../utils/notebook-editor-settings"
+import { updateWorkspaceNotebookEditorSettings } from "@features/visual-note/visual-note-app/utils/notebook-editor-settings"
 import {
     blankSelection,
     coerceSingleArticleViewPerTopic,
@@ -18,7 +18,7 @@ import {
     deleteTopicFromWorkspace,
     deriveSelection,
     ensureSelectionHasArticleView,
-} from "../utils/visual-note-app.utils"
+} from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
 import { restoreVisualNoteSession } from "./restore-visual-note-session"
 import { registerVisualNoteAccount, signInVisualNoteUser } from "./visual-note-auth-actions"
 import { useVisualNoteWorkspaceAutosave } from "./use-visual-note-workspace-autosave"

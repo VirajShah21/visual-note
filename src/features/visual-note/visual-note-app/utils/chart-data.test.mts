@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { chartDatasetFromData, compactChartSheetFromData, minimumChartColumns, minimumChartRows } from "../../../../lib/visual-note/chart-data"
+import { chartDatasetFromData, compactChartSheetFromData, minimumChartColumns, minimumChartRows } from "@lib/visual-note/chart-data"
 import { chartDataLayoutFrom, chartDatasetFromSheet, chartSheetFromData, chartTypeFrom } from "./chart-data"
 
 test("pads current chart sheet data for the editor", () => {

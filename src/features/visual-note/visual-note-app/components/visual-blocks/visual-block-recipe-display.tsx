@@ -17,8 +17,8 @@ import {
     TextField,
 } from "@/components/ui"
 import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
-import { countLabel, joinedPreviewText } from "../../utils/visual-block-preview"
-import { arrayFrom, numberFrom, objectArrayFrom, replaceObjectAt, replaceStringAt, stringFrom } from "../../utils/visual-note-app.utils"
+import { countLabel, joinedPreviewText } from "@features/visual-note/visual-note-app/utils/visual-block-preview"
+import { arrayFrom, numberFrom, objectArrayFrom, replaceObjectAt, replaceStringAt, stringFrom } from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
 import styles from "../../../visual-note-app.module.css"
 
 type VisualBlockRecipeDisplayProps = {

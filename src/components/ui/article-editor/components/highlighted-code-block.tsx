@@ -1,8 +1,8 @@
 "use client"
 
 import hljs from "highlight.js/lib/common"
-import { cx } from "../../class-name"
-import { Stack, Text } from "../../primitives"
+import { cx } from "@ui/class-name"
+import { Stack, Text } from "@ui/primitives"
 import styles from "../../article-editor.module.css"
 
 type HighlightedCodeBlockProps = {

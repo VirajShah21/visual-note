@@ -4,7 +4,7 @@ import { Image as ImageIcon } from "lucide-react"
 import { type ChangeEvent, useCallback } from "react"
 import { DataSelectField, DataTextAreaField, DataTextField, EditableVisualBlock, Grid, ImageBlockFigure, Pill, Stack, TextField } from "@/components/ui"
 import type { VisualBlockData } from "@/lib/visual-note/visual-blocks"
-import { stringFrom } from "../../utils/visual-note-app.utils"
+import { stringFrom } from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
 import styles from "../../../visual-note-app.module.css"
 
 type VisualImageBlockProps = {

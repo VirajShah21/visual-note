@@ -4,7 +4,7 @@ import { useCallback } from "react"
 import { Grid, InlineObjectItems, ObjectListActionButton, ObjectListTextField } from "@/components/ui"
 import type { ObjectListHandlers } from "@/components/ui"
 import type { VisualBlockKind } from "@/lib/visual-note/visual-blocks"
-import { objectArrayFrom, replaceObjectAt, stringFrom } from "../../utils/visual-note-app.utils"
+import { objectArrayFrom, replaceObjectAt, stringFrom } from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
 
 export type VisualBlockListKind = Extract<VisualBlockKind, "recipe" | "timeline" | "poll" | "packing-list" | "shopping-list" | "task-list">
 

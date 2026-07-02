@@ -1,6 +1,6 @@
-import { parseArticleContent, type ArticleBlock } from "../article-content"
-import type { DisplayInstance } from "../types"
-import { visualBlockLabel } from "../visual-blocks"
+import { parseArticleContent, type ArticleBlock } from "@lib/visual-note/article-content"
+import type { DisplayInstance } from "@lib/visual-note/types"
+import { visualBlockLabel } from "@lib/visual-note/visual-blocks"
 import { assetUrlFor } from "./assets"
 import type { ExportDocument, ExportRenderContext } from "./types"
 

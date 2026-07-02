@@ -3,7 +3,7 @@
 import { Sparkles } from "lucide-react"
 import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react"
 import { Button, Card, Grid, Heading, InfoCard, InfoPopover, Pill, Stack, Text, TextField } from "@/components/ui"
-import type { AuthPanelProps } from "../types/visual-note-app.types"
+import type { AuthPanelProps } from "@features/visual-note/visual-note-app/types/visual-note-app.types"
 import styles from "../../visual-note-app.module.css"
 
 export function AuthPanel({ authStatus, notice, onSignIn, onRegister }: AuthPanelProps) {

@@ -1,6 +1,6 @@
-import { Button } from "../../button"
-import { cx } from "../../class-name"
-import type { NotebookNavItemProps } from "../types/notebook-home.types"
+import { Button } from "@ui/button"
+import { cx } from "@ui/class-name"
+import type { NotebookNavItemProps } from "@ui/notebook-home/types/notebook-home.types"
 import styles from "../../notebook-home.module.css"
 
 export function NotebookNavItem({ active = false, icon, label, onSelect }: NotebookNavItemProps) {

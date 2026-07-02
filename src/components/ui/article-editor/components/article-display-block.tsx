@@ -1,9 +1,9 @@
 "use client"
 
-import { Stack, Text } from "../../primitives"
+import { Stack, Text } from "@ui/primitives"
 import type { ArticleBlock } from "@/lib/visual-note/article-content"
 import type { DisplayInstance } from "@/lib/visual-note/types"
-import type { ArticleEditorProps } from "../types"
+import type { ArticleEditorProps } from "@ui/article-editor/types"
 import styles from "../../article-editor.module.css"
 
 type DisplayBlockProps = {
