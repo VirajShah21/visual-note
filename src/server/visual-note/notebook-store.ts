@@ -88,19 +88,31 @@ export const upsertNotebook = async (supabase: SupabaseClient, notebook: Noteboo
     if (error) throw error
 }
 
-export const deleteNotebooksNotIn = async (supabase: SupabaseClient, userId: string, allowedNotebookIds: Set<string>) => {
+export const deleteNotebooksNotIn = async (
+    supabase: SupabaseClient,
+    userId: string,
+    allowedNotebookIds: Set<string>,
+    deleteUpdatedBefore?: string,
+) => {
     const ids = [...allowedNotebookIds]
+    const staleBefore = deleteUpdatedBefore
     if (ids.length === 0) {
-        const { error: clearError } = await supabase.from("visual_note_notebooks").delete().eq("user_id", userId)
+        let query = supabase.from("visual_note_notebooks").delete().eq("user_id", userId)
+        if (staleBefore) query = query.lte("updated_at", staleBefore)
+        const { error: clearError } = await query
         if (clearError) throw clearError
         return
     }
 
-    const { error } = await supabase
+    let query = supabase
         .from("visual_note_notebooks")
         .delete()
         .eq("user_id", userId)
         .not("id", "in", `(${ids.map(id => `'${id}'`).join(",")})`)
+
+    if (staleBefore) query = query.lte("updated_at", staleBefore)
+
+    const { error } = await query
     if (error) throw error
 }
 

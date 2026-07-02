@@ -27,10 +27,19 @@ type QueryResult = {
 }
 
 const query = (result: QueryResult) => ({
+    delete() {
+        return this
+    },
     select() {
         return this
     },
     eq() {
+        return this
+    },
+    lte() {
+        return this
+    },
+    not() {
         return this
     },
     in() {
@@ -50,6 +59,38 @@ const supabaseWithResults = (results: Record<string, QueryResult>) =>
             return query(results[table] ?? { data: null, error: null })
         },
     }) as unknown as SupabaseClient
+
+const supabaseWithOwnershipConflict = () => {
+    const upserts: Array<{ table: string; payload: unknown }> = []
+
+    return {
+        upserts,
+        supabase: {
+            from(table: string) {
+                const notebookIdsByTable = table === "visual_note_notebooks" ? [{ id: "notebook-1", user_id: "intruder" }] : table === "visual_note_pages" ? [] : []
+
+                return {
+                    select() {
+                        return this
+                    },
+                    in() {
+                        return { data: notebookIdsByTable, error: null }
+                    },
+                    eq() {
+                        return this
+                    },
+                    order() {
+                        return Promise.resolve({ data: null, error: null })
+                    },
+                    upsert(payload: unknown) {
+                        upserts.push({ table, payload })
+                        return Promise.resolve({ error: null })
+                    },
+                }
+            },
+        } as unknown as SupabaseClient,
+    }
+}
 
 const failingSaveSupabase = () => {
     const upserts: Array<{ table: string; payload: unknown }> = []
@@ -134,4 +175,18 @@ test("surfaces normalized workspace save schema errors", async () => {
 
     assert.equal(upserts.length, 1)
     assert.equal(upserts[0]?.table, "visual_note_notebooks")
+})
+
+test("rejects ownership-conflicting records on save", async () => {
+    const { supabase, upserts } = supabaseWithOwnershipConflict()
+
+    await assert.rejects(
+        () => saveWorkspaceForUser(supabase, "user-1", workspace),
+        (error: unknown) => {
+            assert.equal((error as { code?: string }).code, "ownership_conflict")
+            return true
+        },
+    )
+
+    assert.equal(upserts.length, 0)
 })

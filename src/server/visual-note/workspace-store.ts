@@ -4,8 +4,8 @@ import { renderMarkdownExport } from "@/lib/visual-note/export/markdown"
 import { resolveExportAssets } from "@/lib/visual-note/export/assets"
 import { normalizeWorkspace } from "@/lib/visual-note/factories"
 import type { NotebookPage, VisualNoteWorkspace } from "@/lib/visual-note/types"
-import { listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
-import { hydrateWorkspaceFromPageRows, listPagesForUserByNotebooks, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
+import { deleteNotebooksNotIn, listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
+import { deletePagesNotIn, hydrateWorkspaceFromPageRows, listPagesForUserByNotebooks, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
 import { readPageMarkdown, savePageMarkdown } from "@/server/visual-note/page-content-store"
 
 type SupabaseRecord = {
@@ -75,6 +75,7 @@ export const loadWorkspaceForUser = async (supabase: SupabaseClient, userId: str
 }
 
 export const saveWorkspaceForUser = async (supabase: SupabaseClient, userId: string, workspace: VisualNoteWorkspace) => {
+    const saveStartedAt = new Date().toISOString()
     const normalizedWorkspace = normalizeWorkspace(workspace)
     const notebookIds = new Set<string>(normalizedWorkspace.notebooks.filter(item => item.userId === userId).map(item => item.id))
     const pageIds = new Set<string>(normalizedWorkspace.pages.filter(page => notebookIds.has(page.notebookId)).map(page => page.id))
@@ -108,8 +109,8 @@ export const saveWorkspaceForUser = async (supabase: SupabaseClient, userId: str
             }),
     )
 
-    // Skip destructive snapshot-based deletion to avoid removing records that were created by another
-    // client while this save request is in transit.
+    await deletePagesNotIn(supabase, userId, pageIds, saveStartedAt)
+    await deleteNotebooksNotIn(supabase, userId, notebookIds, saveStartedAt)
 
     return normalizedWorkspace
 }

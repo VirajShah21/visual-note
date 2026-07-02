@@ -33,12 +33,17 @@ export const loadVisualNoteWorkspace = async (): Promise<VisualNoteWorkspace | n
     return asVisualNoteWorkspace(body)
 }
 
-export const saveVisualNoteWorkspace = async (workspace: VisualNoteWorkspace) => {
+type SaveVisualNoteWorkspaceOptions = {
+    signal?: AbortSignal
+}
+
+export const saveVisualNoteWorkspace = async (workspace: VisualNoteWorkspace, options: SaveVisualNoteWorkspaceOptions = {}) => {
     const response = await fetch("/api/workspace", {
         method: "PUT",
         headers: {
             "Content-Type": "application/json",
         },
+        signal: options.signal,
         body: JSON.stringify({ workspace }),
     })
 

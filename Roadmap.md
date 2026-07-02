@@ -2,7 +2,7 @@
 
 ## Scope
 
-This roadmap focuses on the current codebase in `/Users/viraj/WebstormProjects/visual-note` and highlights issues that materially affect reliability, security, collaboration, and product readiness.
+This roadmap focuses on this repository’s Visual Note codebase and highlights issues that materially affect reliability, security, collaboration, and product readiness.
 
 ## Completed items (from Visual Note Legacy/Tech Debt Removal)
 
