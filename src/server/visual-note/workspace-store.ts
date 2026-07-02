@@ -7,7 +7,7 @@ import type { NotebookPage, VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { deleteNotebooksNotIn, listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { deletePagesNotIn, hydrateWorkspaceFromPageRows, listPagesForUser, listPagesForUserByNotebooks, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
 import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
-import { deleteAssetsNotInNotebooks } from "@/server/storage/notebook-storage"
+import { deleteAssetsNotInNotebooks, deleteAssetsNotReferencedByWorkspace } from "@/server/storage/notebook-asset-cleanup"
 import { deleteS3Object } from "@/server/storage/s3"
 
 type SupabaseRecord = {
@@ -46,6 +46,21 @@ const throwWorkspaceConflict = () => {
 }
 
 const normalizeRevisionTimestamp = (value: string | null | undefined) => value ?? "0"
+
+type DeletedAsset = Awaited<ReturnType<typeof deleteAssetsNotInNotebooks>>[number]
+
+const deleteAssetObjects = (assets: DeletedAsset[]) =>
+    Promise.allSettled(
+        assets.map(asset =>
+            asset.connection
+                ? deleteS3Object({
+                      bucketName: asset.bucketName,
+                      connection: asset.connection,
+                      objectKey: asset.objectKey,
+                  }).catch(() => {})
+                : Promise.resolve(),
+        ),
+    )
 
 const latestUpdatedAt = async (supabase: SupabaseClient, userId: string, table: "visual_note_notebooks" | "visual_note_pages") => {
     const { data, error } = await supabase.from(table).select("updated_at").eq("user_id", userId).order("updated_at", { ascending: false }).limit(1).maybeSingle()
@@ -175,18 +190,11 @@ export const saveWorkspaceForUser = async (supabase: SupabaseClient, userId: str
     await Promise.allSettled(
         deletedPages.map(page => deletePageMarkdown({ supabase, userId }, { notebookId: page.notebook_id, id: page.id }, page.content_object_key).catch(() => {})),
     )
+    const deletedUnreferencedAssets = await deleteAssetsNotReferencedByWorkspace(supabase, userId, normalizedWorkspace, saveStartedAt)
+    await deleteAssetObjects(deletedUnreferencedAssets)
+
     const deletedAssets = await deleteAssetsNotInNotebooks(supabase, userId, notebookIds, saveStartedAt)
-    await Promise.allSettled(
-        deletedAssets.map(asset =>
-            asset.connection
-                ? deleteS3Object({
-                      bucketName: asset.bucketName,
-                      connection: asset.connection,
-                      objectKey: asset.objectKey,
-                  }).catch(() => {})
-                : Promise.resolve(),
-        ),
-    )
+    await deleteAssetObjects(deletedAssets)
     await deleteNotebooksNotIn(supabase, userId, notebookIds, saveStartedAt)
 
     return normalizedWorkspace
