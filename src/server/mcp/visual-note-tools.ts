@@ -64,6 +64,26 @@ export const visualNoteToolDefinitions: VisualNoteToolDefinition[] = [
         handler: async (input, extra) => withWorkspaceReadResult(extra, (workspace, context) => readNotebookTree(workspace, context.userId, String(input.notebookId))),
     },
     {
+        name: "create_notebook",
+        title: "Create notebook",
+        description: "Create a new notebook for the authenticated user.",
+        inputSchema: z.object({
+            title: z.string().min(1),
+            summary: z.string().optional(),
+            color: z.string().optional(),
+            slug: z.string().optional(),
+        }),
+        handler: async (input, extra) =>
+            withWorkspaceMutation(extra, (workspace, context) =>
+                createNotebook(workspace, context.userId, {
+                    title: String(input.title),
+                    summary: typeof input.summary === "string" ? input.summary : undefined,
+                    color: typeof input.color === "string" ? input.color : undefined,
+                    slug: typeof input.slug === "string" ? input.slug : undefined,
+                }),
+            ),
+    },
+    {
         name: "create_article",
         title: "Create article",
         description: "Create or reuse a notebook page-topic path and set article content.",
@@ -84,26 +104,6 @@ export const visualNoteToolDefinitions: VisualNoteToolDefinition[] = [
                     articleTitle: typeof input.articleTitle === "string" ? input.articleTitle : undefined,
                     content: typeof input.content === "string" ? input.content : undefined,
                     mode: input.mode === "structured" || input.mode === "dashboard" ? input.mode : "article",
-                }),
-            ),
-    },
-    {
-        name: "create_notebook",
-        title: "Create notebook",
-        description: "Create a new notebook for the authenticated user.",
-        inputSchema: z.object({
-            title: z.string().min(1),
-            summary: z.string().optional(),
-            color: z.string().optional(),
-            slug: z.string().optional(),
-        }),
-        handler: async (input, extra) =>
-            withWorkspaceMutation(extra, (workspace, context) =>
-                createNotebook(workspace, context.userId, {
-                    title: String(input.title),
-                    summary: typeof input.summary === "string" ? input.summary : undefined,
-                    color: typeof input.color === "string" ? input.color : undefined,
-                    slug: typeof input.slug === "string" ? input.slug : undefined,
                 }),
             ),
     },
