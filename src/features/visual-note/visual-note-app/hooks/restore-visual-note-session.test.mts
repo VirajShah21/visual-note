@@ -74,3 +74,18 @@ test("restores workspace only for a valid Visual Note server session", async () 
     assert.equal(restored.workspace?.notebooks[0]?.id, "notebook-1")
     assert.equal(restored.selection?.viewId, "view-1")
 })
+
+test("uses an empty workspace when no remote workspace exists", async () => {
+    setFetch({ authReady: true, user }, null)
+
+    const restored = await restoreVisualNoteSession("missing-notebook")
+
+    assert.equal(restored.authStatus, "ready")
+    assert.deepEqual(restored.user, user)
+    assert.equal(restored.workspace?.notebooks.length, 0)
+    assert.equal(restored.workspace?.pages.length, 0)
+    assert.equal(restored.selection?.notebookId, "")
+    assert.equal(restored.selection?.pageId, "")
+    assert.equal(restored.selection?.topicId, "")
+    assert.equal(restored.selection?.viewId, "")
+})

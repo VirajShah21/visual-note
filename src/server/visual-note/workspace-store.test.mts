@@ -33,6 +33,9 @@ const query = (result: QueryResult) => ({
     eq() {
         return this
     },
+    in() {
+        return this
+    },
     order() {
         return Promise.resolve(result)
     },
@@ -56,6 +59,7 @@ const failingSaveSupabase = () => {
         supabase: {
             from(table: string) {
                 return {
+                    ...query(resultsForTable(table)),
                     upsert(payload: unknown) {
                         upserts.push({ table, payload })
                         if (table === "visual_note_notebooks")
@@ -73,6 +77,17 @@ const failingSaveSupabase = () => {
         } as unknown as SupabaseClient,
     }
 }
+
+const resultsForTable = (table: string) => ({
+    data: null,
+    error:
+        table === "visual_note_notebooks"
+            ? {
+                  code: "PGRST205",
+                  message: "Could not find the table public.visual_note_notebooks in the schema cache",
+              }
+            : null,
+})
 
 test("returns null when a user has no normalized notebooks", async () => {
     const supabase = supabaseWithResults({

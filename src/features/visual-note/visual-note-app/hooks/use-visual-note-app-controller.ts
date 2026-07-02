@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ToastMessage, ToastTone } from "@/components/ui"
 import { logoutVisualNoteUser } from "@/lib/visual-note/auth-api"
 import { uploadNotebookImage } from "@/lib/visual-note/storage-api"
-import { createNotebook, createPage, createSeedWorkspace, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
+import { createEmptyWorkspace, createNotebook, createPage, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
 import { loadVisualNoteWorkspace, saveVisualNoteWorkspace } from "@/lib/visual-note/workspace-api"
 import type { DisplayInstance, NotebookEditorSettings, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
 import type { NotebookEditorSearchResult } from "@/components/ui"
@@ -30,7 +30,9 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const [notice, setNotice] = useState("")
     const [toastMessages, setToastMessages] = useState<ToastMessage[]>([])
     const [authStatus, setAuthStatus] = useState<"ready" | "unconfigured">("ready")
+    const saveDelayMs = 500
     const saveRequestIdRef = useRef(0)
+    const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const hasActiveSaveErrorRef = useRef(false)
     const pushToast = useCallback((title: string, description?: string, tone: ToastTone = "success") => {
         const id = globalThis.crypto?.randomUUID() ?? `${Date.now()}-${Math.random()}`
@@ -57,26 +59,34 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     }, [initialNotebookId])
     useEffect(() => {
         if (!user || !workspace) return
+
         const requestId = saveRequestIdRef.current + 1
         saveRequestIdRef.current = requestId
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
 
-        void saveVisualNoteWorkspace(workspace)
-            .then(() => {
-                if (saveRequestIdRef.current !== requestId) return
-                if (!hasActiveSaveErrorRef.current) return
+        saveTimeoutRef.current = setTimeout(() => {
+            void saveVisualNoteWorkspace(workspace)
+                .then(() => {
+                    if (saveRequestIdRef.current !== requestId) return
+                    if (!hasActiveSaveErrorRef.current) return
 
-                hasActiveSaveErrorRef.current = false
-                setNotice("Workspace changes are saved to the Visual Note workspace store.")
-                pushToast("Workspace saved", "Remote workspace saves have recovered.", "info")
-            })
-            .catch(error => {
-                if (saveRequestIdRef.current !== requestId) return
+                    hasActiveSaveErrorRef.current = false
+                    setNotice("Workspace changes are saved to the Visual Note workspace store.")
+                    pushToast("Workspace saved", "Remote workspace saves have recovered.", "info")
+                })
+                .catch(error => {
+                    if (saveRequestIdRef.current !== requestId) return
 
-                const message = error instanceof Error ? error.message : "Unable to save workspace."
-                hasActiveSaveErrorRef.current = true
-                setNotice(message)
-                pushToast("Workspace save failed", message, "error")
-            })
+                    const message = error instanceof Error ? error.message : "Unable to save workspace."
+                    hasActiveSaveErrorRef.current = true
+                    setNotice(message)
+                    pushToast("Workspace save failed", message, "error")
+                })
+        }, saveDelayMs)
+
+        return () => {
+            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+        }
     }, [pushToast, user, workspace])
     const selected = useMemo(() => {
         const currentSelection = deriveSelection(workspace, selection)
@@ -90,7 +100,7 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         setAuthStatus("ready")
         setUser(nextUser)
         const remoteWorkspace = await loadVisualNoteWorkspace()
-        const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? createSeedWorkspace(nextUser)))
+        const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? createEmptyWorkspace()))
         const resolved = ensureSelectionHasArticleView(nextWorkspace, { ...blankSelection, notebookId: initialNotebookId })
         setWorkspace(resolved.workspace)
         setSelection(resolved.selection)
@@ -256,37 +266,28 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         pushToast("Image uploaded", asset.fileName)
         return { url: asset.url, alt: asset.fileName }
     }
-    return {
-        galleryItems,
-        isLoading,
-        notice,
-        sections,
-        selected,
-        authStatus,
-        toastMessages,
-        user,
-        workspace,
-        actions: {
-            addSection,
-            addTopic,
-            createNotebookAndOpen,
-            deleteSection,
-            deleteTopic,
-            dismissToast,
-            register,
-            renameSection,
-            renameTopic,
-            openHome,
-            selectSection,
-            selectSearchResult,
-            selectNotebook,
-            selectTopic,
-            signIn,
-            signOut,
-            updateDisplay,
-            updateNotebookEditorSettings,
-            updateView,
-            uploadImage,
-        },
+    const actions = {
+        addSection,
+        addTopic,
+        createNotebookAndOpen,
+        deleteSection,
+        deleteTopic,
+        dismissToast,
+        register,
+        renameSection,
+        renameTopic,
+        openHome,
+        selectSection,
+        selectSearchResult,
+        selectNotebook,
+        selectTopic,
+        signIn,
+        signOut,
+        updateDisplay,
+        updateNotebookEditorSettings,
+        updateView,
+        uploadImage,
     }
+
+    return { galleryItems, isLoading, notice, sections, selected, authStatus, toastMessages, user, workspace, actions }
 }

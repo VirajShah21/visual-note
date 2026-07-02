@@ -9,7 +9,6 @@ import {
     type Topic,
     type ViewMode,
     type VisualNoteWorkspace,
-    type VisualUser,
 } from "./types"
 
 const createId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`
@@ -205,20 +204,9 @@ export const normalizeWorkspace = (workspace: VisualNoteWorkspace): VisualNoteWo
     }
 }
 
-export const createSeedWorkspace = (user: VisualUser): VisualNoteWorkspace => {
-    const notebook = createNotebook(user.id, "Web Notebook Prototype")
-    const overviewPage = createPage(notebook.id, "Overview", 0)
-    const researchPage = createPage(notebook.id, "Research", 1)
-    const conceptTopic = createTopic(overviewPage.id, "Concept", 0)
-    const architectureTopic = createTopic(overviewPage.id, "Architecture", 1)
-    const view = createView(conceptTopic.id, "Why web-shaped notes matter", "article")
-    const dataCard = createDisplayInstance("data-card", "Core thesis")
-    const timeline = createDisplayInstance("timeline", "Notebook evolution")
-
-    return {
-        notebooks: [notebook],
-        pages: [overviewPage, researchPage],
-        topics: [conceptTopic, architectureTopic],
-        views: [{ ...view, displays: [dataCard, timeline] }],
-    }
-}
+export const createEmptyWorkspace = (): VisualNoteWorkspace => ({
+    notebooks: [],
+    pages: [],
+    topics: [],
+    views: [],
+})

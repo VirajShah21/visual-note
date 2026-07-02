@@ -1,5 +1,5 @@
 import { loadCurrentVisualNoteSession } from "@/lib/visual-note/auth-api"
-import { createSeedWorkspace, normalizeWorkspace } from "@/lib/visual-note/factories"
+import { createEmptyWorkspace, normalizeWorkspace } from "@/lib/visual-note/factories"
 import { loadVisualNoteWorkspace } from "@/lib/visual-note/workspace-api"
 import type { SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
 import { blankSelection, coerceSingleArticleViewPerTopic, ensureSelectionHasArticleView } from "../utils/visual-note-app.utils"
@@ -23,7 +23,7 @@ export const restoreVisualNoteSession = async (initialNotebookId: string): Promi
 
 const restoreWorkspaceForUser = async (user: VisualUser, initialNotebookId: string) => {
     const remoteWorkspace = await loadVisualNoteWorkspace()
-    const workspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? createSeedWorkspace(user)))
+    const workspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? createEmptyWorkspace()))
     const resolved = ensureSelectionHasArticleView(workspace, { ...blankSelection, notebookId: initialNotebookId })
 
     return { authStatus: "ready" as const, user, workspace: resolved.workspace, selection: resolved.selection }

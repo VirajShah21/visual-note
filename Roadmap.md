@@ -25,11 +25,16 @@ This roadmap focuses on the current codebase in `/Users/viraj/WebstormProjects/v
     - `src/lib/visual-note/chart-data.ts`
     - `src/features/visual-note/visual-note-app/utils/chart-data.test.mts`
     - `scripts/migrate-visual-note-workspaces.mjs` (deleted)
+5. Removed seeded workspace defaults and narrowed save synchronization behavior.
+    - `src/features/visual-note/visual-note-app/hooks/restore-visual-note-session.ts`
+    - `src/features/visual-note/visual-note-app/hooks/use-visual-note-app-controller.ts`
+    - `src/server/visual-note/workspace-store.ts`
 
 ## Current risks (should be addressed first)
 
 1. Data integrity risk in workspace save flow
     - `saveWorkspaceForUser` writes notebooks/pages first, then page content files in S3, without transaction boundaries.
+    - Mitigated destructive in-memory snapshot cleanup (`deleteNotebooksNotIn`/`deletePagesNotIn`) during save to avoid dropping records created by concurrent sessions.
     - If upload/content serialization fails mid-loop, database rows can be committed without matching page content.
     - A stale or partial workspace can become indistinguishable from a valid one for normal reads.
     - Files: `src/server/visual-note/workspace-store.ts`, `src/server/visual-note/page-content-store.ts`.
