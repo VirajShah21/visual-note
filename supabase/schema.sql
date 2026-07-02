@@ -22,10 +22,18 @@ create table if not exists public.visual_note_notebooks (
   slug text not null,
   summary text not null default 'A structured web notebook with sections, topics, views, components, and data.',
   color text not null default '#2f7d5c',
+  published boolean not null default false,
+  published_at timestamptz,
   editor_settings jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.visual_note_notebooks
+  add column if not exists published boolean not null default false;
+
+alter table public.visual_note_notebooks
+  add column if not exists published_at timestamptz;
 
 create index if not exists visual_note_notebooks_user_id_idx
   on public.visual_note_notebooks(user_id);

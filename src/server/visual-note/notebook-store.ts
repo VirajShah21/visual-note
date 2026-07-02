@@ -11,6 +11,8 @@ type NotebookRow = {
     slug: string
     summary: string
     color: string
+    published: boolean | null
+    published_at: string | null
     editor_settings: Record<string, unknown>
     created_at: string
 }
@@ -22,6 +24,8 @@ export type NotebookSummary = {
     slug: string
     summary: string
     color: string
+    published: boolean
+    publishedAt?: string
     createdAt: string
     editorSettings: NotebookEditorSettings
 }
@@ -33,6 +37,8 @@ const toWorkspaceNotebook = (row: NotebookRow): NotebookSummary => ({
     slug: row.slug,
     summary: row.summary,
     color: row.color,
+    published: row.published === true,
+    publishedAt: row.published_at ?? undefined,
     createdAt: row.created_at,
     editorSettings: normalizeNotebookEditorSettings((row.editor_settings ?? {}) as Partial<NotebookEditorSettings>),
 })
@@ -40,7 +46,7 @@ const toWorkspaceNotebook = (row: NotebookRow): NotebookSummary => ({
 export const listNotebooksForUser = async (supabase: SupabaseClient, userId: string): Promise<Notebook[]> => {
     const { data, error } = await supabase
         .from("visual_note_notebooks")
-        .select("id,user_id,title,slug,summary,color,editor_settings,created_at")
+        .select("id,user_id,title,slug,summary,color,published,published_at,editor_settings,created_at")
         .eq("user_id", userId)
         .order("created_at")
     if (error) throw error
@@ -61,6 +67,8 @@ export const upsertNotebooks = async (supabase: SupabaseClient, userId: string, 
             slug: item.slug,
             summary: item.summary,
             color: item.color,
+            published: item.published === true,
+            published_at: item.published ? (item.publishedAt ?? new Date().toISOString()) : null,
             editor_settings: item.editorSettings ?? defaultNotebookEditorSettings,
             updated_at: new Date().toISOString(),
         }))
@@ -80,6 +88,8 @@ export const upsertNotebook = async (supabase: SupabaseClient, notebook: Noteboo
             slug: notebook.slug,
             summary: notebook.summary,
             color: notebook.color,
+            published: notebook.published === true,
+            published_at: notebook.published ? (notebook.publishedAt ?? new Date().toISOString()) : null,
             editor_settings: notebook.editorSettings ?? defaultNotebookEditorSettings,
             updated_at: new Date().toISOString(),
         },
@@ -132,6 +142,8 @@ export const normalizeNotebookMetadata = (notebook: Partial<Notebook> & { userId
     slug: notebook.slug ?? "notebook",
     summary: notebook.summary ?? "A structured web notebook with sections, topics, views, components, and data.",
     color: notebook.color ?? "#2f7d5c",
+    published: notebook.published === true,
+    publishedAt: notebook.publishedAt,
     createdAt: notebook.createdAt ?? new Date().toISOString(),
     editorSettings: normalizeNotebookEditorSettings(notebook.editorSettings),
 })
