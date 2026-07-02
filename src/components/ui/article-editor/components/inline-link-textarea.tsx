@@ -6,7 +6,7 @@ import { cx } from "@ui/class-name"
 import styles from "../../article-editor.module.css"
 import { BlockTextarea, type BlockTextareaProps } from "./block-textarea"
 
-const markdownInlineMediaPattern = /(!?)\[([^\]\n]*)\]\(([^)\s]+)\)/g
+const markdownInlineMediaPattern = /(!?)\[([^\]\n]*)]\(([^)\s]+)\)/g
 
 const hasMarkdownInlineMedia = (text: string) => {
     markdownInlineMediaPattern.lastIndex = 0
