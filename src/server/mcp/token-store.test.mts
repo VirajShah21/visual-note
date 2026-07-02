@@ -1,6 +1,15 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { createMcpToken, InvalidMcpScopeError, listMcpTokens, logMcpToolAudit, legacyMcpScope, mcpScopeRead, mcpScopeWrite, validateAndNormalizeMcpScopes } from "@server/mcp/token-store"
+import {
+    createMcpToken,
+    InvalidMcpScopeError,
+    listMcpTokens,
+    logMcpToolAudit,
+    legacyMcpScope,
+    mcpScopeRead,
+    mcpScopeWrite,
+    validateAndNormalizeMcpScopes,
+} from "@server/mcp/token-store"
 
 type FakeInsertable = {
     from: (table: string) => {
