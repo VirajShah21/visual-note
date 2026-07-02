@@ -58,10 +58,22 @@ create table if not exists public.visual_note_mcp_tokens (
   name text not null,
   token_prefix text not null,
   token_hash text not null unique,
-  scopes text[] not null default array['visual-note:mcp'],
+  scopes text[] not null default array['visual-note:mcp:read','visual-note:mcp:write'],
   last_used_at timestamptz,
   revoked_at timestamptz,
   expires_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.visual_note_mcp_audit_events (
+  id uuid primary key default gen_random_uuid(),
+  token_id uuid not null references public.visual_note_mcp_tokens(id) on delete cascade,
+  user_id uuid not null references public.visual_note_users(id) on delete cascade,
+  tool_name text not null,
+  scope_required text[] not null default array['visual-note:mcp:read','visual-note:mcp:write'],
+  scope_satisfied text[] not null default array['visual-note:mcp:read','visual-note:mcp:write'],
+  success boolean not null,
+  denial_reason text,
   created_at timestamptz not null default now()
 );
 
@@ -116,6 +128,15 @@ create index if not exists visual_note_mcp_tokens_user_id_idx
 create index if not exists visual_note_mcp_tokens_token_prefix_idx
   on public.visual_note_mcp_tokens(token_prefix);
 
+create index if not exists visual_note_mcp_audit_events_token_id_idx
+  on public.visual_note_mcp_audit_events(token_id);
+
+create index if not exists visual_note_mcp_audit_events_user_id_idx
+  on public.visual_note_mcp_audit_events(user_id);
+
+create index if not exists visual_note_mcp_audit_events_created_at_idx
+  on public.visual_note_mcp_audit_events(created_at);
+
 create index if not exists visual_note_s3_connections_user_id_idx
   on public.visual_note_s3_connections(user_id);
 
@@ -130,6 +151,7 @@ alter table public.visual_note_notebook_storage enable row level security;
 alter table public.visual_note_assets enable row level security;
 alter table public.visual_note_notebooks enable row level security;
 alter table public.visual_note_pages enable row level security;
+alter table public.visual_note_mcp_audit_events enable row level security;
 
 revoke all on public.visual_note_users from anon;
 revoke all on public.visual_note_users from authenticated;
@@ -143,6 +165,8 @@ revoke all on public.visual_note_notebook_storage from anon;
 revoke all on public.visual_note_notebook_storage from authenticated;
 revoke all on public.visual_note_assets from anon;
 revoke all on public.visual_note_assets from authenticated;
+revoke all on public.visual_note_mcp_audit_events from anon;
+revoke all on public.visual_note_mcp_audit_events from authenticated;
 
 grant select, insert, update, delete on public.visual_note_users to service_role;
 grant select, insert, update, delete on public.visual_note_sessions to service_role;
@@ -152,6 +176,7 @@ grant select, insert, update, delete on public.visual_note_notebook_storage to s
 grant select, insert, update, delete on public.visual_note_assets to service_role;
 grant select, insert, update, delete on public.visual_note_notebooks to service_role;
 grant select, insert, update, delete on public.visual_note_pages to service_role;
+grant select, insert on public.visual_note_mcp_audit_events to service_role;
 
 drop policy if exists read_s3_connections on public.visual_note_s3_connections;
 drop policy if exists insert_s3_connections on public.visual_note_s3_connections;
@@ -173,4 +198,8 @@ drop policy if exists read_pages on public.visual_note_pages;
 drop policy if exists insert_pages on public.visual_note_pages;
 drop policy if exists update_pages on public.visual_note_pages;
 drop policy if exists delete_pages on public.visual_note_pages;
+drop policy if exists read_mcp_audit_events on public.visual_note_mcp_audit_events;
+drop policy if exists insert_mcp_audit_events on public.visual_note_mcp_audit_events;
+drop policy if exists update_mcp_audit_events on public.visual_note_mcp_audit_events;
+drop policy if exists delete_mcp_audit_events on public.visual_note_mcp_audit_events;
 drop function if exists public.visual_note_user_owns_notebook(text);

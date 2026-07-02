@@ -10,6 +10,9 @@ export type McpTokenRecord = {
     revokedAt: string | null
     expiresAt: string | null
     createdAt: string
+    failedAttempts: number
+    deniedAttempts: number
+    lastAttemptAt: string | null
 }
 
 export type CreatedMcpToken = {
@@ -30,10 +33,10 @@ export const listMcpTokens = async () => {
     return body.tokens
 }
 
-export const createMcpToken = async (name: string) => {
+export const createMcpToken = async (name: string, scopes?: string[]) => {
     const response = await authorizedStorageFetch("/api/mcp/tokens", {
         method: "POST",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, scopes }),
         headers: {
             "Content-Type": "application/json",
         },

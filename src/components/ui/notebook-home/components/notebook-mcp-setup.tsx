@@ -5,7 +5,7 @@ import { motion } from "motion/react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import type { ChangeEvent, ReactNode } from "react"
 import { Button } from "@ui/button"
-import { TextField } from "@ui/form-controls"
+import { CheckboxField, TextField } from "@ui/form-controls"
 import { Heading, Pill, Stack, Text } from "@ui/primitives"
 import { createMcpToken, listMcpTokens, revokeMcpToken, type McpTokenRecord } from "@/lib/visual-note/mcp-token-api"
 import styles from "../../notebook-home.module.css"
@@ -14,7 +14,22 @@ const endpoint = "/api/mcp"
 
 const tools = ["list_notebooks", "read_notebook", "read_article", "replace_article_content", "create_article", "upsert_visual_block", "remove_visual_block"]
 
-const clientConfig = `{
+const tokenScopes = [
+    {
+        key: "visual-note:mcp:read",
+        label: "Read",
+        hint: "Read notebooks, pages, and articles.",
+    },
+    {
+        key: "visual-note:mcp:write",
+        label: "Write",
+        hint: "Create and edit notebooks, articles, and visual blocks.",
+    },
+]
+
+const scopeLabelFrom = (scope: string) => (scope === "visual-note:mcp:read" ? "Read" : scope === "visual-note:mcp:write" ? "Write" : "Scope")
+
+const endpointConfig = `{
     "mcpServers": {
         "visual-note": {
             "url": "http://localhost:8000/api/mcp",
@@ -29,6 +44,7 @@ const tokenUnavailableMessage = "MCP tokens require an active Visual Note sessio
 
 export function NotebookMcpSetup({ tokensEnabled }: { tokensEnabled: boolean }) {
     const [tokenName, setTokenName] = useState("Codex")
+    const [selectedScopes, setSelectedScopes] = useState<string[]>(["visual-note:mcp:read", "visual-note:mcp:write"])
     const [createdToken, setCreatedToken] = useState("")
     const [tokens, setTokens] = useState<McpTokenRecord[]>([])
     const [status, setStatus] = useState("")
@@ -54,7 +70,18 @@ export function NotebookMcpSetup({ tokensEnabled }: { tokensEnabled: boolean }) 
             setIsLoading(false)
         }
     }, [tokensEnabled])
+
     const updateTokenName = useCallback((event: ChangeEvent<HTMLInputElement>) => setTokenName(event.target.value), [])
+
+    const updateScope = useCallback((scope: string, checked: boolean) => {
+        setSelectedScopes(current => {
+            if (!checked && current.length === 1 && current.includes(scope)) return current
+
+            const next = checked ? [...current, scope] : current.filter(existing => existing !== scope)
+            return [...new Set(next)]
+        })
+    }, [])
+
     const createToken = useCallback(async () => {
         if (!tokensEnabled) {
             setStatus(tokenUnavailableMessage)
@@ -63,7 +90,7 @@ export function NotebookMcpSetup({ tokensEnabled }: { tokensEnabled: boolean }) 
 
         setIsCreating(true)
         try {
-            const created = await createMcpToken(tokenName)
+            const created = await createMcpToken(tokenName, selectedScopes)
             setCreatedToken(created.token)
             setTokens(current => [created.record, ...current])
             setStatus("Copy this token now. It will not be shown again after you leave this page.")
@@ -72,7 +99,7 @@ export function NotebookMcpSetup({ tokensEnabled }: { tokensEnabled: boolean }) 
         } finally {
             setIsCreating(false)
         }
-    }, [tokenName, tokensEnabled])
+    }, [selectedScopes, tokenName, tokensEnabled])
 
     useEffect(() => {
         void Promise.resolve().then(loadTokens)
@@ -111,6 +138,11 @@ export function NotebookMcpSetup({ tokensEnabled }: { tokensEnabled: boolean }) 
                                 Create token
                             </Button>
                         </Stack>
+                        <Stack direction="horizontal" gap="md">
+                            {tokenScopes.map(scope => (
+                                <ScopeCheckbox key={scope.key} scope={scope} checked={selectedScopes.includes(scope.key)} onCheckedChange={updateScope} />
+                            ))}
+                        </Stack>
                         {createdToken ? <CodeBlock value={createdToken} /> : null}
                         {status ? <Text>{status}</Text> : null}
                         <TokenList tokens={activeTokens} isLoading={isLoading} onRevoke={loadTokens} />
@@ -147,7 +179,7 @@ export function NotebookMcpSetup({ tokensEnabled }: { tokensEnabled: boolean }) 
                             "For browser-originated MCP clients, add each allowed origin to MCP_ALLOWED_ORIGINS as a comma-separated list.",
                         ]}
                     />
-                    <CodeBlock value={clientConfig} />
+                    <CodeBlock value={endpointConfig} />
                 </SetupSection>
 
                 <SetupSection icon={<CheckCircle2 size={17} />} title="4. Verify the exposed tools">
@@ -180,14 +212,21 @@ function TokenRow({ token, onRevoke }: { token: McpTokenRecord; onRevoke: () => 
         onRevoke()
     }, [onRevoke, token.id])
 
+    const lastUsed = token.lastUsedAt ? `Last used ${new Date(token.lastUsedAt).toLocaleDateString()}` : "Never used"
+    const lastAttempt = token.lastAttemptAt ? `Last attempt ${new Date(token.lastAttemptAt).toLocaleDateString()}` : "No attempts"
+
     return (
         <div className={styles.mcpTokenRow}>
             <Stack gap="xs">
                 <Text tone="strong">{token.name}</Text>
                 <Text size="small">
-                    {token.tokenPrefix}... · Created {new Date(token.createdAt).toLocaleDateString()} ·{" "}
-                    {token.lastUsedAt ? `Last used ${new Date(token.lastUsedAt).toLocaleDateString()}` : "Never used"}
+                    {token.tokenPrefix}... · Created {new Date(token.createdAt).toLocaleDateString()}
                 </Text>
+                <Text size="small">
+                    {token.scopes.map(scope => scopeLabelFrom(scope)).join(", ")} · {token.failedAttempts} failed attempts · {token.deniedAttempts} denied attempts
+                </Text>
+                <Text size="small">{lastUsed}</Text>
+                <Text size="small">{lastAttempt}</Text>
             </Stack>
             <Button variant="danger" onClick={revokeToken}>
                 Revoke
@@ -237,4 +276,23 @@ function ToolGrid() {
             ))}
         </div>
     )
+}
+
+function ScopeCheckbox({
+    scope,
+    checked,
+    onCheckedChange,
+}: {
+    scope: { key: string; label: string; hint: string }
+    checked: boolean
+    onCheckedChange: (scope: string, checked: boolean) => void
+}) {
+    const handleCheckedChange = useCallback(
+        (checked: boolean) => {
+            onCheckedChange(scope.key, checked)
+        },
+        [onCheckedChange, scope.key],
+    )
+
+    return <CheckboxField label={scope.label} hint={scope.hint} checked={checked} onCheckedChange={handleCheckedChange} />
 }

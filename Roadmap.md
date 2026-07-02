@@ -29,6 +29,12 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
     - `src/features/visual-note/visual-note-app/hooks/restore-visual-note-session.ts`
     - `src/features/visual-note/visual-note-app/hooks/use-visual-note-app-controller.ts`
     - `src/server/visual-note/workspace-store.ts`
+6. Enabled direct TSConfig path tooling and enforced alias-based imports.
+    - `package.json`
+    - `tsconfig.json`
+    - `eslint.config.mjs`
+    - `eslint-rules/prefer-tsconfig-paths.mjs`
+    - `scripts/fix-tsconfig-imports.mjs`
 
 ## Current risks (should be addressed first)
 

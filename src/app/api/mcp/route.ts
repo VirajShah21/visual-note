@@ -42,6 +42,7 @@ const verifyVisualNoteMcpToken = async (_request: Request, bearerToken?: string)
         extra: {
             tokenId: token.tokenId,
             userId: token.userId,
+            scopes: token.scopes,
         },
     }
 }

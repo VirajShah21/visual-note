@@ -7,13 +7,25 @@ import { normalizeWorkspace } from "@/lib/visual-note/factories"
 import { visualBlockKinds } from "@/lib/visual-note/visual-blocks"
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { loadWorkspaceForUser, saveWorkspaceForUser } from "@/server/visual-note/workspace-store"
+import { logMcpToolAudit, type McpTokenScope, normalizeScopeSet } from "./token-store"
 import type { WorkspaceOperationResult } from "@/server/visual-note/workspace-operations"
 
 export type ToolExtra = RequestHandlerExtra<ServerRequest, ServerNotification>
 
+export type ToolScopeRequirement = {
+    toolName: string
+    requiredScopes: readonly McpTokenScope[]
+}
+
+type ScopeEval = {
+    allowed: boolean
+    missingScopes: McpTokenScope[]
+}
+
 export type RequestContext = {
     tokenId?: string
     userId: string
+    scopes: McpTokenScope[]
 }
 
 export const emptyWorkspace: VisualNoteWorkspace = {
@@ -59,7 +71,52 @@ export const requestContextFrom = (authInfo?: AuthInfo): RequestContext | null =
     const userId = authInfo?.extra?.userId
     if (!authInfo?.token || typeof userId !== "string") return null
 
-    return { tokenId: typeof authInfo.extra?.tokenId === "string" ? authInfo.extra.tokenId : undefined, userId }
+    return {
+        tokenId: typeof authInfo.extra?.tokenId === "string" ? authInfo.extra.tokenId : undefined,
+        userId,
+        scopes: normalizeScopeSet(authInfo.extra?.scopes ?? authInfo.scopes, []),
+    }
+}
+
+export const scopeDeniedPayload = (toolName: string, required: readonly McpTokenScope[], missing: readonly McpTokenScope[], satisfied: readonly McpTokenScope[]) =>
+    jsonResult({
+        ok: false,
+        error: "forbidden",
+        message: "MCP token does not include required scope(s) for this tool.",
+        tool: toolName,
+        requiredScopes: required,
+        missingScopes: missing,
+        scopeSatisfied: satisfied,
+    })
+
+const evaluateScope = (context: RequestContext, required: readonly McpTokenScope[]): ScopeEval => {
+    const missingScopes = required.filter(scope => !context.scopes.includes(scope))
+
+    return {
+        allowed: missingScopes.length === 0,
+        missingScopes,
+    }
+}
+
+const maybeRecordAudit = async (
+    supabase: Awaited<ReturnType<typeof getSupabaseServiceRoleClient>>,
+    context: RequestContext,
+    toolScope: ToolScopeRequirement,
+    success: boolean,
+    reason?: string,
+) => {
+    if (!supabase) return
+    if (!context.tokenId) return
+
+    await logMcpToolAudit(supabase, {
+        tokenId: context.tokenId,
+        userId: context.userId,
+        toolName: toolScope.toolName,
+        scopeRequired: toolScope.requiredScopes,
+        scopeSatisfied: context.scopes,
+        success,
+        denialReason: reason,
+    }).catch(() => {})
 }
 
 export const loadWorkspace = async (context: RequestContext) => {
@@ -70,12 +127,31 @@ export const loadWorkspace = async (context: RequestContext) => {
     return { supabase, workspace: normalizeWorkspace(workspace ?? emptyWorkspace) }
 }
 
-export const withWorkspace = async <T>(extra: ToolExtra, action: (workspace: VisualNoteWorkspace, context: RequestContext) => Promise<T> | T) => {
+export const withWorkspace = async <T>(extra: ToolExtra, action: (workspace: VisualNoteWorkspace, context: RequestContext) => Promise<T> | T, toolScope: ToolScopeRequirement) => {
     const context = requestContextFrom(extra.authInfo)
     if (!context) return jsonResult({ ok: false, error: "auth_required", message: "Authentication required." })
 
-    const { workspace } = await loadWorkspace(context)
-    return action(workspace, context)
+    const scopeEval = evaluateScope(context, toolScope.requiredScopes)
+    if (!scopeEval.allowed) {
+        await maybeRecordAudit(getSupabaseServiceRoleClient(), context, toolScope, false, `missing_scope:${scopeEval.missingScopes.join(",")}`)
+        return scopeDeniedPayload(toolScope.toolName, toolScope.requiredScopes, scopeEval.missingScopes, context.scopes)
+    }
+
+    try {
+        const loaded = await loadWorkspace(context)
+        const value = await action(loaded.workspace, context)
+        await maybeRecordAudit(loaded.supabase, context, toolScope, true)
+        return value
+    } catch (error) {
+        const supabase = getSupabaseServiceRoleClient()
+        await maybeRecordAudit(supabase, context, toolScope, false, error instanceof Error ? error.message : "unexpected_tool_error")
+        return jsonResult({
+            ok: false,
+            error: "tool_error",
+            message: "The MCP tool failed to execute.",
+            cause: error instanceof Error ? error.message : "unexpected_tool_error",
+        })
+    }
 }
 
 export const withWorkspaceMutation = async (
@@ -84,26 +160,84 @@ export const withWorkspaceMutation = async (
         workspace: VisualNoteWorkspace,
         context: RequestContext,
     ) => Promise<WorkspaceOperationResult<object & { workspace?: VisualNoteWorkspace }>> | WorkspaceOperationResult<object & { workspace?: VisualNoteWorkspace }>,
+    toolScope: ToolScopeRequirement,
 ) =>
     (async () => {
         const context = requestContextFrom(extra.authInfo)
         if (!context) return jsonResult({ ok: false, error: "auth_required", message: "Authentication required." })
 
-        const loaded = await loadWorkspace(context)
-        const result = await action(loaded.workspace, context)
-        if (!result.ok) return jsonResult(result)
+        const scopeEval = evaluateScope(context, toolScope.requiredScopes)
+        if (!scopeEval.allowed) {
+            await maybeRecordAudit(getSupabaseServiceRoleClient(), context, toolScope, false, `missing_scope:${scopeEval.missingScopes.join(",")}`)
+            return scopeDeniedPayload(toolScope.toolName, toolScope.requiredScopes, scopeEval.missingScopes, context.scopes)
+        }
 
-        const value = result.value
-        if (!value.workspace) return jsonResult({ ok: false, error: "invalid_input", message: "Mutation did not return a workspace." })
+        try {
+            const loaded = await loadWorkspace(context)
+            const result = await action(loaded.workspace, context)
+            if (!result.ok) {
+                await maybeRecordAudit(loaded.supabase, context, toolScope, false, `workspace_error:${result.error}`)
+                return jsonResult(result)
+            }
 
-        const publicValue = { ...value }
-        delete publicValue.workspace
-        await saveWorkspaceForUser(loaded.supabase, context.userId, value.workspace)
-        return jsonResult({ ok: true, ...publicValue })
+            const value = result.value
+            if (!value.workspace) {
+                await maybeRecordAudit(loaded.supabase, context, toolScope, false, "workspace_missing")
+                return jsonResult({ ok: false, error: "invalid_input", message: "Mutation did not return a workspace." })
+            }
+
+            const publicValue = { ...value }
+            delete publicValue.workspace
+            await saveWorkspaceForUser(loaded.supabase, context.userId, value.workspace)
+            await maybeRecordAudit(loaded.supabase, context, toolScope, true)
+            return jsonResult({ ok: true, ...publicValue })
+        } catch (error) {
+            const supabase = getSupabaseServiceRoleClient()
+            await maybeRecordAudit(supabase, context, toolScope, false, error instanceof Error ? error.message : "unexpected_tool_error")
+            return jsonResult({
+                ok: false,
+                error: "tool_error",
+                message: "The MCP tool failed to execute.",
+                cause: error instanceof Error ? error.message : "unexpected_tool_error",
+            })
+        }
     })()
 
-export const withWorkspaceReadResult = async (extra: ToolExtra, action: (workspace: VisualNoteWorkspace, context: RequestContext) => WorkspaceOperationResult<unknown>) =>
-    withWorkspace(extra, (workspace, context) => operationResult(action(workspace, context)))
+export const withWorkspaceReadResult = async (
+    extra: ToolExtra,
+    action: (workspace: VisualNoteWorkspace, context: RequestContext) => WorkspaceOperationResult<unknown>,
+    toolScope: ToolScopeRequirement,
+) => {
+    const context = requestContextFrom(extra.authInfo)
+    if (!context) return jsonResult({ ok: false, error: "auth_required", message: "Authentication required." })
+
+    const scopeEval = evaluateScope(context, toolScope.requiredScopes)
+    if (!scopeEval.allowed) {
+        await maybeRecordAudit(getSupabaseServiceRoleClient(), context, toolScope, false, `missing_scope:${scopeEval.missingScopes.join(",")}`)
+        return scopeDeniedPayload(toolScope.toolName, toolScope.requiredScopes, scopeEval.missingScopes, context.scopes)
+    }
+
+    try {
+        const loaded = await loadWorkspace(context)
+        const result = await action(loaded.workspace, context)
+        if (!result.ok) {
+            await maybeRecordAudit(loaded.supabase, context, toolScope, false, `workspace_error:${result.error}`)
+            return operationResult(result)
+        }
+
+        await maybeRecordAudit(loaded.supabase, context, toolScope, true)
+        return operationResult(result)
+    } catch (error) {
+        const supabase = getSupabaseServiceRoleClient()
+        await maybeRecordAudit(supabase, context, toolScope, false, error instanceof Error ? error.message : "unexpected_tool_error")
+        return jsonResult({
+            ok: false,
+            error: "tool_error",
+            message: "The MCP tool failed to execute.",
+            cause: error instanceof Error ? error.message : "unexpected_tool_error",
+        })
+    }
+}
 
 export const requireAtLeastOne = (schema: Record<string, unknown>, fields: string[]) =>
     z
