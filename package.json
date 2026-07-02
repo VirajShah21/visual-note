@@ -12,8 +12,9 @@
         "test:chart": "tsx --test src/features/visual-note/visual-note-app/utils/chart-data.test.mts",
         "test:export": "tsx --test src/lib/visual-note/export/export.test.mts",
         "test:auth": "tsx --test src/server/auth/login-rate-limit.test.mts",
+        "test:storage": "tsx --test src/server/storage/upload-validation.test.mts",
         "test:mcp": "tsx --test src/server/mcp/token-store.test.mts src/server/mcp/visual-note-tools.test.mts src/server/visual-note/workspace-operations.test.mts src/server/visual-note/workspace-store.test.mts src/features/visual-note/visual-note-app/hooks/restore-visual-note-session.test.mts",
-        "test": "npm run test:auth && npm run test:chart && npm run test:export && npm run test:mcp",
+        "test": "npm run test:auth && npm run test:storage && npm run test:chart && npm run test:export && npm run test:mcp",
         "test:mcp-smoke": "node scripts/mcp-smoke.mjs",
         "imports:fix": "node scripts/fix-tsconfig-imports.mjs",
         "knip": "knip"
