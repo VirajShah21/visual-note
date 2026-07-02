@@ -88,12 +88,7 @@ export const upsertNotebook = async (supabase: SupabaseClient, notebook: Noteboo
     if (error) throw error
 }
 
-export const deleteNotebooksNotIn = async (
-    supabase: SupabaseClient,
-    userId: string,
-    allowedNotebookIds: Set<string>,
-    deleteUpdatedBefore?: string,
-) => {
+export const deleteNotebooksNotIn = async (supabase: SupabaseClient, userId: string, allowedNotebookIds: Set<string>, deleteUpdatedBefore?: string) => {
     const ids = [...allowedNotebookIds]
     const staleBefore = deleteUpdatedBefore
     if (ids.length === 0) {

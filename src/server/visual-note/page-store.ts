@@ -146,12 +146,7 @@ export const upsertPageFromWorkspace = (supabase: SupabaseClient, userId: string
     ])
 }
 
-export const deletePagesNotIn = async (
-    supabase: SupabaseClient,
-    userId: string,
-    allowedPageIds: Set<string>,
-    deleteUpdatedBefore?: string,
-) => {
+export const deletePagesNotIn = async (supabase: SupabaseClient, userId: string, allowedPageIds: Set<string>, deleteUpdatedBefore?: string) => {
     const ids = [...allowedPageIds]
     const staleBefore = deleteUpdatedBefore
     if (ids.length === 0) {
