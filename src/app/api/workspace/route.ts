@@ -1,4 +1,4 @@
-import { authenticateSupabaseRequest } from "@/lib/supabase/server"
+import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest } from "@/lib/supabase/server"
 import { loadWorkspaceForUserWithRevision, resolveWorkspaceRevision, saveWorkspaceForUser } from "@/server/visual-note/workspace-store"
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
@@ -19,7 +19,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-    const auth = await authenticateSupabaseRequest(request)
+    const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 
     try {

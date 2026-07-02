@@ -1,4 +1,4 @@
-import { authenticateSupabaseRequest, getSupabaseServiceRoleClient, userOwnsNotebook } from "@/lib/supabase/server"
+import { authenticateSupabaseMutationRequest, getSupabaseServiceRoleClient, userOwnsNotebook } from "@/lib/supabase/server"
 import { createAssetObjectKey, createAssetRecord, resolveNotebookStorage } from "@/server/storage/notebook-storage"
 import { uploadS3Object } from "@/server/storage/s3"
 import { validateImageUpload, validateUploadContentLength } from "@/server/storage/upload-validation"
@@ -7,7 +7,7 @@ import { recordVisualNoteEvent } from "@/server/observability/visual-note-events
 export const runtime = "nodejs"
 
 export async function POST(request: Request, context: RouteContext<"/api/notebooks/[notebookId]/assets">) {
-    const auth = await authenticateSupabaseRequest(request)
+    const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 
     const { notebookId } = await context.params

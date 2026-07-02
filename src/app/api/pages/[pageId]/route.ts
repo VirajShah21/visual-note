@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
+import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
 import { normalizeNotebookEditorSettings } from "@/lib/visual-note/factories"
 import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
 import { listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
@@ -119,7 +119,7 @@ export async function GET(request: Request, context: RouteContext<"/api/pages/[p
 }
 
 export async function PUT(request: Request, context: RouteContext<"/api/pages/[pageId]">) {
-    const auth = await authenticateSupabaseRequest(request)
+    const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 
     const { pageId } = await context.params

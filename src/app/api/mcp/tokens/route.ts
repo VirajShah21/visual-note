@@ -1,4 +1,4 @@
-import { authenticateSupabaseRequest, getSupabaseServiceRoleClient } from "@/lib/supabase/server"
+import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, getSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { createMcpToken, InvalidMcpScopeError, listMcpTokens, validateAndNormalizeMcpScopes } from "@/server/mcp/token-store"
 
 export const runtime = "nodejs"
@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-    const auth = await authenticateSupabaseRequest(request)
+    const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 
     const supabase = getTokenStore()

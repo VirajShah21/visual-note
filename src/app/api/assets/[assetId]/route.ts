@@ -1,5 +1,5 @@
 import { Readable } from "stream"
-import { authenticateSupabaseRequest, getSupabaseServiceRoleClient } from "@/lib/supabase/server"
+import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, getSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { loadAssetStorage } from "@/server/storage/notebook-storage"
 import { deleteS3Object, readS3Object } from "@/server/storage/s3"
 import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
@@ -46,7 +46,7 @@ export async function GET(request: Request, context: RouteContext<"/api/assets/[
 }
 
 export async function DELETE(request: Request, context: RouteContext<"/api/assets/[assetId]">) {
-    const auth = await authenticateSupabaseRequest(request)
+    const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 
     const { assetId } = await context.params

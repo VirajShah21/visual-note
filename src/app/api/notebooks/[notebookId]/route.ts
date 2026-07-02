@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
+import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
 import { loadWorkspaceForUser } from "@/server/visual-note/workspace-store"
 import { upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { normalizeNotebookEditorSettings } from "@/lib/visual-note/factories"
@@ -50,7 +50,7 @@ export async function GET(request: Request, context: RouteContext<"/api/notebook
 }
 
 export async function PUT(request: Request, context: RouteContext<"/api/notebooks/[notebookId]">) {
-    const auth = await authenticateSupabaseRequest(request)
+    const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 
     const { notebookId } = await context.params

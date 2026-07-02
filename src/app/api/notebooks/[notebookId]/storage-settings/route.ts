@@ -1,4 +1,4 @@
-import { authenticateSupabaseRequest, getSupabaseServiceRoleClient, userOwnsNotebook } from "@/lib/supabase/server"
+import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, getSupabaseServiceRoleClient, userOwnsNotebook } from "@/lib/supabase/server"
 import { loadNotebookStorageSettings, saveNotebookStorageSettings } from "@/server/storage/notebook-storage"
 import type { NotebookStorageSettingsInput } from "@/lib/visual-note/storage-settings"
 
@@ -22,7 +22,7 @@ export async function GET(request: Request, context: RouteContext<"/api/notebook
 }
 
 export async function PUT(request: Request, context: RouteContext<"/api/notebooks/[notebookId]/storage-settings">) {
-    const auth = await authenticateSupabaseRequest(request)
+    const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 
     const { notebookId } = await context.params

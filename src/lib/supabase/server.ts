@@ -7,6 +7,19 @@ export type AuthenticatedSupabaseContext = {
     userId: string
 }
 
+export const rejectCrossOriginMutation = (request: Request) => {
+    const origin = request.headers.get("origin")
+    if (!origin) return null
+
+    try {
+        if (new URL(origin).origin === new URL(request.url).origin) return null
+    } catch {
+        return Response.json({ error: "Invalid request origin." }, { status: 403 })
+    }
+
+    return Response.json({ error: "Cross-origin mutation requests are not allowed." }, { status: 403 })
+}
+
 export const getSupabaseServiceRoleClient = () => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
     const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -31,6 +44,13 @@ export const authenticateSupabaseRequest = async (request: Request): Promise<Aut
     if (!user) return Response.json({ error: "Authentication required." }, { status: 401 })
 
     return { supabase, userId: user.id }
+}
+
+export const authenticateSupabaseMutationRequest = async (request: Request): Promise<AuthenticatedSupabaseContext | Response> => {
+    const originError = rejectCrossOriginMutation(request)
+    if (originError) return originError
+
+    return authenticateSupabaseRequest(request)
 }
 
 export const userOwnsNotebook = async (context: AuthenticatedSupabaseContext, notebookId: string) => {

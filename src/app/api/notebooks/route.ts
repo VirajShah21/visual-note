@@ -4,7 +4,7 @@ import { createExportDocument } from "@/lib/visual-note/export/document"
 import { renderMarkdownExport } from "@/lib/visual-note/export/markdown"
 import { resolveExportAssets } from "@/lib/visual-note/export/assets"
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
-import { authenticateSupabaseRequest } from "@/lib/supabase/server"
+import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest } from "@/lib/supabase/server"
 import { upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
 import { loadWorkspaceForUser } from "@/server/visual-note/workspace-store"
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-    const auth = await authenticateSupabaseRequest(request)
+    const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 
     try {

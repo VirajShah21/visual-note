@@ -1,10 +1,10 @@
-import { authenticateSupabaseRequest, getSupabaseServiceRoleClient } from "@/lib/supabase/server"
+import { authenticateSupabaseMutationRequest, getSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { revokeMcpToken } from "@/server/mcp/token-store"
 
 export const runtime = "nodejs"
 
 export async function DELETE(request: Request, context: RouteContext<"/api/mcp/tokens/[tokenId]">) {
-    const auth = await authenticateSupabaseRequest(request)
+    const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 
     const supabase = getSupabaseServiceRoleClient()

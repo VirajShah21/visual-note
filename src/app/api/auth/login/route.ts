@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { getSupabaseServiceRoleClient } from "@/lib/supabase/server"
+import { getSupabaseServiceRoleClient, rejectCrossOriginMutation } from "@/lib/supabase/server"
 import { createAppSession, verifyAppUserCredentials } from "@/server/auth/app-auth-store"
 import { errorMessage } from "@/server/auth/route-errors"
 import { createSessionCookie } from "@/server/auth/session-cookie"
@@ -14,6 +14,9 @@ const loginSchema = z.object({
 })
 
 export async function POST(request: Request) {
+    const originError = rejectCrossOriginMutation(request)
+    if (originError) return originError
+
     const supabase = getSupabaseServiceRoleClient()
     if (!supabase) return Response.json({ error: "Application database auth is not configured." }, { status: 503 })
 

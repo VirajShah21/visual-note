@@ -1,4 +1,4 @@
-import { authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
+import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
 import { loadPageById, makePageObjectKey } from "@/server/visual-note/page-store"
 import { readPageMarkdown, savePageMarkdown } from "@/server/visual-note/page-content-store"
 
@@ -27,7 +27,7 @@ export async function GET(request: Request, context: RouteContext<"/api/pages/[p
 }
 
 export async function PUT(request: Request, context: RouteContext<"/api/pages/[pageId]/content">) {
-    const auth = await authenticateSupabaseRequest(request)
+    const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 
     const { pageId } = await context.params
