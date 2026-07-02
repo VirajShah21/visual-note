@@ -6,7 +6,7 @@ import { normalizeWorkspace } from "@/lib/visual-note/factories"
 import type { NotebookPage, VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { deleteNotebooksNotIn, listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { deletePagesNotIn, hydrateWorkspaceFromPageRows, listPagesForUser, listPagesForUserByNotebooks, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
-import { deletePageMarkdown, readPageMarkdown, savePageMarkdown } from "@/server/visual-note/page-content-store"
+import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
 import { deleteAssetsNotInNotebooks } from "@/server/storage/notebook-storage"
 import { deleteS3Object } from "@/server/storage/s3"
 
@@ -142,9 +142,10 @@ export const saveWorkspaceForUser = async (supabase: SupabaseClient, userId: str
         const existingPage = existingPageById.get(page.id)
         const existingNotebookId = existingPage?.notebook_id ?? page.notebookId
         const previousContent = existingPage ? await readPageMarkdown({ supabase, userId }, page.id) : null
+        let savedContent = false
 
         try {
-            await savePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, markdown, contentObjectKey)
+            savedContent = (await savePageMarkdownIfConfigured({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, markdown, contentObjectKey)).saved
             await upsertPages(supabase, userId, [
                 {
                     page,
@@ -155,13 +156,13 @@ export const saveWorkspaceForUser = async (supabase: SupabaseClient, userId: str
                 },
             ])
         } catch (error) {
-            if (existingPage) {
+            if (savedContent && existingPage) {
                 if (previousContent === null) await deletePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, contentObjectKey).catch(() => {})
                 else await savePageMarkdown({ supabase, userId }, { notebookId: existingNotebookId, id: page.id }, previousContent, existingPage.content_object_key).catch(() => {})
 
                 if (existingPage.content_object_key !== contentObjectKey)
                     await deletePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, contentObjectKey).catch(() => {})
-            } else await deletePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, contentObjectKey).catch(() => {})
+            } else if (savedContent) await deletePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, contentObjectKey).catch(() => {})
 
             throw error
         }

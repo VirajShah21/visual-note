@@ -37,10 +37,20 @@ export const readPageMarkdown = async (context: AuthContext, pageId: string): Pr
 }
 
 export const savePageMarkdown = async (context: AuthContext, page: { notebookId: string; id: string }, content: string, objectKeyOverride?: string) => {
-    const notebookStorage = await resolveNotebookStorage(context.supabase, context.userId, page.notebookId)
-    if (!notebookStorage) throw new Error("Configure notebook storage before saving page content to MinIO.")
+    const result = await savePageMarkdownIfConfigured(context, page, content, objectKeyOverride)
+    if (!result.saved) throw new Error("Configure notebook storage before saving page content to MinIO.")
 
+    return result.objectKey
+}
+
+export const savePageMarkdownIfConfigured = async (context: AuthContext, page: { notebookId: string; id: string }, content: string, objectKeyOverride?: string) => {
     const objectKey = objectKeyOverride ?? makePageObjectKey(page.notebookId, page.id)
+    const notebookStorage = await resolveNotebookStorage(context.supabase, context.userId, page.notebookId).catch(error => {
+        if (error instanceof Error && error.message.includes("VISUAL_NOTE_S3_ENCRYPTION_KEY")) return null
+        throw error
+    })
+    if (!notebookStorage) return { saved: false, objectKey }
+
     await uploadS3Object({
         body: Buffer.from(content, "utf8"),
         bucketName: notebookStorage.bucketName,
@@ -53,7 +63,7 @@ export const savePageMarkdown = async (context: AuthContext, page: { notebookId:
         },
     })
 
-    return objectKey
+    return { saved: true, objectKey }
 }
 
 export const deletePageMarkdown = async (context: AuthContext, page: { notebookId: string; id: string }, objectKeyOverride?: string) => {

@@ -8,7 +8,7 @@ import { authenticateSupabaseRequest } from "@/lib/supabase/server"
 import { upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
 import { loadWorkspaceForUser } from "@/server/visual-note/workspace-store"
-import { savePageMarkdown } from "@/server/visual-note/page-content-store"
+import { savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
 
 const notebookInputSchema = z.object({
     title: z.string().min(1),
@@ -102,7 +102,7 @@ export async function POST(request: Request) {
                 page.id,
             )
 
-            await savePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: createdNotebook.id, id: page.id }, markdown, objectKey)
+            await savePageMarkdownIfConfigured({ supabase: auth.supabase, userId: auth.userId }, { notebookId: createdNotebook.id, id: page.id }, markdown, objectKey)
         }
 
         const detail = await loadWorkspaceForUser(auth.supabase, auth.userId)
