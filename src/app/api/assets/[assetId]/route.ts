@@ -3,6 +3,7 @@ import { authenticateSupabaseRequest, getSupabaseServiceRoleClient } from "@/lib
 import { loadAssetStorage } from "@/server/storage/notebook-storage"
 import { deleteS3Object, readS3Object } from "@/server/storage/s3"
 import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
+import { isAllowedImageContentType } from "@/server/storage/upload-validation"
 
 export const runtime = "nodejs"
 
@@ -17,6 +18,7 @@ export async function GET(request: Request, context: RouteContext<"/api/assets/[
     try {
         const resolved = await loadAssetStorage(storageSupabase, auth.userId, assetId)
         if (!resolved) return Response.json({ error: "Asset not found." }, { status: 404 })
+        if (!isAllowedImageContentType(resolved.asset.contentType)) return Response.json({ error: "Asset type is not supported for private delivery." }, { status: 415 })
 
         const object = await readS3Object({
             bucketName: resolved.asset.bucketName,
@@ -24,10 +26,15 @@ export async function GET(request: Request, context: RouteContext<"/api/assets/[
             objectKey: resolved.asset.objectKey,
         })
         if (!object.body) return Response.json({ error: "Asset body not found." }, { status: 404 })
+        const contentType = object.contentType ?? resolved.asset.contentType
+        if (!isAllowedImageContentType(contentType)) return Response.json({ error: "Stored asset type is not supported for private delivery." }, { status: 415 })
 
         const headers = new Headers({
-            "Cache-Control": "private, max-age=300",
-            "Content-Type": object.contentType ?? resolved.asset.contentType,
+            "Cache-Control": "private, max-age=300, no-transform",
+            "Content-Disposition": `inline; filename="${encodeURIComponent(resolved.asset.fileName)}"`,
+            "Content-Type": contentType,
+            "Referrer-Policy": "same-origin",
+            "X-Content-Type-Options": "nosniff",
         })
         if (object.contentLength != null) headers.set("Content-Length", String(object.contentLength))
 

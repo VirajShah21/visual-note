@@ -34,8 +34,10 @@ export const validateUploadContentLength = (request: Request): UploadValidationE
     return null
 }
 
+export const isAllowedImageContentType = (contentType: string) => allowedImageTypes.has(contentType)
+
 export const validateImageUpload = (file: File, body: Buffer): UploadValidationError | null => {
-    if (!allowedImageTypes.has(file.type)) return error("Only PNG, JPEG, WebP, GIF, and AVIF image uploads are supported.", 415)
+    if (!isAllowedImageContentType(file.type)) return error("Only PNG, JPEG, WebP, GIF, and AVIF image uploads are supported.", 415)
     if (file.size > maxImageUploadBytes || body.byteLength > maxImageUploadBytes) return error("Images must be 500 MB or smaller.", 413)
     if (file.size !== body.byteLength) return error("Image upload size did not match the decoded request body.", 400)
 

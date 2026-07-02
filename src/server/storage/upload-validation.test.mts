@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { validateImageUpload, validateUploadContentLength } from "./upload-validation"
+import { isAllowedImageContentType, validateImageUpload, validateUploadContentLength } from "./upload-validation"
 
 const fileFrom = (body: Buffer, type: string) => new File([body], "image", { type })
 
@@ -29,4 +29,9 @@ test("requires upload content length", () => {
     const result = validateUploadContentLength(new Request("http://localhost/upload"))
 
     assert.equal(result?.status, 400)
+})
+
+test("shares the supported private image delivery allowlist", () => {
+    assert.equal(isAllowedImageContentType("image/webp"), true)
+    assert.equal(isAllowedImageContentType("image/svg+xml"), false)
 })
