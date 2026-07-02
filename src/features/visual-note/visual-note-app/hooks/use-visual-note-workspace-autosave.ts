@@ -13,7 +13,33 @@ type UseVisualNoteWorkspaceAutosaveOptions = {
     setWorkspaceRevision: (revision: string | null) => void
     workspaceRevision: string | null
     syncedWorkspaceRef: MutableRefObject<string>
+    setWorkspaceRecovery: (state: WorkspaceRecoveryState) => void
     saveDelayMs?: number
+}
+
+export type WorkspaceRecoveryState = {
+    message: string
+    status: "synced" | "saving" | "offline" | "conflict" | "error"
+}
+
+export const workspaceRecoveryStateForError = (error: unknown): WorkspaceRecoveryState => {
+    const status = (error as SaveVisualNoteWorkspaceError | null)?.status
+    if (status === 409)
+        return {
+            message: "Workspace was updated in another session. Reload to keep changes in sync.",
+            status: "conflict",
+        }
+
+    if (typeof navigator !== "undefined" && !navigator.onLine)
+        return {
+            message: "You appear to be offline. Changes will retry when connectivity returns.",
+            status: "offline",
+        }
+
+    return {
+        message: error instanceof Error ? error.message : "Unable to save workspace.",
+        status: "error",
+    }
 }
 
 export const useVisualNoteWorkspaceAutosave = ({
@@ -25,6 +51,7 @@ export const useVisualNoteWorkspaceAutosave = ({
     setWorkspaceRevision,
     workspaceRevision,
     syncedWorkspaceRef,
+    setWorkspaceRecovery,
     saveDelayMs = 500,
 }: UseVisualNoteWorkspaceAutosaveOptions) => {
     const saveRequestIdRef = useRef(0)
@@ -45,6 +72,7 @@ export const useVisualNoteWorkspaceAutosave = ({
 
         const abortController = new AbortController()
         saveAbortRef.current = abortController
+        setWorkspaceRecovery({ message: "Workspace changes are waiting for remote save.", status: "saving" })
 
         saveTimeoutRef.current = setTimeout(() => {
             void saveVisualNoteWorkspace(workspace, {
@@ -55,6 +83,7 @@ export const useVisualNoteWorkspaceAutosave = ({
                     if (saveRequestIdRef.current !== requestId) return
                     syncedWorkspaceRef.current = serializedWorkspace
                     setWorkspaceRevision(response.revision)
+                    setWorkspaceRecovery({ message: "", status: "synced" })
                     if (!hasActiveSaveErrorRef.current) return
 
                     hasActiveSaveErrorRef.current = false
@@ -65,18 +94,12 @@ export const useVisualNoteWorkspaceAutosave = ({
                     if (saveRequestIdRef.current !== requestId) return
                     if (error instanceof Error && error.name === "AbortError") return
 
-                    const message = (() => {
-                        const status = (error as SaveVisualNoteWorkspaceError | null)?.status
-                        if (status === 409) return "Workspace was updated in another session. Reload to keep changes in sync."
-
-                        const messageText = error instanceof Error ? error.message : "Unable to save workspace."
-                        if (!navigator.onLine) return "You appear to be offline. Changes will retry when connectivity returns."
-                        return messageText
-                    })()
+                    const recovery = workspaceRecoveryStateForError(error)
 
                     hasActiveSaveErrorRef.current = true
-                    setNotice(message)
-                    pushToast("Workspace save failed", message, "error")
+                    setWorkspaceRecovery(recovery)
+                    setNotice(recovery.message)
+                    pushToast("Workspace save failed", recovery.message, "error")
                 })
         }, saveDelayMs)
 
@@ -84,5 +107,5 @@ export const useVisualNoteWorkspaceAutosave = ({
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
             if (saveAbortRef.current) saveAbortRef.current.abort()
         }
-    }, [hasActiveSaveErrorRef, pushToast, saveDelayMs, setNotice, setWorkspaceRevision, syncedWorkspaceRef, user, workspace, workspaceRevision])
+    }, [hasActiveSaveErrorRef, pushToast, saveDelayMs, setNotice, setWorkspaceRecovery, setWorkspaceRevision, syncedWorkspaceRef, user, workspace, workspaceRevision])
 }

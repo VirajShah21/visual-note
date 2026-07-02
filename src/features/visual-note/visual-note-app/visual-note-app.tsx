@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Card, ExportWizard, Grid, NotebookEditorNavbar, NotebookHome, NotebookSettingsWorkspace, ScrollArea, Stack, Text, ToastShelf } from "@/components/ui"
+import { Button, Card, ExportWizard, Grid, NotebookEditorNavbar, NotebookHome, NotebookSettingsWorkspace, ScrollArea, Stack, Text, ToastShelf } from "@/components/ui"
 import { defaultNotebookEditorSettings } from "@/lib/visual-note/types"
 import { searchNotebook } from "@/lib/visual-note/search-api"
 import type { NotebookSearchResult } from "@/lib/visual-note/search"
@@ -14,7 +14,8 @@ import { createNotebookSearchResults } from "./utils/notebook-search"
 import styles from "../visual-note-app.module.css"
 
 export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualNoteAppProps) {
-    const { actions, authStatus, galleryItems, isLoading, notice, sections, selected, toastMessages, user, workspace } = useVisualNoteAppController(initialNotebookId)
+    const { actions, authStatus, galleryItems, isLoading, notice, sections, selected, toastMessages, user, workspace, workspaceRecovery } =
+        useVisualNoteAppController(initialNotebookId)
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
     const [isExportOpen, setIsExportOpen] = useState(false)
     const [workspaceView, setWorkspaceView] = useState<"editor" | "settings">("editor")
@@ -28,6 +29,8 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     const searchResults = remoteSearch?.key === searchKey ? remoteSearch.results : localSearchResults
     const editorSettings = selected.notebook?.editorSettings ?? defaultNotebookEditorSettings
     const appAuthReady = authStatus === "ready"
+    const showRecoveryBanner = workspaceRecovery.status === "offline" || workspaceRecovery.status === "conflict" || workspaceRecovery.status === "error"
+    const recoveryActionLabel = workspaceRecovery.status === "conflict" ? "Reload remote workspace" : "Retry save"
     const openExportDialog = useCallback(() => setIsExportOpen(true), [])
     const toggleSidebar = useCallback(() => setIsSidebarOpen(current => !current), [])
     const openSettings = useCallback(() => setWorkspaceView("settings"), [])
@@ -159,6 +162,19 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                         />
                     ) : null}
                     <ScrollArea className={styles.content}>
+                        {showRecoveryBanner ? (
+                            <Card className={styles.recoveryBanner} padding="compact" role="status">
+                                <Stack direction="horizontal" gap="md" className={styles.recoveryBannerContent}>
+                                    <Stack gap="xs">
+                                        <Text tone="strong">{workspaceRecovery.status === "conflict" ? "Workspace conflict detected" : "Workspace changes are not synced"}</Text>
+                                        <Text size="small">{workspaceRecovery.message}</Text>
+                                    </Stack>
+                                    <Button variant="secondary" onClick={actions.retryWorkspaceRecovery}>
+                                        {recoveryActionLabel}
+                                    </Button>
+                                </Stack>
+                            </Card>
+                        ) : null}
                         {workspaceView === "settings" ? (
                             <NotebookSettingsWorkspace
                                 notebookId={selected.currentSelection.notebookId}
