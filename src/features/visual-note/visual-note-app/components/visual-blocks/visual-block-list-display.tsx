@@ -21,7 +21,15 @@ import {
 import type { ObjectListHandlers } from "@/components/ui"
 import type { VisualBlockData, VisualBlockKind } from "@/lib/visual-note/visual-blocks"
 import { listCompletionText, packingListSummary, pollPreviewText, timelinePreviewText } from "@features/visual-note/visual-note-app/utils/visual-block-preview"
-import { dateInputValue, numberFrom, objectArrayFrom, replaceObjectAt, stringFrom, timeInputValue, timelineEventsFromData } from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
+import {
+    dateInputValue,
+    numberFrom,
+    objectArrayFrom,
+    replaceObjectAt,
+    stringFrom,
+    timeInputValue,
+    timelineEventsFromData,
+} from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
 import styles from "../../../visual-note-app.module.css"
 import { defaultVisualListItem, VisualListItemFields } from "./visual-block-list-controls"
 import { VisualBlockRecipeDisplay } from "./visual-block-recipe-display"
