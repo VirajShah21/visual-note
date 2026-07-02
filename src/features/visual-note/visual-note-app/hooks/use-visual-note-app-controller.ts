@@ -8,7 +8,7 @@ import { uploadNotebookImage } from "@/lib/visual-note/storage-api"
 import { createEmptyWorkspace, createNotebook, createPage, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
 import { loadVisualNoteWorkspaceState } from "@/lib/visual-note/workspace-api"
 import type { DisplayInstance, NotebookEditorSettings, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
-import type { NotebookEditorSearchResult } from "@/components/ui"
+import type { NotebookSearchResult } from "@/lib/visual-note/search"
 import { updateWorkspaceNotebookEditorSettings } from "@features/visual-note/visual-note-app/utils/notebook-editor-settings"
 import {
     blankSelection,
@@ -220,7 +220,7 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         const topic = workspace?.topics.find(item => item.id === topicId)
         if (topic) applySelection({ ...selected.currentSelection, pageId: topic.pageId, topicId, viewId: "" }, "An article view was added for this item.")
     }
-    const selectSearchResult = (result: NotebookEditorSearchResult) => {
+    const selectSearchResult = (result: NotebookSearchResult) => {
         applySelection({ ...selected.currentSelection, pageId: result.pageId, topicId: result.topicId, viewId: result.viewId }, "An article view was added for this search result.")
     }
     const selectNotebook = (notebookId: string) => {

@@ -1,8 +1,10 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Card, ExportWizard, Grid, NotebookEditorNavbar, NotebookHome, NotebookSettingsWorkspace, ScrollArea, Stack, Text, ToastShelf } from "@/components/ui"
 import { defaultNotebookEditorSettings } from "@/lib/visual-note/types"
+import { searchNotebook } from "@/lib/visual-note/search-api"
+import type { NotebookSearchResult } from "@/lib/visual-note/search"
 import type { VisualNoteAppProps } from "./types/visual-note-app.types"
 import { AuthPanel } from "./components/auth-panel"
 import { SectionSidebar } from "./components/section-sidebar"
@@ -17,16 +19,43 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     const [isExportOpen, setIsExportOpen] = useState(false)
     const [workspaceView, setWorkspaceView] = useState<"editor" | "settings">("editor")
     const [searchQuery, setSearchQuery] = useState("")
-    const searchResults = useMemo(
+    const [remoteSearch, setRemoteSearch] = useState<{ key: string; results: NotebookSearchResult[] } | null>(null)
+    const searchKey = `${selected.currentSelection.notebookId}:${selected.currentSelection.pageId}:${searchQuery.trim()}`
+    const localSearchResults = useMemo(
         () => (workspace ? createNotebookSearchResults(workspace, selected.currentSelection, searchQuery) : []),
         [searchQuery, selected.currentSelection, workspace],
     )
+    const searchResults = remoteSearch?.key === searchKey ? remoteSearch.results : localSearchResults
     const editorSettings = selected.notebook?.editorSettings ?? defaultNotebookEditorSettings
     const appAuthReady = authStatus === "ready"
     const openExportDialog = useCallback(() => setIsExportOpen(true), [])
     const toggleSidebar = useCallback(() => setIsSidebarOpen(current => !current), [])
     const openSettings = useCallback(() => setWorkspaceView("settings"), [])
     const openEditor = useCallback(() => setWorkspaceView("editor"), [])
+    useEffect(() => {
+        const query = searchQuery.trim()
+        const notebookId = selected.currentSelection.notebookId
+        if (!query || !notebookId) return
+
+        const controller = new AbortController()
+        const timeout = window.setTimeout(() => {
+            void searchNotebook(notebookId, {
+                currentPageId: selected.currentSelection.pageId,
+                limit: 8,
+                query,
+                signal: controller.signal,
+            })
+                .then(response => setRemoteSearch({ key: searchKey, results: response.results }))
+                .catch(error => {
+                    if (error instanceof Error && error.name === "AbortError") return
+                })
+        }, 180)
+
+        return () => {
+            window.clearTimeout(timeout)
+            controller.abort()
+        }
+    }, [searchKey, searchQuery, selected.currentSelection.notebookId, selected.currentSelection.pageId])
     const selectSection = useCallback(
         (sectionId: string) => {
             setWorkspaceView("editor")

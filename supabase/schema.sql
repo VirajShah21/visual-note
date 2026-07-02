@@ -46,6 +46,18 @@ create table if not exists public.visual_note_pages (
 create index if not exists visual_note_pages_user_id_idx
   on public.visual_note_pages(user_id);
 
+create index if not exists visual_note_pages_user_notebook_position_idx
+  on public.visual_note_pages(user_id, notebook_id, position);
+
+create index if not exists visual_note_pages_title_search_idx
+  on public.visual_note_pages using gin (to_tsvector('simple', title));
+
+create index if not exists visual_note_pages_topics_search_idx
+  on public.visual_note_pages using gin (topics jsonb_path_ops);
+
+create index if not exists visual_note_pages_views_search_idx
+  on public.visual_note_pages using gin (views jsonb_path_ops);
+
 create unique index if not exists visual_note_pages_notebook_position_idx
   on public.visual_note_pages(notebook_id, position);
 

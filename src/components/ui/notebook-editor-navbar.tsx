@@ -6,21 +6,11 @@ import { Popover } from "@base-ui/react/popover"
 import { BookOpen, BookOpenText, Braces, Download, Eye, FileCode2, Home, Info, ListTree, PanelLeftClose, PanelLeftOpen, PencilLine, Search, Settings } from "lucide-react"
 import { useCallback, useMemo, useState, type ChangeEventHandler } from "react"
 import type { ArticleBlockInfoMode, ArticleContentsMode, ArticleEditorMode, NotebookEditorSettings } from "@/lib/visual-note/types"
+import type { NotebookSearchResult } from "@/lib/visual-note/search"
 import { Button } from "./button"
 import { cx } from "./class-name"
 import styles from "./notebook-editor-navbar.module.css"
 import { ToolbarMenu, type ToolbarMenuGroup } from "./toolbar-menu"
-
-export type NotebookEditorSearchResult = {
-    id: string
-    pageId: string
-    topicId: string
-    viewId: string
-    title: string
-    context: string
-    location: string
-    isCurrentPage: boolean
-}
 
 export type NotebookEditorRecentNotebook = {
     id: string
@@ -33,7 +23,7 @@ export type NotebookEditorRecentNotebook = {
 
 export type NotebookEditorNavbarProps = {
     searchQuery: string
-    searchResults: NotebookEditorSearchResult[]
+    searchResults: NotebookSearchResult[]
     sidebarOpen: boolean
     editorSettings: NotebookEditorSettings
     currentNotebookId?: string
@@ -42,7 +32,7 @@ export type NotebookEditorNavbarProps = {
     onHomeSelect: () => void
     onNotebookSelect: (notebookId: string) => void
     onSearchChange: (query: string) => void
-    onSearchResultSelect: (result: NotebookEditorSearchResult) => void
+    onSearchResultSelect: (result: NotebookSearchResult) => void
     onMoreSettings: () => void
     onSettingsChange: (settings: Partial<NotebookEditorSettings>) => void
     onToggleSidebar: () => void
@@ -213,7 +203,7 @@ function NotebookSwitcherItem({ notebook, onSelectNotebook }: { notebook: Notebo
     )
 }
 
-function SearchResultItem({ result, onSearchResultSelect }: { result: NotebookEditorSearchResult; onSearchResultSelect: (result: NotebookEditorSearchResult) => void }) {
+function SearchResultItem({ result, onSearchResultSelect }: { result: NotebookSearchResult; onSearchResultSelect: (result: NotebookSearchResult) => void }) {
     const handleSelect = useCallback(() => onSearchResultSelect(result), [onSearchResultSelect, result])
 
     return (
