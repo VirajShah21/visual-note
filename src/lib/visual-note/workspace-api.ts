@@ -12,6 +12,12 @@ type ApiWorkspaceEnvelope = {
     pages?: VisualNoteWorkspace["pages"]
     topics?: VisualNoteWorkspace["topics"]
     views?: VisualNoteWorkspace["views"]
+    revision?: string
+}
+
+export type VisualNoteWorkspaceState = {
+    workspace: VisualNoteWorkspace | null
+    revision: string | null
 }
 
 const asVisualNoteWorkspace = (payload: ApiWorkspaceEnvelope | null): VisualNoteWorkspace | null => {
@@ -33,19 +39,53 @@ export const loadVisualNoteWorkspace = async (): Promise<VisualNoteWorkspace | n
     return asVisualNoteWorkspace(body)
 }
 
-type SaveVisualNoteWorkspaceOptions = {
-    signal?: AbortSignal
+export const loadVisualNoteWorkspaceState = async (): Promise<VisualNoteWorkspaceState> => {
+    const response = await fetch("/api/workspace")
+    if (response.status === 401) return { workspace: null, revision: null }
+    if (!response.ok) throw new Error(await parseError(response, "Unable to load workspace."))
+
+    const body = (await response.json()) as ApiWorkspaceEnvelope | null
+    return {
+        workspace: asVisualNoteWorkspace(body),
+        revision: typeof body?.revision === "string" ? body.revision : null,
+    }
 }
 
-export const saveVisualNoteWorkspace = async (workspace: VisualNoteWorkspace, options: SaveVisualNoteWorkspaceOptions = {}) => {
+type SaveVisualNoteWorkspaceOptions = {
+    signal?: AbortSignal
+    revision?: string | null
+}
+
+export type SaveVisualNoteWorkspaceError = Error & {
+    status?: number
+}
+
+type SaveVisualNoteWorkspaceResult = {
+    revision: string
+}
+
+export const saveVisualNoteWorkspace = async (workspace: VisualNoteWorkspace, options: SaveVisualNoteWorkspaceOptions = {}): Promise<SaveVisualNoteWorkspaceResult> => {
     const response = await fetch("/api/workspace", {
         method: "PUT",
         headers: {
             "Content-Type": "application/json",
         },
         signal: options.signal,
-        body: JSON.stringify({ workspace }),
+        body: JSON.stringify({
+            workspace,
+            revision: options.revision ?? null,
+        }),
     })
 
-    if (!response.ok) throw new Error(await parseError(response, "Unable to save workspace."))
+    if (!response.ok) {
+        const error = new Error(await parseError(response, "Unable to save workspace.")) as SaveVisualNoteWorkspaceError
+        error.status = response.status
+        throw error
+    }
+
+    const body = (await response.json()) as { revision?: string }
+    const revision = typeof body.revision === "string" && body.revision.length > 0 ? body.revision : null
+    if (!revision) throw new Error("Workspace save did not return a revision token.")
+
+    return { revision }
 }

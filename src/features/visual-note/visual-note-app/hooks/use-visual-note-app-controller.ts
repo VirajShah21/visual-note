@@ -6,7 +6,7 @@ import type { ToastMessage, ToastTone } from "@/components/ui"
 import { logoutVisualNoteUser } from "@/lib/visual-note/auth-api"
 import { uploadNotebookImage } from "@/lib/visual-note/storage-api"
 import { createEmptyWorkspace, createNotebook, createPage, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
-import { loadVisualNoteWorkspace } from "@/lib/visual-note/workspace-api"
+import { loadVisualNoteWorkspaceState } from "@/lib/visual-note/workspace-api"
 import type { DisplayInstance, NotebookEditorSettings, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
 import type { NotebookEditorSearchResult } from "@/components/ui"
 import { updateWorkspaceNotebookEditorSettings } from "@features/visual-note/visual-note-app/utils/notebook-editor-settings"
@@ -29,6 +29,7 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const [selection, setSelection] = useState<SelectionState>(blankSelection)
     const [isLoading, setIsLoading] = useState(true)
     const [notice, setNotice] = useState("")
+    const [workspaceRevision, setWorkspaceRevision] = useState<string | null>(null)
     const [toastMessages, setToastMessages] = useState<ToastMessage[]>([])
     const [authStatus, setAuthStatus] = useState<"ready" | "unconfigured">("ready")
     const syncedWorkspaceRef = useRef("")
@@ -40,20 +41,33 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const dismissToast = useCallback((id: string) => setToastMessages(current => current.filter(message => message.id !== id)), [])
     useEffect(() => {
         const restore = async () => {
-            const restored = await restoreVisualNoteSession(initialNotebookId)
-            if (!restored.user || !restored.workspace || !restored.selection) {
+            try {
+                const restored = await restoreVisualNoteSession(initialNotebookId)
+                if (!restored.user || !restored.workspace || !restored.selection) {
+                    setAuthStatus(restored.authStatus)
+                    setNotice(restored.authStatus === "unconfigured" ? "Visual Note server database authentication is not configured." : "")
+                    setWorkspaceRevision(null)
+                    setIsLoading(false)
+                    return
+                }
+                setUser(restored.user)
+                syncedWorkspaceRef.current = JSON.stringify(restored.workspace)
+                setWorkspace(restored.workspace)
+                setSelection(restored.selection)
+                setWorkspaceRevision(restored.workspaceRevision ?? null)
                 setAuthStatus(restored.authStatus)
-                setNotice(restored.authStatus === "unconfigured" ? "Visual Note server database authentication is not configured." : "")
+                setNotice("")
                 setIsLoading(false)
                 return
+            } catch (error) {
+                setAuthStatus("ready")
+                setWorkspaceRevision(null)
+                setUser(null)
+                setWorkspace(null)
+                setSelection(blankSelection)
+                setNotice(error instanceof Error ? error.message : "Unable to restore the workspace session.")
+                setIsLoading(false)
             }
-            setUser(restored.user)
-            syncedWorkspaceRef.current = JSON.stringify(restored.workspace)
-            setWorkspace(restored.workspace)
-            setSelection(restored.selection)
-            setAuthStatus(restored.authStatus)
-            setNotice("")
-            setIsLoading(false)
         }
         void restore()
     }, [initialNotebookId])
@@ -63,6 +77,8 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         setNotice,
         pushToast,
         hasActiveSaveErrorRef,
+        workspaceRevision,
+        setWorkspaceRevision,
         syncedWorkspaceRef,
     })
     const selected = useMemo(() => {
@@ -76,15 +92,26 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const openWorkspaceForUser = async (nextUser: VisualUser) => {
         setAuthStatus("ready")
         setUser(nextUser)
-        const remoteWorkspace = await loadVisualNoteWorkspace()
-        const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? createEmptyWorkspace()))
-        const resolved = ensureSelectionHasArticleView(nextWorkspace, { ...blankSelection, notebookId: initialNotebookId })
-        syncedWorkspaceRef.current = JSON.stringify(resolved.workspace)
-        setWorkspace(resolved.workspace)
-        setSelection(resolved.selection)
-        hasActiveSaveErrorRef.current = false
-        setNotice("Workspace changes are saved to the Visual Note workspace store.")
-        pushToast("Workspace opened", "Changes will save to the workspace database.", "info")
+        try {
+            const remote = await loadVisualNoteWorkspaceState()
+            const remoteWorkspace = remote.workspace
+            setWorkspaceRevision(remote.revision)
+            const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? createEmptyWorkspace()))
+            const resolved = ensureSelectionHasArticleView(nextWorkspace, { ...blankSelection, notebookId: initialNotebookId })
+            syncedWorkspaceRef.current = JSON.stringify(resolved.workspace)
+            setWorkspace(resolved.workspace)
+            setSelection(resolved.selection)
+            hasActiveSaveErrorRef.current = false
+            setNotice("Workspace changes are saved to the Visual Note workspace store.")
+            pushToast("Workspace opened", "Changes will save to the workspace database.", "info")
+        } catch {
+            hasActiveSaveErrorRef.current = false
+            setWorkspace(null)
+            setSelection(blankSelection)
+            setWorkspaceRevision(null)
+            setNotice("Unable to open workspace. Please retry after signing in.")
+            pushToast("Unable to open workspace", "Remote workspace load failed. Changes will not save yet.", "error")
+        }
     }
     const authContext = { openWorkspaceForUser, pushToast, setNotice }
     const signIn = (email: string, password: string) => signInVisualNoteUser(authContext, email, password)

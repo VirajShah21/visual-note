@@ -1,5 +1,6 @@
 import { useEffect, useRef, type MutableRefObject } from "react"
 import { saveVisualNoteWorkspace } from "@/lib/visual-note/workspace-api"
+import type { SaveVisualNoteWorkspaceError } from "@/lib/visual-note/workspace-api"
 import type { ToastTone } from "@/components/ui"
 import type { VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
 
@@ -9,6 +10,8 @@ type UseVisualNoteWorkspaceAutosaveOptions = {
     setNotice: (notice: string) => void
     pushToast: (title: string, description?: string, tone?: ToastTone) => void
     hasActiveSaveErrorRef: MutableRefObject<boolean>
+    setWorkspaceRevision: (revision: string | null) => void
+    workspaceRevision: string | null
     syncedWorkspaceRef: MutableRefObject<string>
     saveDelayMs?: number
 }
@@ -19,6 +22,8 @@ export const useVisualNoteWorkspaceAutosave = ({
     setNotice,
     pushToast,
     hasActiveSaveErrorRef,
+    setWorkspaceRevision,
+    workspaceRevision,
     syncedWorkspaceRef,
     saveDelayMs = 500,
 }: UseVisualNoteWorkspaceAutosaveOptions) => {
@@ -42,10 +47,14 @@ export const useVisualNoteWorkspaceAutosave = ({
         saveAbortRef.current = abortController
 
         saveTimeoutRef.current = setTimeout(() => {
-            void saveVisualNoteWorkspace(workspace, { signal: abortController.signal })
-                .then(() => {
+            void saveVisualNoteWorkspace(workspace, {
+                signal: abortController.signal,
+                revision: workspaceRevision,
+            })
+                .then(response => {
                     if (saveRequestIdRef.current !== requestId) return
                     syncedWorkspaceRef.current = serializedWorkspace
+                    setWorkspaceRevision(response.revision)
                     if (!hasActiveSaveErrorRef.current) return
 
                     hasActiveSaveErrorRef.current = false
@@ -56,7 +65,15 @@ export const useVisualNoteWorkspaceAutosave = ({
                     if (saveRequestIdRef.current !== requestId) return
                     if (error instanceof Error && error.name === "AbortError") return
 
-                    const message = error instanceof Error ? error.message : "Unable to save workspace."
+                    const message = (() => {
+                        const status = (error as SaveVisualNoteWorkspaceError | null)?.status
+                        if (status === 409) return "Workspace was updated in another session. Reload to keep changes in sync."
+
+                        const messageText = error instanceof Error ? error.message : "Unable to save workspace."
+                        if (!navigator.onLine) return "You appear to be offline. Changes will retry when connectivity returns."
+                        return messageText
+                    })()
+
                     hasActiveSaveErrorRef.current = true
                     setNotice(message)
                     pushToast("Workspace save failed", message, "error")
@@ -67,5 +84,5 @@ export const useVisualNoteWorkspaceAutosave = ({
             if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
             if (saveAbortRef.current) saveAbortRef.current.abort()
         }
-    }, [hasActiveSaveErrorRef, pushToast, setNotice, saveDelayMs, syncedWorkspaceRef, user, workspace])
+    }, [hasActiveSaveErrorRef, pushToast, saveDelayMs, setNotice, setWorkspaceRevision, syncedWorkspaceRef, user, workspace, workspaceRevision])
 }

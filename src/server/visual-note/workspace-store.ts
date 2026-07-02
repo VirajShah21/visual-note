@@ -5,8 +5,10 @@ import { resolveExportAssets } from "@/lib/visual-note/export/assets"
 import { normalizeWorkspace } from "@/lib/visual-note/factories"
 import type { NotebookPage, VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { deleteNotebooksNotIn, listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
-import { deletePagesNotIn, hydrateWorkspaceFromPageRows, listPagesForUserByNotebooks, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
-import { readPageMarkdown, savePageMarkdown } from "@/server/visual-note/page-content-store"
+import { deletePagesNotIn, hydrateWorkspaceFromPageRows, listPagesForUser, listPagesForUserByNotebooks, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
+import { deletePageMarkdown, readPageMarkdown, savePageMarkdown } from "@/server/visual-note/page-content-store"
+import { deleteAssetsNotInNotebooks } from "@/server/storage/notebook-storage"
+import { deleteS3Object } from "@/server/storage/s3"
 
 type SupabaseRecord = {
     id: string
@@ -35,6 +37,45 @@ const throwOwnershipConflict = (resourceName: string, ids: string[]) => {
     const error = new Error(`${resourceName} IDs belong to a different user: ${ids.join(", ")}`) as Error & { code: string }
     error.code = "ownership_conflict"
     throw error
+}
+
+const throwWorkspaceConflict = () => {
+    const error = new Error("Workspace was modified while editing. Reload before saving.") as Error & { code: string }
+    error.code = "workspace_conflict"
+    throw error
+}
+
+const normalizeRevisionTimestamp = (value: string | null | undefined) => value ?? "0"
+
+const latestUpdatedAt = async (supabase: SupabaseClient, userId: string, table: "visual_note_notebooks" | "visual_note_pages") => {
+    const { data, error } = await supabase.from(table).select("updated_at").eq("user_id", userId).order("updated_at", { ascending: false }).limit(1).maybeSingle()
+    if (error) throw error
+
+    return normalizeRevisionTimestamp((data as { updated_at?: string } | null)?.updated_at)
+}
+
+const rowCount = async (supabase: SupabaseClient, userId: string, table: "visual_note_notebooks" | "visual_note_pages") => {
+    const { count, error } = await supabase.from(table).select("id", { count: "exact", head: true }).eq("user_id", userId)
+    if (error) throw error
+
+    return count ?? 0
+}
+
+export const resolveWorkspaceRevision = async (supabase: SupabaseClient, userId: string) => {
+    const [notebookUpdatedAt, pageUpdatedAt, notebookCount, pageCount] = await Promise.all([
+        latestUpdatedAt(supabase, userId, "visual_note_notebooks"),
+        latestUpdatedAt(supabase, userId, "visual_note_pages"),
+        rowCount(supabase, userId, "visual_note_notebooks"),
+        rowCount(supabase, userId, "visual_note_pages"),
+    ])
+
+    return `v1|notebooks:${notebookCount}:${notebookUpdatedAt}|pages:${pageCount}:${pageUpdatedAt}`
+}
+
+export const loadWorkspaceForUserWithRevision = async (supabase: SupabaseClient, userId: string) => {
+    const [workspace, revision] = await Promise.all([loadWorkspaceForUser(supabase, userId), resolveWorkspaceRevision(supabase, userId)])
+
+    return { workspace, revision }
 }
 
 const assertNoForeignOwnedRecords = async (supabase: SupabaseClient, userId: string, ids: string[], table: "visual_note_notebooks" | "visual_note_pages") => {
@@ -74,9 +115,16 @@ export const loadWorkspaceForUser = async (supabase: SupabaseClient, userId: str
     }
 }
 
-export const saveWorkspaceForUser = async (supabase: SupabaseClient, userId: string, workspace: VisualNoteWorkspace) => {
+export const saveWorkspaceForUser = async (supabase: SupabaseClient, userId: string, workspace: VisualNoteWorkspace, expectedRevision?: string) => {
     const saveStartedAt = new Date().toISOString()
     const normalizedWorkspace = normalizeWorkspace(workspace)
+    const existingPages = await listPagesForUser(supabase, userId)
+    const existingPageById = new Map(existingPages.map(page => [page.id, page]))
+    if (expectedRevision) {
+        const currentRevision = await resolveWorkspaceRevision(supabase, userId)
+        if (currentRevision !== expectedRevision) throwWorkspaceConflict()
+    }
+
     const notebookIds = new Set<string>(normalizedWorkspace.notebooks.filter(item => item.userId === userId).map(item => item.id))
     const pageIds = new Set<string>(normalizedWorkspace.pages.filter(page => notebookIds.has(page.notebookId)).map(page => page.id))
 
@@ -85,31 +133,59 @@ export const saveWorkspaceForUser = async (supabase: SupabaseClient, userId: str
 
     await upsertNotebooks(supabase, userId, normalizedWorkspace.notebooks)
 
-    await Promise.all(
-        normalizedWorkspace.pages
-            .filter((page: NotebookPage) => notebookIds.has(page.notebookId))
-            .map(async page => {
-                const contentObjectKey = makePageObjectKey(page.notebookId, page.id)
-                const topics = normalizedWorkspace.topics.filter(topic => topic.pageId === page.id)
-                const topicIds = new Set<string>(topics.map(topic => topic.id))
-                const views = normalizedWorkspace.views.filter(view => topicIds.has(view.topicId))
+    for (const page of normalizedWorkspace.pages.filter((entry: NotebookPage) => notebookIds.has(entry.notebookId))) {
+        const contentObjectKey = makePageObjectKey(page.notebookId, page.id)
+        const topics = normalizedWorkspace.topics.filter(topic => topic.pageId === page.id)
+        const topicIds = new Set<string>(topics.map(topic => topic.id))
+        const views = normalizedWorkspace.views.filter(view => topicIds.has(view.topicId))
+        const markdown = await pageMarkdownFromWorkspace(normalizedWorkspace, page.id)
+        const existingPage = existingPageById.get(page.id)
+        const existingNotebookId = existingPage?.notebook_id ?? page.notebookId
+        const previousContent = existingPage ? await readPageMarkdown({ supabase, userId }, page.id) : null
 
-                await upsertPages(supabase, userId, [
-                    {
-                        page,
-                        notebookId: page.notebookId,
-                        topics,
-                        views,
-                        contentObjectKey,
-                    },
-                ])
+        try {
+            await savePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, markdown, contentObjectKey)
+            await upsertPages(supabase, userId, [
+                {
+                    page,
+                    notebookId: page.notebookId,
+                    topics,
+                    views,
+                    contentObjectKey,
+                },
+            ])
+        } catch (error) {
+            if (existingPage) {
+                if (previousContent === null) await deletePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, contentObjectKey).catch(() => {})
+                else await savePageMarkdown({ supabase, userId }, { notebookId: existingNotebookId, id: page.id }, previousContent, existingPage.content_object_key).catch(() => {})
 
-                const markdown = await pageMarkdownFromWorkspace(normalizedWorkspace, page.id)
-                await savePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, markdown, contentObjectKey)
-            }),
+                if (existingPage.content_object_key !== contentObjectKey)
+                    await deletePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, contentObjectKey).catch(() => {})
+            } else await deletePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, contentObjectKey).catch(() => {})
+
+            throw error
+        }
+
+        if (existingPage?.content_object_key && existingPage?.content_object_key !== contentObjectKey)
+            await deletePageMarkdown({ supabase, userId }, { notebookId: existingNotebookId, id: page.id }, existingPage.content_object_key).catch(() => {})
+    }
+
+    const deletedPages = await deletePagesNotIn(supabase, userId, pageIds, saveStartedAt)
+    await Promise.allSettled(
+        deletedPages.map(page => deletePageMarkdown({ supabase, userId }, { notebookId: page.notebook_id, id: page.id }, page.content_object_key).catch(() => {})),
     )
-
-    await deletePagesNotIn(supabase, userId, pageIds, saveStartedAt)
+    const deletedAssets = await deleteAssetsNotInNotebooks(supabase, userId, notebookIds, saveStartedAt)
+    await Promise.allSettled(
+        deletedAssets.map(asset =>
+            asset.connection
+                ? deleteS3Object({
+                      bucketName: asset.bucketName,
+                      connection: asset.connection,
+                      objectKey: asset.objectKey,
+                  }).catch(() => {})
+                : Promise.resolve(),
+        ),
+    )
     await deleteNotebooksNotIn(supabase, userId, notebookIds, saveStartedAt)
 
     return normalizedWorkspace

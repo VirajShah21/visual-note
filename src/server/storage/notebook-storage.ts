@@ -36,6 +36,20 @@ type AssetRow = {
     visual_note_s3_connections?: S3ConnectionRow
 }
 
+type DeletedAssetRow = {
+    id: string
+    notebookId: string
+    objectKey: string
+    bucketName: string
+    connection?: {
+        endpointUrl: string | null
+        region: string
+        forcePathStyle: boolean
+        accessKeyId: string
+        secretAccessKey: string
+    }
+}
+
 export type ResolvedNotebookStorage = {
     notebookId: string
     userId: string
@@ -217,6 +231,50 @@ export const loadAssetStorage = async (supabase: SupabaseClient, userId: string,
             secretAccessKey: decryptStorageSecret(connection.encrypted_secret_access_key),
         },
     }
+}
+
+export const deleteAssetsNotInNotebooks = async (supabase: SupabaseClient, userId: string, allowedNotebookIds: Set<string>, deleteUpdatedBefore?: string) => {
+    const ids = [...allowedNotebookIds]
+    const excludedIds = `(${ids.map(id => `'${id}'`).join(",")})`
+
+    let lookupQuery = supabase
+        .from("visual_note_assets")
+        .select("id,notebook_id,object_key,bucket_name,visual_note_s3_connections(id,name,endpoint_url,region,force_path_style,access_key_id,encrypted_secret_access_key)")
+        .eq("user_id", userId)
+    if (ids.length > 0) lookupQuery = lookupQuery.not("notebook_id", "in", excludedIds)
+    if (deleteUpdatedBefore) lookupQuery = lookupQuery.lte("updated_at", deleteUpdatedBefore)
+
+    const { data, error: lookupError } = await lookupQuery
+    if (lookupError) throw lookupError
+
+    const deleted = (data ?? []).map((row: unknown) => {
+        const raw = row as AssetRow
+        const connection = raw.visual_note_s3_connections
+        if (!connection) return { id: raw.id, notebookId: raw.notebook_id, objectKey: raw.object_key, bucketName: raw.bucket_name } as DeletedAssetRow
+
+        return {
+            id: raw.id,
+            notebookId: raw.notebook_id,
+            objectKey: raw.object_key,
+            bucketName: raw.bucket_name,
+            connection: {
+                endpointUrl: connection.endpoint_url,
+                region: connection.region,
+                forcePathStyle: connection.force_path_style,
+                accessKeyId: connection.access_key_id,
+                secretAccessKey: decryptStorageSecret(connection.encrypted_secret_access_key),
+            },
+        } as DeletedAssetRow
+    })
+
+    let deleteQuery = supabase.from("visual_note_assets").delete().eq("user_id", userId)
+    if (ids.length > 0) deleteQuery = deleteQuery.not("notebook_id", "in", excludedIds)
+    if (deleteUpdatedBefore) deleteQuery = deleteQuery.lte("updated_at", deleteUpdatedBefore)
+
+    const { error } = await deleteQuery
+    if (error) throw error
+
+    return deleted
 }
 
 const loadExistingEncryptedSecret = async (supabase: SupabaseClient, userId: string, connectionId: string) => {

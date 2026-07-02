@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { loadPageById, makePageObjectKey } from "@/server/visual-note/page-store"
-import { readS3Object, uploadS3Object } from "@/server/storage/s3"
+import { deleteS3Object, readS3Object, uploadS3Object } from "@/server/storage/s3"
 import { resolveNotebookStorage } from "@/server/storage/notebook-storage"
 
 const streamToText = async (stream: NodeJS.ReadableStream): Promise<string> => {
@@ -54,4 +54,16 @@ export const savePageMarkdown = async (context: AuthContext, page: { notebookId:
     })
 
     return objectKey
+}
+
+export const deletePageMarkdown = async (context: AuthContext, page: { notebookId: string; id: string }, objectKeyOverride?: string) => {
+    const notebookStorage = await resolveNotebookStorage(context.supabase, context.userId, page.notebookId)
+    if (!notebookStorage) throw new Error("Configure notebook storage before deleting page content from MinIO.")
+
+    const objectKey = objectKeyOverride ?? makePageObjectKey(page.notebookId, page.id)
+    await deleteS3Object({
+        connection: notebookStorage.connection,
+        bucketName: notebookStorage.bucketName,
+        objectKey,
+    })
 }

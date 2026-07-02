@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
 import { normalizeNotebookEditorSettings } from "@/lib/visual-note/factories"
-import { savePageMarkdown } from "@/server/visual-note/page-content-store"
+import { deletePageMarkdown, readPageMarkdown, savePageMarkdown } from "@/server/visual-note/page-content-store"
 import { listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
 import type { ComponentKind, Notebook } from "@/lib/visual-note/types"
@@ -165,17 +165,29 @@ export async function PUT(request: Request, context: RouteContext<"/api/pages/[p
     }
 
     const objectKey = makePageObjectKey(page.notebookId, page.id)
-    await upsertPages(auth.supabase, auth.userId, [
-        {
-            page,
-            notebookId: page.notebookId,
-            topics,
-            views: parseDisplayInputs(views),
-            contentObjectKey: objectKey,
-        },
-    ])
+    const previousContent = typeof markdown === "string" ? await readPageMarkdown({ supabase: auth.supabase, userId: auth.userId }, pageId) : null
 
-    if (typeof markdown === "string") await savePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebookId, id: page.id }, markdown, objectKey)
+    try {
+        if (typeof markdown === "string")
+            await savePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebookId, id: page.id }, markdown, objectKey)
+
+        await upsertPages(auth.supabase, auth.userId, [
+            {
+                page,
+                notebookId: page.notebookId,
+                topics,
+                views: parseDisplayInputs(views),
+                contentObjectKey: objectKey,
+            },
+        ])
+    } catch (error) {
+        if (typeof markdown === "string")
+            if (previousContent === null)
+                await deletePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebookId, id: page.id }, objectKey).catch(() => {})
+            else await savePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebookId, id: page.id }, previousContent, objectKey).catch(() => {})
+
+        return Response.json({ error: error instanceof Error ? error.message : "Unable to save page." }, { status: 500 })
+    }
 
     return Response.json({
         page: {

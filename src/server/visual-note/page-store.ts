@@ -149,24 +149,25 @@ export const upsertPageFromWorkspace = (supabase: SupabaseClient, userId: string
 export const deletePagesNotIn = async (supabase: SupabaseClient, userId: string, allowedPageIds: Set<string>, deleteUpdatedBefore?: string) => {
     const ids = [...allowedPageIds]
     const staleBefore = deleteUpdatedBefore
-    if (ids.length === 0) {
-        let query = supabase.from("visual_note_pages").delete().eq("user_id", userId)
-        if (staleBefore) query = query.lte("updated_at", staleBefore)
-        const { error: clearError } = await query
-        if (clearError) throw clearError
-        return
-    }
+    const excludedIds = `(${ids.map(id => `'${id}'`).join(",")})`
 
-    let query = supabase
-        .from("visual_note_pages")
-        .delete()
-        .eq("user_id", userId)
-        .not("id", "in", `(${ids.map(id => `'${id}'`).join(",")})`)
+    let lookupQuery = supabase.from("visual_note_pages").select("id,notebook_id,content_object_key").eq("user_id", userId)
+    if (ids.length > 0) lookupQuery = lookupQuery.not("id", "in", excludedIds)
+    if (staleBefore) lookupQuery = lookupQuery.lte("updated_at", staleBefore)
 
-    if (staleBefore) query = query.lte("updated_at", staleBefore)
+    const { data, error: lookupError } = await lookupQuery
+    if (lookupError) throw lookupError
 
-    const { error } = await query
+    const deletedRows = toPageRows((data as Array<Record<string, unknown>> | null) ?? [])
+
+    let deleteQuery = supabase.from("visual_note_pages").delete().eq("user_id", userId)
+    if (ids.length > 0) deleteQuery = deleteQuery.not("id", "in", excludedIds)
+    if (staleBefore) deleteQuery = deleteQuery.lte("updated_at", staleBefore)
+
+    const { error } = await deleteQuery
     if (error) throw error
+
+    return deletedRows
 }
 
 export const toPageSummaries = (rows: PageRow[]): PageSummary[] =>

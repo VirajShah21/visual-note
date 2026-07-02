@@ -32,7 +32,7 @@ const workspace: VisualNoteWorkspace = {
     ],
 }
 
-const setFetch = (sessionBody: unknown, workspaceBody: unknown = { workspace }) => {
+const setFetch = (sessionBody: unknown, workspaceBody: unknown = { workspace, revision: "r-1" }) => {
     Object.defineProperty(globalThis, "fetch", {
         configurable: true,
         value: async (input: RequestInfo | URL) => {
@@ -73,6 +73,7 @@ test("restores workspace only for a valid Visual Note server session", async () 
     assert.deepEqual(restored.user, user)
     assert.equal(restored.workspace?.notebooks[0]?.id, "notebook-1")
     assert.equal(restored.selection?.viewId, "view-1")
+    assert.equal(restored.workspaceRevision, "r-1")
 })
 
 test("uses an empty workspace when no remote workspace exists", async () => {
