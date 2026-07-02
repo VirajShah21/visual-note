@@ -2,7 +2,7 @@ import { Grid2X2, Plus } from "lucide-react"
 import { motion } from "motion/react"
 import { Button } from "@ui/button"
 import { Heading, Pill, Stack } from "@ui/primitives"
-import { NotebookSearchField } from "@ui/notebook-home"
+import { NotebookSearchField } from "./notebook-search-field"
 import styles from "../../notebook-home.module.css"
 import type { NotebookTopBarProps } from "@ui/notebook-home/types/notebook-home.types"
 
