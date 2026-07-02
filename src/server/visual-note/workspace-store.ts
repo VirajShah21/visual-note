@@ -115,6 +115,5 @@ export const saveWorkspaceForUser = async (supabase: SupabaseClient, userId: str
 }
 
 export const loadPageMarkdownForUser = async (supabase: SupabaseClient, userId: string, pageId: string): Promise<string | null> => {
-    const content = await readPageMarkdown({ supabase, userId }, pageId)
-    return content
+    return await readPageMarkdown({ supabase, userId }, pageId)
 }
