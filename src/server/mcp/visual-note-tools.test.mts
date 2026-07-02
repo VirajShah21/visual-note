@@ -35,6 +35,9 @@ test("read tools require read scope", async () => {
     assert.deepEqual(definitions.read_notebook, [mcpScopeRead])
     assert.deepEqual(definitions.read_article, [mcpScopeRead])
     assert.deepEqual(definitions.list_notebooks, [mcpScopeRead])
+    assert.deepEqual(definitions.workspace_health_check, [mcpScopeRead])
+    assert.deepEqual(definitions.export_publish_bundle, [mcpScopeRead])
+    assert.deepEqual(definitions.list_workspace_snapshots, [mcpScopeRead])
 })
 
 test("request context accepts top-level MCP auth scopes", () => {
@@ -70,6 +73,11 @@ test("write tools require write scope", () => {
     assert.deepEqual(definitions.replace_article_content, [mcpScopeRead, mcpScopeWrite])
     assert.deepEqual(definitions.upsert_visual_block, [mcpScopeRead, mcpScopeWrite])
     assert.deepEqual(definitions.remove_visual_block, [mcpScopeRead, mcpScopeWrite])
+    assert.deepEqual(definitions.repair_workspace_consistency, [mcpScopeRead, mcpScopeWrite])
+    assert.deepEqual(definitions.publish_notebook, [mcpScopeRead, mcpScopeWrite])
+    assert.deepEqual(definitions.unpublish_notebook, [mcpScopeRead, mcpScopeWrite])
+    assert.deepEqual(definitions.create_workspace_snapshot, [mcpScopeRead, mcpScopeWrite])
+    assert.deepEqual(definitions.restore_workspace_snapshot, [mcpScopeRead, mcpScopeWrite])
 })
 
 test("read tool returns deterministic forbidden payload when scope is missing", async () => {
@@ -103,6 +111,18 @@ test("article mutation tools require read and write scopes before returning view
     assert.equal(payload.ok, false)
     assert.equal(payload.error, "forbidden")
     assert.equal(payload.tool, "upsert_visual_block")
+    assert.deepEqual(payload.requiredScopes, [mcpScopeRead, mcpScopeWrite])
+    assert.deepEqual(payload.scopeSatisfied, [mcpScopeWrite])
+    assert.deepEqual(payload.missingScopes, [mcpScopeRead])
+})
+
+test("workspace repair tools require read and write scopes", async () => {
+    const result = await readToolPayload("repair_workspace_consistency", [mcpScopeWrite])
+    const payload = await parsePayload(result)
+
+    assert.equal(payload.ok, false)
+    assert.equal(payload.error, "forbidden")
+    assert.equal(payload.tool, "repair_workspace_consistency")
     assert.deepEqual(payload.requiredScopes, [mcpScopeRead, mcpScopeWrite])
     assert.deepEqual(payload.scopeSatisfied, [mcpScopeWrite])
     assert.deepEqual(payload.missingScopes, [mcpScopeRead])

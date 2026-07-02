@@ -13,10 +13,18 @@ const expectedCoreToolNames = [
     "read_notebook",
     "create_article",
     "create_notebook",
+    "create_workspace_snapshot",
+    "export_publish_bundle",
     "read_article",
     "replace_article_content",
     "upsert_visual_block",
     "remove_visual_block",
+    "workspace_health_check",
+    "repair_workspace_consistency",
+    "publish_notebook",
+    "unpublish_notebook",
+    "list_workspace_snapshots",
+    "restore_workspace_snapshot",
 ].sort()
 
 const baseWorkspace = (): VisualNoteWorkspace => ({
