@@ -1,8 +1,9 @@
 import { authenticateSupabaseMutationRequest, getSupabaseServiceRoleClient, userOwnsNotebook } from "@/lib/supabase/server"
 import { createAssetObjectKey, createAssetRecord, resolveNotebookStorage } from "@/server/storage/notebook-storage"
 import { uploadS3Object } from "@/server/storage/s3"
-import { validateImageUpload, validateUploadContentLength } from "@/server/storage/upload-validation"
+import { validateImageUpload } from "@/server/storage/upload-validation"
 import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
+import { parseAssetUploadRequest } from "./route-contract"
 
 export const runtime = "nodejs"
 
@@ -14,17 +15,20 @@ export async function POST(request: Request, context: RouteContext<"/api/noteboo
     if (!(await userOwnsNotebook(auth, notebookId))) return Response.json({ error: "Notebook not found." }, { status: 404 })
     const storageSupabase = getSupabaseServiceRoleClient()
     if (!storageSupabase) return Response.json({ error: "Server database access is not configured for storage routes." }, { status: 503 })
-    const contentLengthError = validateUploadContentLength(request)
-    if (contentLengthError) {
-        recordVisualNoteEvent({ event: "asset.upload_rejected", severity: "warn", userId: auth.userId, metadata: { notebookId, reason: contentLengthError.message } })
-        return Response.json({ error: contentLengthError.message }, { status: contentLengthError.status })
+    const parsedAsset = await parseAssetUploadRequest(request)
+    if (!parsedAsset.ok) {
+        recordVisualNoteEvent({
+            event: "asset.upload_rejected",
+            severity: "warn",
+            userId: auth.userId,
+            metadata: { notebookId, reason: parsedAsset.error },
+        })
+        return Response.json({ error: parsedAsset.error }, { status: parsedAsset.status })
     }
 
-    try {
-        const formData = await request.formData()
-        const file = formData.get("file")
-        if (!(file instanceof File)) return Response.json({ error: "Image file is required." }, { status: 400 })
+    const { file } = parsedAsset
 
+    try {
         const storage = await resolveNotebookStorage(storageSupabase, auth.userId, notebookId)
         if (!storage) return Response.json({ error: "Configure notebook storage before uploading images." }, { status: 400 })
 
