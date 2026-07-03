@@ -89,7 +89,7 @@ const pageUpdateSchema = z.object({
     markdown: z.string().optional(),
 })
 
-type PageUpdateParseResult =
+export type PageUpdateParseResult =
     | {
           ok: true
           notebook: Notebook | null
