@@ -48,6 +48,9 @@ const query = (result: QueryResult) => ({
     order() {
         return Promise.resolve(result)
     },
+    limit() {
+        return Promise.resolve(result)
+    },
     maybeSingle() {
         return Promise.resolve(result)
     },
@@ -78,6 +81,9 @@ const supabaseWithOwnershipConflict = () => {
                     },
                     eq() {
                         return this
+                    },
+                    limit() {
+                        return Promise.resolve({ data: null, error: null })
                     },
                     order() {
                         return Promise.resolve({ data: null, error: null })
@@ -143,7 +149,7 @@ test("returns null when a user has no normalized notebooks", async () => {
     assert.equal(loaded, null)
 })
 
-test("does not hide normalized workspace load schema errors", async () => {
+test("reports normalized workspace readiness errors on load", async () => {
     const supabase = supabaseWithResults({
         visual_note_notebooks: {
             error: {
@@ -156,25 +162,25 @@ test("does not hide normalized workspace load schema errors", async () => {
     await assert.rejects(
         () => loadWorkspaceForUser(supabase, "user-1"),
         (error: unknown) => {
-            assert.equal((error as { code?: string }).code, "PGRST205")
+            assert.equal((error as { code?: string }).code, "workspace_schema_not_ready")
+            assert.match((error as Error).message, /Visual Note normalized workspace storage is not ready/)
             return true
         },
     )
 })
 
-test("surfaces normalized workspace save schema errors", async () => {
+test("reports normalized workspace readiness errors before save writes", async () => {
     const { supabase, upserts } = failingSaveSupabase()
 
     await assert.rejects(
         () => saveWorkspaceForUser(supabase, "user-1", workspace),
         (error: unknown) => {
-            assert.equal((error as { code?: string }).code, "PGRST205")
+            assert.equal((error as { code?: string }).code, "workspace_schema_not_ready")
             return true
         },
     )
 
-    assert.equal(upserts.length, 1)
-    assert.equal(upserts[0]?.table, "visual_note_notebooks")
+    assert.equal(upserts.length, 0)
 })
 
 test("rejects ownership-conflicting records on save", async () => {

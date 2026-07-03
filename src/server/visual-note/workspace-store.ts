@@ -7,6 +7,7 @@ import type { NotebookPage, VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { deleteNotebooksNotIn, listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { deletePagesNotIn, hydrateWorkspaceFromPageRows, listPagesForUser, listPagesForUserByNotebooks, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
 import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
+import { assertWorkspaceStoreReady } from "@/server/visual-note/workspace-readiness"
 import { deleteAssetsNotInNotebooks, deleteAssetsNotReferencedByWorkspace } from "@/server/storage/notebook-asset-cleanup"
 import { deleteS3Object } from "@/server/storage/s3"
 
@@ -77,6 +78,8 @@ const rowCount = async (supabase: SupabaseClient, userId: string, table: "visual
 }
 
 export const resolveWorkspaceRevision = async (supabase: SupabaseClient, userId: string) => {
+    await assertWorkspaceStoreReady(supabase)
+
     const [notebookUpdatedAt, pageUpdatedAt, notebookCount, pageCount] = await Promise.all([
         latestUpdatedAt(supabase, userId, "visual_note_notebooks"),
         latestUpdatedAt(supabase, userId, "visual_note_pages"),
@@ -104,6 +107,8 @@ const assertNoForeignOwnedRecords = async (supabase: SupabaseClient, userId: str
 }
 
 export const loadWorkspaceForUser = async (supabase: SupabaseClient, userId: string): Promise<VisualNoteWorkspace | null> => {
+    await assertWorkspaceStoreReady(supabase)
+
     const notebooks = await listNotebooksForUser(supabase, userId)
     if (notebooks.length === 0) return null
 
@@ -131,6 +136,8 @@ export const loadWorkspaceForUser = async (supabase: SupabaseClient, userId: str
 }
 
 export const saveWorkspaceForUser = async (supabase: SupabaseClient, userId: string, workspace: VisualNoteWorkspace, expectedRevision?: string) => {
+    await assertWorkspaceStoreReady(supabase)
+
     const saveStartedAt = new Date().toISOString()
     const normalizedWorkspace = normalizeWorkspace(workspace)
     const existingPages = await listPagesForUser(supabase, userId)
