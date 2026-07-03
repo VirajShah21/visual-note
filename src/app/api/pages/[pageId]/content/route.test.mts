@@ -145,6 +145,32 @@ test("PUT maps save failures to status 500", async () => {
     assert.deepEqual(await readResponseBody(response), { error: "save failed" })
 })
 
+test("PUT returns warning when notebook storage is not configured for content save", async () => {
+    const response = await runContentPut(
+        auth,
+        new Request("http://visual-note.test/api/pages/page-1/content", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ markdown: "# Updated" }),
+        }),
+        "page-1",
+        {
+            loadPageById: async () => basePageRow,
+            userOwnsNotebook: async () => true,
+            readPageMarkdown: async () => null,
+            savePageMarkdown: async () => "x",
+            savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "notebooks/notebook-1/pages/page-1.md" }),
+            makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
+            cleanupWorkspaceAssetOrphans: async () => {},
+        } as PageContentRouteDependencies,
+    )
+
+    assert.equal(response.status, 200)
+    const body = await readResponseBody(response)
+    assert.deepEqual(body.warnings, ["Configure notebook storage before saving page content to MinIO."])
+    assert.equal(body.contentObjectKey, "notebooks/notebook-1/pages/page-1.md")
+})
+
 test("PUT maps asset cleanup failures to status 500", async () => {
     const response = await runContentPut(
         auth,

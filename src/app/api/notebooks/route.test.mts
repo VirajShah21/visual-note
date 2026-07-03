@@ -231,7 +231,7 @@ test("POST creates homepage content when storage is configured", async () => {
     assert.equal(body.notebook.title, "With Home")
 })
 
-test("POST requires storage configuration for homepage markdown save", async () => {
+test("POST returns warning when storage is not configured for homepage markdown", async () => {
     const response = await runNotebooksPost(
         authContext,
         new Request("https://visual-note.test/api/notebooks", {
@@ -244,9 +244,10 @@ test("POST requires storage configuration for homepage markdown save", async () 
         }),
     )
 
-    assert.equal(response.status, 400)
+    assert.equal(response.status, 200)
     const body = await readResponseBody(response)
-    assert.equal(body.error, "Configure notebook storage before saving page content to MinIO.")
+    assert.equal(body.notebook.title, "Needs Storage")
+    assert.deepEqual(body.warnings, ["Configure notebook storage before saving page content to MinIO."])
 })
 
 test("POST maps upsert failures to 500", async () => {

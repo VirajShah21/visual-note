@@ -96,6 +96,31 @@ test("PUT maps workspace integrity errors to status 400", async () => {
     assert.match(body.error, /workspace payload is malformed/)
 })
 
+test("PUT returns warnings when workspace save reports non-fatal warnings", async () => {
+    const response = await runWorkspaceSave(
+        authContext,
+        {
+            ok: true,
+            workspace,
+            revision: "v1",
+            baseWorkspace: undefined,
+        },
+        {
+            loadWorkspaceForUserWithRevision: async () => ({ workspace, revision: "v1" }),
+            resolveWorkspaceRevision: async () => "v2",
+            saveWorkspaceForUser: async () => ({ workspace, warnings: ["Configure notebook storage before saving page content to MinIO."] }),
+            logEvent: () => {},
+            isWorkspaceConflictError: () => false,
+            isWorkspaceIntegrityError: () => false,
+        } as WorkspaceRouteDependencies,
+    )
+
+    assert.equal(response.status, 200)
+    const body = (await readResponseBody(response)) as { revision: string; warnings?: string[] }
+    assert.equal(body.revision, "v2")
+    assert.deepEqual(body.warnings, ["Configure notebook storage before saving page content to MinIO."])
+})
+
 test("PUT maps conflict errors to status 409", async () => {
     const conflictError = new Error("Workspace was modified while editing. Reload before saving.") as Error & { code?: string }
     conflictError.code = "workspace_conflict"
@@ -123,36 +148,6 @@ test("PUT maps conflict errors to status 409", async () => {
     assert.equal(response.status, 409)
     const body = await readResponseBody(response)
     assert.equal(body.error, "Workspace was modified while editing. Reload before saving.")
-})
-
-test("PUT maps storage configuration errors to status 400", async () => {
-    const storageError = new Error("Configure notebook storage before saving page content to MinIO.") as Error & { code?: string }
-    storageError.code = "workspace_storage_not_configured"
-
-    const response = await runWorkspaceSave(
-        authContext,
-        {
-            ok: true,
-            workspace,
-            revision: "v1",
-            baseWorkspace: undefined,
-        },
-        {
-            loadWorkspaceForUserWithRevision: async () => ({ workspace, revision: "v1" }),
-            resolveWorkspaceRevision: async () => "v1",
-            saveWorkspaceForUser: async () => {
-                throw storageError
-            },
-            logEvent: () => {},
-            isWorkspaceConflictError: () => false,
-            isWorkspaceIntegrityError: () => false,
-            isWorkspaceStorageError: () => true,
-        } as WorkspaceRouteDependencies,
-    )
-
-    assert.equal(response.status, 400)
-    const body = await readResponseBody(response)
-    assert.equal(body.error, "Configure notebook storage before saving page content to MinIO.")
 })
 
 test("PUT maps unknown save failures to status 500", async () => {
