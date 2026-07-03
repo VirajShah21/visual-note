@@ -301,6 +301,44 @@ test("DELETE clears page markdown and triggers workspace asset cleanup", async (
     assert.equal(cleanupCalled, true)
 })
 
+test("DELETE deletes unreferenced asset records after page delete", async () => {
+    const deletedAssetIds: string[] = []
+    const response = await runPageDelete(auth, "page-1", {
+        loadPageById: async () => ({
+            ...basePageRow,
+            topics: [{ id: "topic-1", pageId: "page-1", title: "Topic", position: 0, summary: "" }],
+            views: [{ id: "view-1", topicId: "topic-1", title: "View", mode: "article", content: "![Keep](/api/assets/asset-keep)", displays: [] }],
+        }) as never,
+        userOwnsNotebook: async () => true,
+        listNotebooksForUser: async () => [],
+        upsertNotebooks: async () => {},
+        normalizeNotebookEditorSettings: value => value ?? {},
+        makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
+        readPageMarkdown: async () => "![Delete](/api/assets/asset-delete)\n![Keep](/api/assets/asset-keep)",
+        savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "x" }),
+        upsertPages: async () => {},
+        savePageMarkdown: async () => "x",
+        deletePageMarkdown: async () => {},
+        deletePage: async () => {},
+        loadWorkspaceForUser: async () => ({
+            notebooks: [{ id: "notebook-1", userId: "user-1", title: "Notebook", slug: "notebook-1", summary: "", color: "#000", published: false, createdAt: "2026-01-01T00:00:00.000Z" }],
+            pages: [],
+            topics: [],
+            views: [{ id: "view-2", topicId: "topic-2", title: "Another", mode: "article", content: "![Keep](/api/assets/asset-keep)", displays: [] }],
+            snapshots: [],
+        } as never,
+        deleteAssetRecord: async (_supabase, _userId, assetId) => {
+            deletedAssetIds.push(assetId)
+            return { id: assetId }
+        },
+        cleanupWorkspaceAssetOrphans: async () => {},
+    } as PageRouteDependencies)
+
+    assert.equal(response.status, 200)
+    assert.deepEqual(await readResponseBody(response), { ok: true, pageId: "page-1" })
+    assert.deepEqual(deletedAssetIds, ["asset-delete"])
+})
+
 test("DELETE maps workspace cleanup failures to status 500", async () => {
     const response = await runPageDelete(auth, "page-1", {
         loadPageById: async () => basePageRow,

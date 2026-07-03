@@ -2,9 +2,11 @@ import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, userO
 import { normalizeNotebookEditorSettings } from "@/lib/visual-note/factories"
 import type { Notebook } from "@/lib/visual-note/types"
 import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
+import { deleteAssetRecord } from "@/server/storage/notebook-storage"
+import { collectPrivateAssetIdsFromValue } from "@/server/storage/notebook-asset-cleanup"
 import { listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { deletePage, loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
-import { cleanupWorkspaceAssetOrphans } from "@/server/visual-note/workspace-store"
+import { cleanupWorkspaceAssetOrphans, loadWorkspaceForUser } from "@/server/visual-note/workspace-store"
 import { parsePageUpdateRequest, type PageUpdateParseResult } from "./route-contract"
 
 export const runtime = "nodejs"
@@ -24,6 +26,8 @@ export type PageRouteDependencies = {
     savePageMarkdown: typeof savePageMarkdown
     deletePageMarkdown: typeof deletePageMarkdown
     deletePage: typeof deletePage
+    loadWorkspaceForUser?: typeof loadWorkspaceForUser
+    deleteAssetRecord?: typeof deleteAssetRecord
     cleanupWorkspaceAssetOrphans: typeof cleanupWorkspaceAssetOrphans
 }
 
@@ -42,6 +46,8 @@ const defaultPageRouteDependencies: PageRouteDependencies = {
     savePageMarkdown,
     deletePageMarkdown,
     deletePage,
+    loadWorkspaceForUser,
+    deleteAssetRecord,
     cleanupWorkspaceAssetOrphans,
 }
 
@@ -69,6 +75,12 @@ export const runPageDelete = async (auth: Authenticated, pageId: string, depende
     if (!(await dependencies.userOwnsNotebook(auth, page.notebook_id))) return Response.json({ error: "Page not found." }, { status: 404 })
 
     try {
+        const candidateAssetIds = collectPrivateAssetIdsFromValue(page)
+        const previousMarkdown = await dependencies.readPageMarkdown({ supabase: auth.supabase, userId: auth.userId }, page.id)
+        if (previousMarkdown) {
+            collectPrivateAssetIdsFromValue(previousMarkdown).forEach(id => candidateAssetIds.add(id))
+        }
+
         const cleanupUpdatedBefore = new Date().toISOString()
         await dependencies.deletePage(auth.supabase, auth.userId, page.id, page.notebook_id)
         await dependencies
@@ -79,6 +91,13 @@ export const runPageDelete = async (auth: Authenticated, pageId: string, depende
             )
             .catch(() => {})
         await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore)
+
+        const workspace = await (dependencies.loadWorkspaceForUser ?? loadWorkspaceForUser)(auth.supabase, auth.userId)
+        const currentAssetIds = workspace ? collectPrivateAssetIdsFromValue(workspace) : new Set<string>()
+        for (const assetId of candidateAssetIds) {
+            if (currentAssetIds.has(assetId)) continue
+            await (dependencies.deleteAssetRecord ?? deleteAssetRecord)(auth.supabase, auth.userId, assetId).catch(() => {})
+        }
     } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "Unable to delete page." }, { status: 500 })
     }
