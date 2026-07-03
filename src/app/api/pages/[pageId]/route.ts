@@ -3,7 +3,7 @@ import { normalizeNotebookEditorSettings } from "@/lib/visual-note/factories"
 import type { Notebook } from "@/lib/visual-note/types"
 import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
 import { listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
-import { loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
+import { deletePage, loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
 import { cleanupWorkspaceAssetOrphans } from "@/server/visual-note/workspace-store"
 import { parsePageUpdateRequest } from "./route-contract"
 
@@ -29,6 +29,25 @@ export async function GET(request: Request, context: RouteContext<"/api/pages/[p
         topics: page.topics,
         views: page.views,
     })
+}
+
+export async function DELETE(request: Request, context: RouteContext<"/api/pages/[pageId]">) {
+    const auth = await authenticateSupabaseMutationRequest(request)
+    if (auth instanceof Response) return auth
+
+    const { pageId } = await context.params
+    const page = await loadPageById(auth.supabase, auth.userId, pageId)
+    if (!page) return Response.json({ error: "Page not found." }, { status: 404 })
+    if (!(await userOwnsNotebook(auth, page.notebook_id))) return Response.json({ error: "Page not found." }, { status: 404 })
+
+    try {
+        await deletePage(auth.supabase, auth.userId, page.id, page.notebook_id)
+        await deletePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebook_id, id: page.id }, page.content_object_key).catch(() => {})
+    } catch (error) {
+        return Response.json({ error: error instanceof Error ? error.message : "Unable to delete page." }, { status: 500 })
+    }
+
+    return Response.json({ ok: true, pageId })
 }
 
 export async function PUT(request: Request, context: RouteContext<"/api/pages/[pageId]">) {

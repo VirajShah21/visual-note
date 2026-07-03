@@ -100,6 +100,11 @@ export const listPageIdsForUser = async (supabase: SupabaseClient, userId: strin
     return (data ?? []).map(item => item.id as string)
 }
 
+export const deletePage = async (supabase: SupabaseClient, userId: string, pageId: string, notebookId: string) => {
+    const { error } = await supabase.from("visual_note_pages").delete().eq("id", pageId).eq("notebook_id", notebookId).eq("user_id", userId)
+    if (error) throw error
+}
+
 type UpsertInput = {
     page: NotebookPage
     notebookId: string
