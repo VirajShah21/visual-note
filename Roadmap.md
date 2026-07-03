@@ -42,39 +42,39 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
     - `src/server/mcp/visual-note-tools.ts`
     - `src/server/mcp/visual-note-workspace-tools.ts`
     - `src/app/api/mcp/route.ts`
+8. Added workspace revision validation and optimistic conflict handling for full-workspace saves.
+    - `src/app/api/workspace/route-contract.ts`
+    - `src/app/api/workspace/route.ts`
+    - `src/server/visual-note/workspace-store.ts`
+    - `src/lib/visual-note/workspace-api.ts`
+9. Added explicit offline and conflict recovery state on the workspace client.
+    - `src/features/visual-note/visual-note-app/hooks/use-visual-note-workspace-autosave.ts`
+    - `src/features/visual-note/visual-note-app/hooks/workspace-recovery-actions.ts`
+    - `src/features/visual-note/visual-note-app/hooks/restore-visual-note-session.ts`
+    - `src/features/visual-note/visual-note-app/hooks/workspace-session-actions.ts`
+10. Added login abuse protection and session hardening.
+    - `src/server/auth/login-rate-limit.ts`
+    - `src/app/api/auth/login/route.ts`
+    - `src/server/auth/session-cookie.ts`
+    - `src/app/api/auth/session/route.ts`
+11. Added page-level and workspace-level orphan asset cleanup with S3 object deletion.
+    - `src/server/visual-note/workspace-store.ts`
+    - `src/server/storage/notebook-asset-cleanup.ts`
+    - `src/app/api/pages/[pageId]/route.ts`
+12. Added structured workspace/auth/MCP event telemetry across high-impact routes.
+    - `src/server/observability/visual-note-events.ts`
+    - `src/app/api/workspace/route.ts`
+    - `src/app/api/pages/[pageId]/route.ts`
+    - `src/app/api/auth/login/route.ts`
+    - `src/app/api/mcp/route.ts`
 
 ## Current risks (should be addressed first)
 
-1. Data integrity risk in workspace save flow
-    - `saveWorkspaceForUser` writes notebooks/pages first, then page content files in S3, without transaction boundaries.
-    - Mitigated destructive in-memory snapshot cleanup (`deleteNotebooksNotIn`/`deletePagesNotIn`) during save to avoid dropping records created by concurrent sessions.
-    - If upload/content serialization fails mid-loop, database rows can be committed without matching page content.
-    - A stale or partial workspace can become indistinguishable from a valid one for normal reads.
-    - Files: `src/server/visual-note/workspace-store.ts`, `src/server/visual-note/page-content-store.ts`.
+1. No explicit background orphan-asset lifecycle
+    - Cleanup currently runs during workspace/page mutation flows, but there is no scheduled reconciliation for stale orphaned records and objects.
+    - Files: `src/server/visual-note/workspace-store.ts`, `src/app/api/pages/[pageId]/route.ts`, `src/server/storage/notebook-asset-cleanup.ts`.
 
-2. Unreliable conflict handling for concurrent edits
-    - Save logic is full-document overwrite style (`/api/workspace` PUT stores the complete workspace from client state).
-    - There is no version/ETag check or optimistic lock, so last write wins silently.
-    - Concurrent editors on the same account can clobber each other’s changes.
-    - Files: `src/app/api/workspace/route.ts`, `src/lib/visual-note/workspace-api.ts`.
-
-3. Explicit offline recovery UX is not yet defined.
-    - Browser localStorage fallback was removed; recovery and stale-state handling is now remote-session-driven only.
-    - Add clear reconnect/recovery UX for transient auth/network failures and explicitly report unsynced state.
-    - Files: `src/features/visual-note/visual-note-app/hooks/restore-visual-note-session.ts`, `src/features/visual-note/visual-note-app/hooks/use-visual-note-app-controller.ts`, `src/app/api/workspace/route.ts`.
-
-4. Authentication/session model is custom and security-sensitive
-    - Project uses custom Supabase table auth instead of Supabase Auth.
-    - Password/token security depends on code-level consistency and route hygiene.
-    - Missing safeguards like rate limiting, suspicious-login detection, lockout policy, and token/session rotation.
-    - Files: `src/server/auth/*`, `src/app/api/auth/*`.
-
-5. No explicit orphan cleanup lifecycle for assets
-    - Pages can be deleted while uploaded assets remain in S3/object keys and in records.
-    - No background cleanup job or hard delete path tied to page/topic/view deletion.
-    - Files: `src/app/api/pages/[pageId]/route.ts`, `src/app/api/notebooks/[notebookId]/assets/route.ts`, `src/app/api/assets/[assetId]/route.ts`, `src/server/storage/notebook-storage.ts`.
-
-6. Limited observability and operational insight
+2. Limited observability and operational insight
     - No centralized metrics collection/alerting for request classes, retry rates, and long-tail failure patterns.
     - Incident recovery and debugging should move from local logs to aggregated dashboards and trend views.
     - Files: `src/server/observability/visual-note-events.ts` and all API routes that emit high-cardinality operational events.
@@ -160,7 +160,7 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
 ## Suggested next immediate actions (first 2 sprints)
 
 1. Implement scoped MCP tool authorization + add MCP token usage audit.
-2. Add transactional save strategy for `/api/workspace` and `/api/pages` to prevent partial updates.
-3. Introduce workspace revision checks on save.
-4. Add route-level tests for auth + `/api/workspace`, `/api/pages`, `/api/notebooks/[id]/storage-settings`, `/api/notebooks/[id]/assets`.
+2. Add background/periodic orphaned-asset reconciliation outside mutation paths.
+3. Add centralized metrics collection, alerting, and dashboards for save/retry/error classes.
+4. Add route-level tests for auth + `/api/workspace`, `/api/pages`, `/api/notebooks/[id]/assets`, and `/api/notebooks/[id]/storage-settings`.
 5. Add migration readiness checks for teams with partial schema/config onboarding and fail fast with clear setup guidance.
