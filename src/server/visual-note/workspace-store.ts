@@ -182,8 +182,6 @@ export const saveWorkspaceForUser = async (
     await assertNoForeignOwnedRecords(supabase, userId, [...notebookIds], "visual_note_notebooks")
     await assertNoForeignOwnedRecords(supabase, userId, [...pageIds], "visual_note_pages")
 
-    await upsertNotebooks(supabase, userId, normalizedWorkspace.notebooks)
-
     const relevantPages = normalizedWorkspace.pages.filter((entry: NotebookPage) => notebookIds.has(entry.notebookId))
     const preparedPages: Array<{
         page: NotebookPage
@@ -220,11 +218,11 @@ export const saveWorkspaceForUser = async (
                     ).catch(() => {})
             }
 
-            for (const prepared of preparedPages) {
-                if (!prepared.savedContent) continue
+                for (const prepared of preparedPages) {
+                    if (!prepared.savedContent) continue
 
-                const originalNotebookId = prepared.existingPage?.notebook_id ?? prepared.notebookId
-                if (prepared.previousContent === null)
+                    const originalNotebookId = prepared.existingPage?.notebook_id ?? prepared.notebookId
+                    if (prepared.previousContent === null)
                     await deletePageMarkdown({ supabase, userId }, { notebookId: prepared.notebookId, id: prepared.page.id }, prepared.contentObjectKey).catch(() => {})
                 else
                     await savePageMarkdown(
@@ -241,6 +239,7 @@ export const saveWorkspaceForUser = async (
     }
 
     try {
+        await upsertNotebooks(supabase, userId, normalizedWorkspace.notebooks)
         await upsertPages(
             supabase,
             userId,
