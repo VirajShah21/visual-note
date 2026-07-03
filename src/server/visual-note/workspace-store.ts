@@ -53,6 +53,15 @@ const throwWorkspaceMergeConflict = (conflicts: string[]): never => {
     throw error
 }
 
+const throwWorkspaceIntegrityError = (issues: string[]): void => {
+    if (issues.length === 0) return
+
+    const error = new Error(`Workspace payload is malformed: ${issues.join(", ")}`) as Error & { code: string; issues: string[] }
+    error.code = "workspace_integrity"
+    error.issues = issues
+    throw error
+}
+
 const normalizeRevisionTimestamp = (value: string | null | undefined) => value ?? "0"
 
 const latestUpdatedAt = async (supabase: SupabaseClient, userId: string, table: "visual_note_notebooks" | "visual_note_pages") => {
@@ -176,7 +185,13 @@ export const saveWorkspaceForUser = async (
         }
     }
 
+    const invalidNotebookIds = normalizedWorkspace.notebooks.filter(item => item.userId !== userId).map(item => item.id)
+    throwWorkspaceIntegrityError(invalidNotebookIds.map(notebookId => `notebook:${notebookId} belongs to a different user`))
+
     const notebookIds = new Set<string>(normalizedWorkspace.notebooks.filter(item => item.userId === userId).map(item => item.id))
+    const orphanedPageIds = normalizedWorkspace.pages.filter(page => !notebookIds.has(page.notebookId)).map(page => page.id)
+    throwWorkspaceIntegrityError(orphanedPageIds.map(pageId => `page:${pageId} references unauthorized or unknown notebook`))
+
     const pageIds = new Set<string>(normalizedWorkspace.pages.filter(page => notebookIds.has(page.notebookId)).map(page => page.id))
 
     await assertNoForeignOwnedRecords(supabase, userId, [...notebookIds], "visual_note_notebooks")
