@@ -1,6 +1,7 @@
 import { Readable } from "stream"
 import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, getSupabaseServiceRoleClient } from "@/lib/supabase/server"
-import { loadAssetStorage } from "@/server/storage/notebook-storage"
+import { loadAssetStorage, loadSignedAssetStorage } from "@/server/storage/notebook-storage"
+import { verifySignedAssetRequest } from "@/server/storage/asset-signing"
 import { deleteS3Object, readS3Object } from "@/server/storage/s3"
 import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
 import { isAllowedImageContentType } from "@/server/storage/upload-validation"
@@ -8,15 +9,17 @@ import { isAllowedImageContentType } from "@/server/storage/upload-validation"
 export const runtime = "nodejs"
 
 export async function GET(request: Request, context: RouteContext<"/api/assets/[assetId]">) {
-    const auth = await authenticateSupabaseRequest(request)
+    const { assetId } = await context.params
+    const isSigned = verifySignedAssetRequest(request, assetId)
+    const auth = isSigned ? null : await authenticateSupabaseRequest(request)
     if (auth instanceof Response) return auth
 
-    const { assetId } = await context.params
     const storageSupabase = getSupabaseServiceRoleClient()
     if (!storageSupabase) return Response.json({ error: "Server database access is not configured for storage routes." }, { status: 503 })
 
     try {
-        const resolved = await loadAssetStorage(storageSupabase, auth.userId, assetId)
+        const userId = auth instanceof Response || auth === null ? "" : auth.userId
+        const resolved = isSigned ? await loadSignedAssetStorage(storageSupabase, assetId) : await loadAssetStorage(storageSupabase, userId, assetId)
         if (!resolved) return Response.json({ error: "Asset not found." }, { status: 404 })
         if (!isAllowedImageContentType(resolved.asset.contentType)) return Response.json({ error: "Asset type is not supported for private delivery." }, { status: 415 })
 
@@ -40,7 +43,7 @@ export async function GET(request: Request, context: RouteContext<"/api/assets/[
 
         return new Response(Readable.toWeb(object.body) as ReadableStream, { headers })
     } catch (error) {
-        recordVisualNoteEvent({ event: "asset.read_failed", severity: "error", userId: auth.userId, metadata: { assetId }, error })
+        recordVisualNoteEvent({ event: "asset.read_failed", severity: "error", userId: auth?.userId, metadata: { assetId, signed: isSigned }, error })
         return Response.json({ error: error instanceof Error ? error.message : "Unable to read asset." }, { status: 500 })
     }
 }

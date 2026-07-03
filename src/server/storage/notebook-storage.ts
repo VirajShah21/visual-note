@@ -195,7 +195,19 @@ export const loadAssetStorage = async (supabase: SupabaseClient, userId: string,
     const { data, error } = await supabase.from("visual_note_assets").select("*,visual_note_s3_connections(*)").eq("user_id", userId).eq("id", assetId).maybeSingle()
     if (error) throw error
 
-    const asset = data as AssetRow | null
+    return mapAssetStorage(data as AssetRow | null)
+}
+
+export const loadSignedAssetStorage = async (supabase: SupabaseClient, assetId: string) => {
+    if (!canEncryptStorageSecrets()) throw new Error("VISUAL_NOTE_S3_ENCRYPTION_KEY is required before reading S3 assets.")
+
+    const { data, error } = await supabase.from("visual_note_assets").select("*,visual_note_s3_connections(*)").eq("id", assetId).maybeSingle()
+    if (error) throw error
+
+    return mapAssetStorage(data as AssetRow | null)
+}
+
+const mapAssetStorage = (asset: AssetRow | null) => {
     const connection = asset?.visual_note_s3_connections
     if (!asset || !connection) return null
 
