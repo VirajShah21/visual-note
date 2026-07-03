@@ -1,6 +1,8 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { requestContextFrom, scopeDeniedPayload } from "./visual-note-server-core"
+import { mcpScopeRead, mcpScopeWrite } from "./token-store"
+import { requestContextFrom, scopeDeniedPayload, withWorkspaceMutation, withWorkspaceReadResult } from "./visual-note-server-core"
+import type { ToolExtra } from "./visual-note-server-core"
 
 const testScopes: unknown[] = ["visual-note:mcp:read", "visual-note:mcp:write"]
 
@@ -40,4 +42,31 @@ test("scopeDeniedPayload includes deterministic missing fields", () => {
     assert.deepEqual(parsed.missingScopes, ["visual-note:mcp:read"])
     assert.deepEqual(parsed.scopeSatisfied, [])
     assert.equal(parsed.tool, "read_article")
+})
+
+test("withWorkspaceReadResult blocks tools lacking read scope", async () => {
+    const authInfo = { token: "vn_mcp_test", extra: { userId: "user-1", scopes: [mcpScopeWrite] } }
+    const payload = await withWorkspaceReadResult({ authInfo } as ToolExtra, () => ({ ok: true, value: true } as const), {
+        toolName: "read_notebook",
+        requiredScopes: [mcpScopeRead],
+    })
+
+    const parsed = JSON.parse(payload.content[0].text)
+    assert.equal(parsed.ok, false)
+    assert.equal(parsed.error, "forbidden")
+    assert.deepEqual(parsed.missingScopes, [mcpScopeRead])
+    assert.equal(parsed.requiredScopes[0], mcpScopeRead)
+})
+
+test("withWorkspaceMutation blocks tools lacking write scope", async () => {
+    const authInfo = { token: "vn_mcp_test", extra: { userId: "user-1", scopes: [mcpScopeRead] } }
+    const payload = await withWorkspaceMutation({ authInfo } as ToolExtra, () => ({ ok: true, value: { workspace: { notebooks: [], pages: [], topics: [], views: [] } } } as const), {
+        toolName: "create_article",
+        requiredScopes: [mcpScopeRead, mcpScopeWrite],
+    })
+
+    const parsed = JSON.parse(payload.content[0].text)
+    assert.equal(parsed.ok, false)
+    assert.equal(parsed.error, "forbidden")
+    assert.deepEqual(parsed.missingScopes, [mcpScopeWrite])
 })
