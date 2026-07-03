@@ -12,6 +12,7 @@ export type WorkspaceRouteDependencies = {
     logEvent: (event: Parameters<typeof recordVisualNoteEvent>[0]) => void
     isWorkspaceConflictError: (error: unknown) => boolean
     isWorkspaceIntegrityError: (error: unknown) => error is Error & { code?: string }
+    isWorkspaceStorageError: (error: unknown) => error is Error & { code?: string }
 }
 
 type WorkspaceSaveResult = Awaited<ReturnType<typeof parseWorkspaceSaveRequest>>
@@ -24,6 +25,8 @@ const defaultWorkspaceRouteDependencies: WorkspaceRouteDependencies = {
     isWorkspaceConflictError,
     isWorkspaceIntegrityError: (error: unknown): error is Error & { code?: string } =>
         error instanceof Error && (error as { code?: string }).code === "workspace_integrity",
+    isWorkspaceStorageError: (error: unknown): error is Error & { code?: string } =>
+        error instanceof Error && (error as { code?: string }).code === "workspace_storage_not_configured",
 }
 
 export const runWorkspaceLoad = async (auth: Authenticated, dependencies = defaultWorkspaceRouteDependencies) => {
@@ -71,6 +74,18 @@ export const runWorkspaceSave = async (auth: Authenticated, parsed: WorkspaceSav
         if (dependencies.isWorkspaceConflictError(error)) {
             dependencies.logEvent({ event: "workspace.save_conflict", severity: "warn", userId: auth.userId, error })
             return Response.json({ error: error instanceof Error ? error.message : "Unable to save workspace." }, { status: 409 })
+        }
+
+        if (dependencies.isWorkspaceStorageError(error)) {
+            dependencies.logEvent({
+                event: "workspace.save_storage_not_configured",
+                severity: "warn",
+                userId: auth.userId,
+                metadata: {
+                    reason: error.message,
+                },
+            })
+            return Response.json({ error: error instanceof Error ? error.message : "Configure notebook storage before saving workspace content." }, { status: 400 })
         }
 
         dependencies.logEvent({ event: "workspace.save_failed", severity: "error", userId: auth.userId, error })

@@ -62,6 +62,12 @@ const throwWorkspaceIntegrityError = (issues: string[]): void => {
     throw error
 }
 
+const throwWorkspaceStorageError = (): never => {
+    const error = new Error("Configure notebook storage before saving page content to MinIO.") as Error & { code: string }
+    error.code = "workspace_storage_not_configured"
+    throw error
+}
+
 const normalizeRevisionTimestamp = (value: string | null | undefined) => value ?? "0"
 
 const latestUpdatedAt = async (supabase: SupabaseClient, userId: string, table: "visual_note_notebooks" | "visual_note_pages") => {
@@ -227,6 +233,7 @@ export const saveWorkspaceForUser = async (
 
         try {
             savedContent = (await savePageMarkdownIfConfigured({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, markdown, contentObjectKey)).saved
+            if (!savedContent) throwWorkspaceStorageError()
         } catch (error) {
             if (savedContent) {
                 if (previousContent === null) await deletePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, contentObjectKey).catch(() => {})

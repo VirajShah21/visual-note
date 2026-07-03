@@ -27,6 +27,8 @@ export type PageRouteDependencies = {
     cleanupWorkspaceAssetOrphans: typeof cleanupWorkspaceAssetOrphans
 }
 
+const storageConfigurationError = "Configure notebook storage before saving page content to MinIO."
+
 const defaultPageRouteDependencies: PageRouteDependencies = {
     loadPageById,
     userOwnsNotebook,
@@ -130,13 +132,16 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
         let savedContent = false
 
         try {
-            if (typeof markdown === "string")
-                savedContent = (await dependencies.savePageMarkdownIfConfigured(
+            if (typeof markdown === "string") {
+                const uploadResult = await dependencies.savePageMarkdownIfConfigured(
                     { supabase: auth.supabase, userId: auth.userId },
                     { notebookId: page.notebookId, id: page.id },
                     markdown,
                     objectKey,
-                )).saved
+                )
+                savedContent = uploadResult.saved
+                if (!uploadResult.saved) return Response.json({ error: storageConfigurationError }, { status: 400 })
+            }
 
             await dependencies.upsertPages(auth.supabase, auth.userId, [
                 {

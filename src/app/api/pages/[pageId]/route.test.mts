@@ -182,6 +182,27 @@ test("PUT maps invalid payload to status 400", async () => {
     assert.deepEqual(await readResponseBody(response), { error: "Invalid page update payload." })
 })
 
+test("PUT returns 400 when notebook storage is not configured for page content", async () => {
+    const response = await runPageSave(auth, parseContext, {
+        loadPageById: async () => basePageRow,
+        userOwnsNotebook: async () => true,
+        listNotebooksForUser: async () => [],
+        upsertNotebooks: async () => {},
+        normalizeNotebookEditorSettings: value => value ?? {},
+        makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
+        readPageMarkdown: async () => null,
+        savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "notebooks/notebook-1/pages/page-1.md" }),
+        upsertPages: async () => {},
+        savePageMarkdown: async () => "x",
+        deletePageMarkdown: async () => {},
+        deletePage: async () => {},
+        cleanupWorkspaceAssetOrphans: async () => [],
+    } as PageRouteDependencies)
+
+    assert.equal(response.status, 400)
+    assert.deepEqual(await readResponseBody(response), { error: "Configure notebook storage before saving page content to MinIO." })
+})
+
 test("PUT creates missing page using existing notebook lookup", async () => {
     const upsertedNotebooks: Array<Record<string, unknown>> = []
     const upsertedPages: Array<Record<string, unknown>> = []

@@ -118,6 +118,36 @@ test("PUT maps conflict errors to status 409", async () => {
     assert.equal(body.error, "Workspace was modified while editing. Reload before saving.")
 })
 
+test("PUT maps storage configuration errors to status 400", async () => {
+    const storageError = new Error("Configure notebook storage before saving page content to MinIO.") as Error & { code?: string }
+    storageError.code = "workspace_storage_not_configured"
+
+    const response = await runWorkspaceSave(
+        authContext,
+        {
+            ok: true,
+            workspace,
+            revision: undefined,
+            baseWorkspace: undefined,
+        },
+        {
+            loadWorkspaceForUserWithRevision: async () => ({ workspace, revision: "v1" }),
+            resolveWorkspaceRevision: async () => "v1",
+            saveWorkspaceForUser: async () => {
+                throw storageError
+            },
+            logEvent: () => {},
+            isWorkspaceConflictError: () => false,
+            isWorkspaceIntegrityError: () => false,
+            isWorkspaceStorageError: () => true,
+        } as WorkspaceRouteDependencies,
+    )
+
+    assert.equal(response.status, 400)
+    const body = await readResponseBody(response)
+    assert.equal(body.error, "Configure notebook storage before saving page content to MinIO.")
+})
+
 test("PUT maps unknown save failures to status 500", async () => {
     const response = await runWorkspaceSave(
         authContext,
