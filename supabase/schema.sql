@@ -35,6 +35,9 @@ alter table public.visual_note_notebooks
 alter table public.visual_note_notebooks
   add column if not exists published_at timestamptz;
 
+alter table public.visual_note_notebooks
+  add column if not exists editor_settings jsonb not null default '{}'::jsonb;
+
 create index if not exists visual_note_notebooks_user_id_idx
   on public.visual_note_notebooks(user_id);
 

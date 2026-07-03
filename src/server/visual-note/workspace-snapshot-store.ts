@@ -40,4 +40,16 @@ export const upsertWorkspaceSnapshotsForUser = async (supabase: SupabaseClient, 
 
     const { error } = await supabase.from(snapshotsTable).upsert(rows, { onConflict: "id" })
     if (error) throw error
+
+    const retainedIds = rows.map(row => row.id)
+    const { data: existingRows, error: listError } = await supabase.from(snapshotsTable).select("id").eq("user_id", userId)
+    if (listError) throw listError
+
+    const staleIds = (existingRows ?? [])
+        .map(row => (row as { id?: unknown }).id)
+        .filter((id): id is string => typeof id === "string" && !retainedIds.includes(id))
+    if (staleIds.length === 0) return
+
+    const { error: deleteError } = await supabase.from(snapshotsTable).delete().eq("user_id", userId).in("id", staleIds)
+    if (deleteError) throw deleteError
 }
