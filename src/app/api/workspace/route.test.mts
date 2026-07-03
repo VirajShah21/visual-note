@@ -17,11 +17,15 @@ const authContext = {
 const readResponseBody = async (response: Response) => response.json()
 
 test("GET returns workspace data and revision from dependencies", async () => {
+    const events: Array<{ event: string; userId: string; severity?: string; metadata?: unknown }> = []
+
     const routes = await runWorkspaceLoad(authContext, {
         loadWorkspaceForUserWithRevision: async () => ({ workspace, revision: "v1|notebooks:0:0|pages:0:0" }),
         resolveWorkspaceRevision: async () => "v1",
         saveWorkspaceForUser: async () => ({}) as never,
-        logEvent: () => {},
+        logEvent: event => {
+            events.push(event)
+        },
         isWorkspaceConflictError: () => false,
         isWorkspaceIntegrityError: () => false,
     } as WorkspaceRouteDependencies)
@@ -32,6 +36,9 @@ test("GET returns workspace data and revision from dependencies", async () => {
     assert.equal(body.revision, "v1|notebooks:0:0|pages:0:0")
     assert.deepEqual(body.workspace, workspace)
     assert.equal(routes.headers.get("etag"), '"v1|notebooks:0:0|pages:0:0"')
+    assert.equal(events.length, 1)
+    assert.equal(events[0].event, "workspace.load_success")
+    assert.equal(events[0].severity, "info")
 })
 
 test("GET maps load failures to status 500", async () => {
@@ -149,6 +156,8 @@ test("PUT maps storage configuration errors to status 400", async () => {
 })
 
 test("PUT maps unknown save failures to status 500", async () => {
+    const events: Array<{ event: string; userId: string; severity?: string; metadata?: { nextRevision?: string } }> = []
+
     const response = await runWorkspaceSave(
         authContext,
         {
@@ -163,7 +172,9 @@ test("PUT maps unknown save failures to status 500", async () => {
             saveWorkspaceForUser: async () => {
                 throw new Error("database down")
             },
-            logEvent: () => {},
+            logEvent: event => {
+                events.push(event)
+            },
             isWorkspaceConflictError: () => false,
             isWorkspaceIntegrityError: () => false,
         } as WorkspaceRouteDependencies,
@@ -172,4 +183,38 @@ test("PUT maps unknown save failures to status 500", async () => {
     assert.equal(response.status, 500)
     const body = await readResponseBody(response)
     assert.equal(body.error, "database down")
+    assert.equal(events.length, 1)
+    assert.equal(events[0].event, "workspace.save_failed")
+    assert.equal(events[0].severity, "error")
+    assert.equal(events[0].metadata === undefined, true)
+})
+
+test("PUT logs workspace save success for successful saves", async () => {
+    const events: Array<{ event: string; userId: string; metadata?: { nextRevision?: string } }> = []
+
+    const response = await runWorkspaceSave(
+        authContext,
+        {
+            ok: true,
+            workspace,
+            revision: "v1",
+            baseWorkspace: undefined,
+        },
+        {
+            loadWorkspaceForUserWithRevision: async () => ({ workspace, revision: "v1" }),
+            resolveWorkspaceRevision: async () => "v2",
+            saveWorkspaceForUser: async () => ({}) as never,
+            logEvent: event => {
+                events.push(event)
+            },
+            isWorkspaceConflictError: () => false,
+            isWorkspaceIntegrityError: () => false,
+        } as WorkspaceRouteDependencies,
+    )
+
+    assert.equal(response.status, 200)
+    const body = await readResponseBody(response)
+    assert.equal(body.revision, "v2")
+    assert.equal(events.some(item => item.event === "workspace.save_success"), true)
+    assert.equal(events.some(item => item.event === "workspace.save_success" && item.metadata?.nextRevision === "v2"), true)
 })
