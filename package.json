@@ -12,11 +12,12 @@
         "test:chart": "tsx --test src/features/visual-note/visual-note-app/utils/chart-data.test.mts",
         "test:export": "tsx --test src/lib/visual-note/export/export.test.mts",
         "test:auth": "tsx --test src/server/auth/login-rate-limit.test.mts src/server/auth/app-auth-store.test.mts",
+        "test:routes": "tsx --test src/app/api/workspace/route-contract.test.mts",
         "test:supabase": "tsx --test src/lib/supabase/server.test.mts",
         "test:storage": "tsx --test src/server/storage/upload-validation.test.mts src/server/storage/notebook-storage.test.mts src/server/storage/asset-signing.test.mts",
         "test:observability": "tsx --test src/server/observability/visual-note-events.test.mts",
         "test:mcp": "tsx --test src/server/mcp/token-store.test.mts src/server/mcp/visual-note-tools.test.mts src/server/visual-note/workspace-operations.test.mts src/server/visual-note/workspace-merge.test.mts src/server/visual-note/workspace-store.test.mts src/server/visual-note/workspace-snapshot-store.test.mts src/server/visual-note/page-content-store.test.mts src/server/visual-note/notebook-store.test.mts src/server/visual-note/notebook-search-store.test.mts src/features/visual-note/visual-note-app/hooks/restore-visual-note-session.test.mts",
-        "test": "npm run test:auth && npm run test:supabase && npm run test:storage && npm run test:observability && npm run test:chart && npm run test:export && npm run test:mcp",
+        "test": "npm run test:auth && npm run test:routes && npm run test:supabase && npm run test:storage && npm run test:observability && npm run test:chart && npm run test:export && npm run test:mcp",
         "test:mcp-smoke": "node scripts/mcp-smoke.mjs",
         "imports:fix": "node scripts/fix-tsconfig-imports.mjs",
         "knip": "knip"

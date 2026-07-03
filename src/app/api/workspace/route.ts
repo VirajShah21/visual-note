@@ -1,7 +1,7 @@
 import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest } from "@/lib/supabase/server"
 import { loadWorkspaceForUserWithRevision, resolveWorkspaceRevision, saveWorkspaceForUser } from "@/server/visual-note/workspace-store"
-import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
+import { isWorkspaceConflictError, parseWorkspaceSaveRequest } from "./route-contract"
 
 export const runtime = "nodejs"
 
@@ -23,16 +23,14 @@ export async function PUT(request: Request) {
     if (auth instanceof Response) return auth
 
     try {
-        const body = (await request.json().catch(() => null)) as { baseWorkspace?: VisualNoteWorkspace; workspace?: VisualNoteWorkspace; revision?: string | null } | null
-        if (!body?.workspace) return Response.json({ error: "Workspace is required." }, { status: 400 })
-        if (body.revision != null && typeof body.revision !== "string") return Response.json({ error: "Revision must be a string." }, { status: 400 })
+        const parsed = await parseWorkspaceSaveRequest(request)
+        if (!parsed.ok) return Response.json({ error: parsed.error }, { status: parsed.status })
 
-        const revision = body.revision?.trim()
-        await saveWorkspaceForUser(auth.supabase, auth.userId, body.workspace, revision || undefined, body.baseWorkspace)
+        await saveWorkspaceForUser(auth.supabase, auth.userId, parsed.workspace, parsed.revision, parsed.baseWorkspace)
         const nextRevision = await resolveWorkspaceRevision(auth.supabase, auth.userId)
         return Response.json({ revision: nextRevision })
     } catch (error) {
-        if (error instanceof Error && (error as { code?: string }).code === "workspace_conflict") {
+        if (isWorkspaceConflictError(error)) {
             recordVisualNoteEvent({ event: "workspace.save_conflict", severity: "warn", userId: auth.userId, error })
             return Response.json({ error: error.message }, { status: 409 })
         }
