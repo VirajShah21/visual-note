@@ -104,9 +104,11 @@ export const useVisualNoteWorkspaceAutosave = ({
                     syncedWorkspaceRef.current = serializedWorkspace
                     setWorkspaceRevision(response.revision)
                     if (response.warnings.length > 0) {
+                        const storageWarning =
+                            "S3 image storage is not configured. Open Notebook Settings and set up the S3 Image Storage section before saving content."
                         const message = response.warnings.find(item => item.includes("Configure notebook storage before saving page content to MinIO."))
-                            ?? response.warnings[0]
-                            ?? "Some workspace content was not saved due to configuration issues."
+                            ? storageWarning
+                            : response.warnings[0] ?? "Some workspace content was not saved due to configuration issues."
 
                         hasActiveSaveErrorRef.current = true
                         setWorkspaceRecovery({ message, status: "warning" })

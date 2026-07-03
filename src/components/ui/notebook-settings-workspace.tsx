@@ -248,7 +248,9 @@ export function NotebookSettingsWorkspace({ notebookId, notebookTitle, storageEn
                         </Heading>
                     </Stack>
                     {!storageEnabled ? (
-                        <Text>S3 storage requires Visual Note app authentication and server encryption configuration.</Text>
+                        <Text>
+                            S3 image storage is not configured yet. Open the storage form and add valid credentials to persist markdown and image assets for this notebook.
+                        </Text>
                     ) : (
                         <>
                             <Grid columns="two" gap="sm">
