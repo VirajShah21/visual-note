@@ -1,5 +1,6 @@
 import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, getSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { createMcpToken, InvalidMcpScopeError, listMcpTokens, validateAndNormalizeMcpScopes } from "@/server/mcp/token-store"
+import { parseMcpTokenCreateRequest } from "../route-contract"
 
 export const runtime = "nodejs"
 
@@ -28,10 +29,12 @@ export async function POST(request: Request) {
     if (!supabase) return Response.json({ error: "Server database access is required for MCP token management." }, { status: 503 })
 
     try {
-        const input = (await request.json().catch(() => ({}))) as { name?: string; scopes?: unknown }
-        const normalizedScopes = validateAndNormalizeMcpScopes(input.scopes)
+        const parsed = await parseMcpTokenCreateRequest(request)
+        if (!parsed.ok) return Response.json({ error: parsed.error }, { status: parsed.status })
 
-        const created = await createMcpToken(supabase, auth.userId, input.name ?? "", normalizedScopes)
+        const normalizedScopes = validateAndNormalizeMcpScopes(parsed.scopes)
+
+        const created = await createMcpToken(supabase, auth.userId, parsed.name, normalizedScopes)
         return Response.json(created, { status: 201 })
     } catch (error) {
         if (error instanceof InvalidMcpScopeError) return Response.json({ error: error.message }, { status: 400 })

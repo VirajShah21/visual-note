@@ -1,5 +1,6 @@
 import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
 import { normalizeNotebookEditorSettings } from "@/lib/visual-note/factories"
+import type { Notebook } from "@/lib/visual-note/types"
 import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
 import { listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
