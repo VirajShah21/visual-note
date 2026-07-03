@@ -72,9 +72,13 @@ export const runPageDelete = async (auth: Authenticated, pageId: string, depende
         const cleanupUpdatedBefore = new Date().toISOString()
         await dependencies.deletePage(auth.supabase, auth.userId, page.id, page.notebook_id)
         await dependencies
-            .deletePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebook_id, id: page.id }, page.content_object_key)
+            .deletePageMarkdown(
+                { supabase: auth.supabase, userId: auth.userId },
+                { notebookId: page.notebook_id, id: page.id },
+                page.content_object_key,
+            )
             .catch(() => {})
-        await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore).catch(() => {})
+        await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore)
     } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "Unable to delete page." }, { status: 500 })
     }
@@ -163,7 +167,7 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
 
             return Response.json({ error: error instanceof Error ? error.message : "Unable to save page." }, { status: 500 })
         }
-        await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore).catch(() => {})
+        await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore)
 
         return Response.json({
             page: {

@@ -275,3 +275,51 @@ test("PUT rolls back page markdown on content write + database failure", async (
     assert.equal(body.error, "page write failed")
     assert.equal(restoreCalled, true)
 })
+
+test("DELETE clears page markdown and triggers workspace asset cleanup", async () => {
+    let cleanupCalled = false
+    const response = await runPageDelete(auth, "page-1", {
+        loadPageById: async () => basePageRow,
+        userOwnsNotebook: async () => true,
+        listNotebooksForUser: async () => [],
+        upsertNotebooks: async () => {},
+        normalizeNotebookEditorSettings: value => value ?? {},
+        makePageObjectKey: () => "",
+        readPageMarkdown: async () => null,
+        savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "x" }),
+        upsertPages: async () => {},
+        savePageMarkdown: async () => "x",
+        deletePageMarkdown: async () => {},
+        deletePage: async () => {},
+        cleanupWorkspaceAssetOrphans: async () => {
+            cleanupCalled = true
+        },
+    } as PageRouteDependencies)
+
+    assert.equal(response.status, 200)
+    assert.deepEqual(await readResponseBody(response), { ok: true, pageId: "page-1" })
+    assert.equal(cleanupCalled, true)
+})
+
+test("DELETE maps workspace cleanup failures to status 500", async () => {
+    const response = await runPageDelete(auth, "page-1", {
+        loadPageById: async () => basePageRow,
+        userOwnsNotebook: async () => true,
+        listNotebooksForUser: async () => [],
+        upsertNotebooks: async () => {},
+        normalizeNotebookEditorSettings: value => value ?? {},
+        makePageObjectKey: () => "",
+        readPageMarkdown: async () => null,
+        savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "x" }),
+        upsertPages: async () => {},
+        savePageMarkdown: async () => "x",
+        deletePageMarkdown: async () => {},
+        deletePage: async () => {},
+        cleanupWorkspaceAssetOrphans: async () => {
+            throw new Error("cleanup failed")
+        },
+    } as PageRouteDependencies)
+
+    assert.equal(response.status, 500)
+    assert.deepEqual(await readResponseBody(response), { error: "cleanup failed" })
+})

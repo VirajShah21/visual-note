@@ -68,6 +68,7 @@ test("GET returns 404 when notebook is not owned", async () => {
 
 test("PUT updates markdown and returns content key", async () => {
     let received: { notebookId: string; id: string; markdown: string } | null = null
+    let cleanupCalled = false
 
     const response = await runContentPut(
         auth,
@@ -90,7 +91,9 @@ test("PUT updates markdown and returns content key", async () => {
                 return objectKey
             },
             makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
-            cleanupWorkspaceAssetOrphans: async () => [],
+            cleanupWorkspaceAssetOrphans: async () => {
+                cleanupCalled = true
+            },
         } as PageContentRouteDependencies,
     )
 
@@ -100,6 +103,7 @@ test("PUT updates markdown and returns content key", async () => {
         contentObjectKey: "notebooks/notebook-1/pages/page-1.md",
     })
     assert.equal(received?.markdown, "# Updated")
+    assert.equal(cleanupCalled, true)
 })
 
 test("PUT maps invalid payload to status 400", async () => {
@@ -139,4 +143,29 @@ test("PUT maps save failures to status 500", async () => {
 
     assert.equal(response.status, 500)
     assert.deepEqual(await readResponseBody(response), { error: "save failed" })
+})
+
+test("PUT maps asset cleanup failures to status 500", async () => {
+    const response = await runContentPut(
+        auth,
+        new Request("http://visual-note.test/api/pages/page-1/content", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ markdown: "# Failed" }),
+        }),
+        "page-1",
+        {
+            loadPageById: async () => basePageRow,
+            userOwnsNotebook: async () => true,
+            readPageMarkdown: async () => null,
+            savePageMarkdown: async () => "notebooks/notebook-1/pages/page-1.md",
+            makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
+            cleanupWorkspaceAssetOrphans: async () => {
+                throw new Error("cleanup failed")
+            },
+        } as PageContentRouteDependencies,
+    )
+
+    assert.equal(response.status, 500)
+    assert.deepEqual(await readResponseBody(response), { error: "cleanup failed" })
 })

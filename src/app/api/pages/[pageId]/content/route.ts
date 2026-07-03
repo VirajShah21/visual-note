@@ -56,7 +56,7 @@ export const runContentPut = async (auth: Authenticated, request: Request, pageI
 
     try {
         await dependencies.savePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebook_id, id: page.id }, markdown, objectKey)
-        await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore).catch(() => {})
+        await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore)
         return Response.json({ pageId, contentObjectKey: objectKey })
     } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "Unable to save page content." }, { status: 500 })
