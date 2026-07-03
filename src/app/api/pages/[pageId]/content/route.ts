@@ -1,6 +1,7 @@
 import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
 import { loadPageById, makePageObjectKey } from "@/server/visual-note/page-store"
 import { readPageMarkdown, savePageMarkdown } from "@/server/visual-note/page-content-store"
+import { cleanupWorkspaceAssetOrphans } from "@/server/visual-note/workspace-store"
 
 const parseContentBody = async (request: Request) => {
     const body = (await request.json().catch(() => null)) as { markdown?: string } | null
@@ -40,6 +41,7 @@ export async function PUT(request: Request, context: RouteContext<"/api/pages/[p
 
     const objectKey = makePageObjectKey(page.notebook_id, page.id)
     await savePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebook_id, id: page.id }, markdown, objectKey)
+    await cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId).catch(() => {})
 
     return Response.json({ pageId, contentObjectKey: objectKey })
 }

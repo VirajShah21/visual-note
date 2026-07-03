@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { decryptStorageSecret } from "./encryption"
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
+import { deleteS3Object } from "./s3"
 
 type AssetRow = {
     id: string
@@ -98,6 +99,19 @@ export const deleteAssetsNotInNotebooks = async (supabase: SupabaseClient, userI
 
     return deleted
 }
+
+export const deleteAssetObjects = (assets: Awaited<ReturnType<typeof deleteAssetsNotReferencedByWorkspace>>[number][]) =>
+    Promise.allSettled(
+        assets.map(asset =>
+            asset.connection
+                ? deleteS3Object({
+                      bucketName: asset.bucketName,
+                      connection: asset.connection,
+                      objectKey: asset.objectKey,
+                  }).catch(() => {})
+                : Promise.resolve(),
+        ),
+    )
 
 export const deleteAssetsNotReferencedByWorkspace = async (supabase: SupabaseClient, userId: string, workspace: VisualNoteWorkspace, deleteUpdatedBefore?: string) => {
     const notebookIds = [...new Set(workspace.notebooks.filter(notebook => notebook.userId === userId).map(notebook => notebook.id))]

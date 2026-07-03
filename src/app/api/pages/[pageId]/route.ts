@@ -4,6 +4,7 @@ import type { Notebook } from "@/lib/visual-note/types"
 import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
 import { listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
+import { cleanupWorkspaceAssetOrphans } from "@/server/visual-note/workspace-store"
 import { parsePageUpdateRequest } from "./route-contract"
 
 export const runtime = "nodejs"
@@ -101,6 +102,7 @@ export async function PUT(request: Request, context: RouteContext<"/api/pages/[p
 
         return Response.json({ error: error instanceof Error ? error.message : "Unable to save page." }, { status: 500 })
     }
+    await cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId).catch(() => {})
 
     return Response.json({
         page: {
