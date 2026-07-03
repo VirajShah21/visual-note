@@ -1,5 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
+import { createHash } from "node:crypto"
 import {
     createMcpToken,
     InvalidMcpScopeError,
@@ -8,6 +9,7 @@ import {
     legacyMcpScope,
     mcpScopeRead,
     mcpScopeWrite,
+    verifyMcpToken,
     validateAndNormalizeMcpScopes,
 } from "@server/mcp/token-store"
 
@@ -165,4 +167,86 @@ test("lists token audit metadata without loading full audit rows", async () => {
     assert.equal(tokens[0]?.deniedAttempts, 1)
     assert.equal(tokens[0]?.lastAttemptAt, "2026-07-02T01:00:00.000Z")
     assert.deepEqual(auditSelects, ["id", "id", "created_at"])
+})
+
+test("verify rejects tokens with invalid stored scopes", async () => {
+    const token = "vn_mcp_invalid_scope"
+    const tokenHash = createHash("sha256").update(token).digest("hex")
+
+    const fakeSupabase = {
+        from: (table: string) => {
+            if (table === "visual_note_mcp_tokens")
+                return {
+                    select: () => ({
+                        eq: () => ({
+                            maybeSingle: () =>
+                                Promise.resolve({
+                                    data: {
+                                        id: "token-1",
+                                        user_id: "user-1",
+                                        token_hash: tokenHash,
+                                        scopes: "visual-note:mcp",
+                                        revoked_at: null,
+                                        expires_at: null,
+                                    },
+                                    error: null,
+                                }),
+                        }),
+                    }),
+                }
+
+            return {
+                update: () => ({
+                    eq: () => ({
+                        then: (resolve: (value: unknown) => void) => Promise.resolve({ data: null, error: null }).then(resolve),
+                    }),
+                }),
+            }
+        },
+    }
+
+    const verified = await verifyMcpToken(fakeSupabase as never, token)
+    assert.equal(verified, null)
+})
+
+test("verify accepts legacy scope value and maps to read/write", async () => {
+    const token = "vn_mcp_legacy"
+    const tokenHash = createHash("sha256").update(token).digest("hex")
+
+    const fakeSupabase = {
+        from: (table: string) => {
+            if (table === "visual_note_mcp_tokens")
+                return {
+                    select: () => ({
+                        eq: () => ({
+                            maybeSingle: () =>
+                                Promise.resolve({
+                                    data: {
+                                        id: "token-1",
+                                        user_id: "user-1",
+                                        token_hash: tokenHash,
+                                        scopes: ["visual-note:mcp"],
+                                        revoked_at: null,
+                                        expires_at: null,
+                                    },
+                                    error: null,
+                                }),
+                        }),
+                    }),
+                }
+
+            return {
+                update: () => ({
+                    eq: () => ({
+                        then: (resolve: (value: unknown) => void) => Promise.resolve({ data: null, error: null }).then(resolve),
+                    }),
+                }),
+            }
+        },
+    }
+
+    const verified = await verifyMcpToken(fakeSupabase as never, token)
+
+    assert.equal(verified?.scopes.length, 2)
+    assert.deepEqual(verified?.scopes, [mcpScopeRead, mcpScopeWrite])
 })
