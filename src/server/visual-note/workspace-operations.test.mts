@@ -6,8 +6,17 @@ import type { VisualNoteWorkspace } from "@lib/visual-note/types"
 import * as workspaceOperations from "./workspace-operations"
 import { visualNoteCoreToolNames, visualNoteToolDefinitions } from "@server/mcp/visual-note-tools"
 
-const { createArticle, createNotebook, readArticle, readNotebookTree, renameNotebook, removeVisualBlock, replaceArticleContent, upsertVisualBlock } =
-    workspaceOperations
+const {
+    createArticle,
+    createNotebook,
+    readArticle,
+    readNotebookTree,
+    renameNotebook,
+    removeVisualBlock,
+    replaceArticleContent,
+    repairWorkspaceConsistency,
+    upsertVisualBlock,
+} = workspaceOperations
 
 const expectedCoreToolNames = [
     "list_notebooks",
@@ -190,6 +199,49 @@ test("inserts, updates, and removes visual blocks", () => {
     assert.equal(removed.ok, true)
     if (!removed.ok) return
     assert.doesNotMatch(removed.value.view.content, /```visual:/)
+})
+
+test("repairs orphaned pages and views while preserving foreign-owned data", () => {
+    const result = repairWorkspaceConsistency(
+        {
+            ...baseWorkspace(),
+            pages: [
+                ...baseWorkspace().pages,
+                {
+                    id: "orphan-page",
+                    notebookId: "missing-notebook",
+                    title: "Orphan",
+                    position: 99,
+                },
+            ],
+            views: [
+                ...baseWorkspace().views,
+                {
+                    id: "orphan-view",
+                    topicId: "missing-topic",
+                    title: "Orphan view",
+                    mode: "article",
+                    content: "# Orphan",
+                    displays: [],
+                },
+            ],
+        },
+        "user-1",
+    )
+
+    assert.equal(result.ok, true)
+    if (!result.ok) return
+
+    assert.deepEqual(result.value.orphanPages, ["orphan-page"])
+    assert.deepEqual(result.value.orphanViews, ["orphan-view"])
+    assert.equal(result.value.orphanTopics, [])
+    assert.equal(result.value.repaired, true)
+    const repaired = result.value.repairedWorkspace
+    assert.equal(repaired.pages.some(page => page.id === "orphan-page"), false)
+    assert.equal(repaired.views.some(view => view.id === "orphan-view"), false)
+    assert.equal(repaired.notebooks.some(notebook => notebook.id === "notebook-2"), true)
+    assert.equal(repaired.pages.some(page => page.id === "page-3"), true)
+    assert.equal(repaired.views.some(view => view.id === "view-3"), true)
 })
 
 test("does not expose or mutate notebooks owned by another user", () => {

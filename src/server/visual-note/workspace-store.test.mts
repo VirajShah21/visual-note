@@ -248,6 +248,57 @@ test("rejects topics referencing unknown pages", async () => {
     )
 })
 
+test("rejects notebook ownership mismatch introduced by prior transfers", async () => {
+    const transferAttempt = { ...workspace }
+
+    await assert.rejects(
+        () =>
+            saveWorkspaceForUser(
+                supabaseWithResults({
+                    visual_note_notebooks: {
+                        data: [{ id: "notebook-1", user_id: "user-2" }],
+                        error: null,
+                    },
+                }),
+                "user-1",
+                transferAttempt,
+            ),
+        (error: unknown) => {
+            assert.equal((error as { code?: string }).code, "ownership_conflict")
+            return true
+        },
+    )
+})
+
+test("rejects page transfer away from the owning user", async () => {
+    const transferAttempt = {
+        ...workspace,
+        pages: workspace.pages.map(page => ({ ...page, notebookId: "notebook-2" })),
+    }
+
+    await assert.rejects(
+        () =>
+            saveWorkspaceForUser(
+                supabaseWithResults({
+                    visual_note_notebooks: {
+                        data: [
+                            { id: "notebook-1", user_id: "user-1" },
+                            { id: "notebook-2", user_id: "user-2" },
+                        ],
+                        error: null,
+                    },
+                    visual_note_pages: { data: [], error: null },
+                }),
+                "user-1",
+                transferAttempt,
+            ),
+        (error: unknown) => {
+            assert.equal((error as { code?: string }).code, "workspace_integrity")
+            return true
+        },
+    )
+})
+
 test("rejects views referencing unknown topics", async () => {
     const invalidViewWorkspace = {
         ...workspace,
