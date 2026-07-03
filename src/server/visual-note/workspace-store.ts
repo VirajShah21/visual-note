@@ -17,6 +17,19 @@ type SupabaseRecord = {
     user_id: string
 }
 
+type WorkspaceAssetCleanupResult = {
+    deletedReferencedAssets: number
+    deletedMissingNotebookAssets: number
+    deletedAssetRecords: number
+}
+
+type WorkspaceAssetReconciliationResult = {
+    usersScanned: number
+    deletedReferencedAssets: number
+    deletedMissingNotebookAssets: number
+    deletedAssetRecords: number
+}
+
 const pageSelection = (notebookId: string, pageId: string) => ({
     notebookId,
     pageId,
@@ -136,18 +149,81 @@ export const cleanupWorkspaceAssetOrphans = async (
     userId: string,
     workspace?: VisualNoteWorkspace,
     deleteUpdatedBefore?: string,
-) => {
+) : Promise<WorkspaceAssetCleanupResult> => {
     const current = workspace ?? (await loadWorkspaceForUser(supabase, userId))
-    if (!current) return
+    if (!current) {
+        return {
+            deletedReferencedAssets: 0,
+            deletedMissingNotebookAssets: 0,
+            deletedAssetRecords: 0,
+        }
+    }
 
     const notebookIds = new Set<string>(current.notebooks.filter(notebook => notebook.userId === userId).map(notebook => notebook.id))
-    if (notebookIds.size === 0) return
+    if (notebookIds.size === 0)
+        return {
+            deletedReferencedAssets: 0,
+            deletedMissingNotebookAssets: 0,
+            deletedAssetRecords: 0,
+        }
 
     const deletedUnreferencedAssets = await deleteAssetsNotReferencedByWorkspace(supabase, userId, current, deleteUpdatedBefore)
     await deleteAssetObjects(deletedUnreferencedAssets)
 
     const deletedAssets = await deleteAssetsNotInNotebooks(supabase, userId, notebookIds, deleteUpdatedBefore)
     await deleteAssetObjects(deletedAssets)
+
+    return {
+        deletedReferencedAssets: deletedUnreferencedAssets.length,
+        deletedMissingNotebookAssets: deletedAssets.length,
+        deletedAssetRecords: deletedUnreferencedAssets.length + deletedAssets.length,
+    }
+}
+
+const listUserIdsWithAssetRecords = async (supabase: SupabaseClient) => {
+    const userIds = new Set<string>()
+    const pageSize = 500
+    let page = 0
+
+    while (true) {
+        const start = page * pageSize
+        const end = start + pageSize - 1
+        const { data, error } = await supabase.from("visual_note_assets").select("user_id").range(start, end)
+        if (error) throw error
+
+        if (!data || data.length === 0) return [...userIds]
+
+        data.forEach(row => {
+            if (typeof (row as { user_id?: string }).user_id === "string") userIds.add((row as { user_id: string }).user_id)
+        })
+
+        if (data.length < pageSize) break
+        page += 1
+    }
+
+    return [...userIds]
+}
+
+export const cleanupWorkspaceAssetOrphansForAllUsers = async (
+    supabase: SupabaseClient,
+    deleteUpdatedBefore?: string,
+): Promise<WorkspaceAssetReconciliationResult> => {
+    const userIds = await listUserIdsWithAssetRecords(supabase)
+    let deletedReferencedAssets = 0
+    let deletedMissingNotebookAssets = 0
+
+    for (const userId of userIds) {
+        const summary = await cleanupWorkspaceAssetOrphans(supabase, userId, undefined, deleteUpdatedBefore)
+        deletedReferencedAssets += summary.deletedReferencedAssets
+        deletedMissingNotebookAssets += summary.deletedMissingNotebookAssets
+    }
+
+    return {
+        usersScanned: userIds.length,
+        deletedReferencedAssets,
+        deletedMissingNotebookAssets,
+        deletedAssetRecords: deletedReferencedAssets + deletedMissingNotebookAssets,
+    }
 }
 
 export const resolveWorkspaceRevision = async (supabase: SupabaseClient, userId: string) => {
