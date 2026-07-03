@@ -68,6 +68,53 @@ const throwWorkspaceStorageError = (): never => {
     throw error
 }
 
+const restorePreviousWorkspace = async (
+    supabase: SupabaseClient,
+    userId: string,
+    saveStartedAt: string,
+    snapshot: VisualNoteWorkspace | null,
+) => {
+    if (!snapshot) return
+
+    const userNotebooks = snapshot.notebooks.filter(item => item.userId === userId)
+    const snapshotNotebookIds = new Set(userNotebooks.map(notebook => notebook.id))
+    const snapshotPages = snapshot.pages.filter(page => snapshotNotebookIds.has(page.notebookId))
+    const snapshotPageIds = new Set(snapshotPages.map(page => page.id))
+
+    await upsertNotebooks(supabase, userId, userNotebooks)
+    await upsertPages(
+        supabase,
+        userId,
+        snapshotPages.map(page => {
+            const topics = snapshot.topics.filter(topic => topic.pageId === page.id)
+            const topicIds = new Set(topics.map(topic => topic.id))
+            const views = snapshot.views.filter(view => topicIds.has(view.topicId))
+
+            return {
+                page,
+                notebookId: page.notebookId,
+                topics,
+                views,
+                contentObjectKey: makePageObjectKey(page.notebookId, page.id),
+            }
+        }),
+    )
+
+    await Promise.allSettled(
+        snapshotPages.map(async page => {
+            if (typeof page.content !== "string") return
+
+            const objectKey = makePageObjectKey(page.notebookId, page.id)
+            const result = await savePageMarkdownIfConfigured({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, page.content, objectKey)
+            if (!result.saved) return
+        }),
+    )
+
+    await deletePagesNotIn(supabase, userId, snapshotPageIds, saveStartedAt)
+    await deleteNotebooksNotIn(supabase, userId, snapshotNotebookIds, saveStartedAt)
+    await upsertWorkspaceSnapshotsForUser(supabase, userId, snapshot.snapshots)
+}
+
 const normalizeRevisionTimestamp = (value: string | null | undefined) => value ?? "0"
 
 const latestUpdatedAt = async (supabase: SupabaseClient, userId: string, table: "visual_note_notebooks" | "visual_note_pages") => {
@@ -172,6 +219,7 @@ export const saveWorkspaceForUser = async (
     await assertWorkspaceStoreReady(supabase)
 
     const saveStartedAt = new Date().toISOString()
+    const previousWorkspace = await loadWorkspaceForUser(supabase, userId)
     let normalizedWorkspace = normalizeWorkspace(workspace)
     const existingPages = await listPagesForUser(supabase, userId)
     const existingPageById = new Map(existingPages.map(page => [page.id, page]))
@@ -246,11 +294,11 @@ export const saveWorkspaceForUser = async (
                     ).catch(() => {})
             }
 
-                for (const prepared of preparedPages) {
-                    if (!prepared.savedContent) continue
+            for (const prepared of preparedPages) {
+                if (!prepared.savedContent) continue
 
-                    const originalNotebookId = prepared.existingPage?.notebook_id ?? prepared.notebookId
-                    if (prepared.previousContent === null)
+                const originalNotebookId = prepared.existingPage?.notebook_id ?? prepared.notebookId
+                if (prepared.previousContent === null)
                     await deletePageMarkdown({ supabase, userId }, { notebookId: prepared.notebookId, id: prepared.page.id }, prepared.contentObjectKey).catch(() => {})
                 else
                     await savePageMarkdown(
@@ -260,6 +308,8 @@ export const saveWorkspaceForUser = async (
                         prepared.existingPage?.content_object_key ?? prepared.contentObjectKey,
                     ).catch(() => {})
             }
+
+            await restorePreviousWorkspace(supabase, userId, saveStartedAt, previousWorkspace).catch(() => {})
             throw error
         }
 
@@ -294,6 +344,7 @@ export const saveWorkspaceForUser = async (
                 ).catch(() => {})
         }
 
+        await restorePreviousWorkspace(supabase, userId, saveStartedAt, previousWorkspace).catch(() => {})
         throw error
     }
 
@@ -303,13 +354,20 @@ export const saveWorkspaceForUser = async (
         }
     }
 
-    const deletedPages = await deletePagesNotIn(supabase, userId, pageIds, saveStartedAt)
-    await Promise.allSettled(
-        deletedPages.map(page => deletePageMarkdown({ supabase, userId }, { notebookId: page.notebook_id, id: page.id }, page.content_object_key).catch(() => {})),
-    )
-    await cleanupWorkspaceAssetOrphans(supabase, userId, normalizedWorkspace, saveStartedAt)
-    await deleteNotebooksNotIn(supabase, userId, notebookIds, saveStartedAt)
-    await upsertWorkspaceSnapshotsForUser(supabase, userId, normalizedWorkspace.snapshots)
+    try {
+        const deletedPages = await deletePagesNotIn(supabase, userId, pageIds, saveStartedAt)
+        await Promise.allSettled(
+            deletedPages.map(page =>
+                deletePageMarkdown({ supabase, userId }, { notebookId: page.notebook_id, id: page.id }, page.content_object_key).catch(() => {}),
+            ),
+        )
+        await cleanupWorkspaceAssetOrphans(supabase, userId, normalizedWorkspace, saveStartedAt)
+        await deleteNotebooksNotIn(supabase, userId, notebookIds, saveStartedAt)
+        await upsertWorkspaceSnapshotsForUser(supabase, userId, normalizedWorkspace.snapshots)
+    } catch (error) {
+        await restorePreviousWorkspace(supabase, userId, saveStartedAt, previousWorkspace).catch(() => {})
+        throw error
+    }
 
     return normalizedWorkspace
 }
