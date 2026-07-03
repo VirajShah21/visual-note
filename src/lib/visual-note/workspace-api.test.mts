@@ -15,15 +15,14 @@ const createMockResponse = (status: number, body: unknown) =>
         headers: { "content-type": "application/json" },
     })
 
-const captureFetchRequest = async (revision: string | null, status = 200) => {
+const captureFetchRequest = async (revision: string | null, status = 200, body: unknown = { revision: "revision-after-save", ok: true }) => {
     const requests: Request[] = []
     const mock = async (input: string | URL | Request, init?: RequestInit) => {
         const request = new Request(input, init)
         requests.push(request)
 
         return createMockResponse(status, {
-            revision: "revision-after-save",
-            ok: true,
+            ...body,
         })
     }
 
@@ -56,4 +55,26 @@ test("trims whitespace from revision before sending If-Match", async () => {
     const { requests } = await captureFetchRequest("  revision-456  ")
 
     assert.equal(requests[0]?.headers.get("if-match"), '"revision-456"')
+})
+
+test("throws a typed status error when saving workspace fails", async () => {
+    await assert.rejects(
+        () => captureFetchRequest("revision-123", 500, { error: "Unable to save workspace." }),
+        error => {
+            assert.equal((error as { status?: number }).status, 500)
+            assert.match((error as Error).message, /Unable to save workspace/)
+            return true
+        },
+    )
+})
+
+test("preserves conflict status when workspace save is rejected", async () => {
+    await assert.rejects(
+        () => captureFetchRequest("revision-123", 409, { error: "Workspace conflict" }),
+        error => {
+            assert.equal((error as { status?: number }).status, 409)
+            assert.equal((error as Error).message, "Workspace conflict")
+            return true
+        },
+    )
 })
