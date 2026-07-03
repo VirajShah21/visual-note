@@ -18,7 +18,7 @@ test("POST returns 503 when maintenance token is not configured", async () => {
             deletedAssetRecords: 0,
         }),
         getMaintenanceToken: () => undefined,
-        getSupabaseServiceRoleClient: () => ({} as never),
+        getSupabaseServiceRoleClient: () => ({}) as never,
         recordVisualNoteEvent: () => {},
     } as unknown as AssetCleanupDependencies)
 
@@ -35,7 +35,7 @@ test("POST rejects missing maintenance token", async () => {
             deletedAssetRecords: 0,
         }),
         getMaintenanceToken: () => "maintenance-token",
-        getSupabaseServiceRoleClient: () => ({} as never),
+        getSupabaseServiceRoleClient: () => ({}) as never,
         recordVisualNoteEvent: () => {},
     } as unknown as AssetCleanupDependencies)
 
@@ -58,7 +58,7 @@ test("POST validates ISO update cutoff date", async () => {
                 deletedAssetRecords: 0,
             }),
             getMaintenanceToken: () => "maintenance-token",
-            getSupabaseServiceRoleClient: () => ({} as never),
+            getSupabaseServiceRoleClient: () => ({}) as never,
             recordVisualNoteEvent: () => {},
         } as unknown as AssetCleanupDependencies,
     )
@@ -83,8 +83,8 @@ test("POST runs global cleanup and emits event", async () => {
                 deletedAssetRecords: 10,
             }),
             getMaintenanceToken: () => "maintenance-token",
-            getSupabaseServiceRoleClient: () => ({} as never),
-            recordVisualNoteEvent: event => {
+            getSupabaseServiceRoleClient: () => ({}) as never,
+            recordVisualNoteEvent: (event: any) => {
                 events.push(event)
             },
         } as unknown as AssetCleanupDependencies,
@@ -94,5 +94,8 @@ test("POST runs global cleanup and emits event", async () => {
     assert.equal(response.status, 200)
     assert.equal(body.usersScanned, 3)
     assert.equal(body.deletedAssetRecords, 10)
-    assert.equal(events.some(item => item.event === "assets.cleanup_executed"), true)
+    assert.equal(
+        events.some(item => item.event === "assets.cleanup_executed"),
+        true,
+    )
 })

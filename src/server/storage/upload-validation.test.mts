@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { isAllowedImageContentType, validateImageUpload, validateUploadContentLength } from "./upload-validation"
 
-const fileFrom = (body: Buffer, type: string) => new File([body], "image", { type })
+const fileFrom = (body: Buffer, type: string) => new File([new Uint8Array(body)], "image", { type })
 
 test("accepts supported image uploads with matching file signatures", () => {
     const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])

@@ -21,9 +21,7 @@ const captureFetchRequest = async (revision: string, status = 200, body: unknown
         const request = new Request(input, init)
         requests.push(request)
 
-        return createMockResponse(status, {
-            ...body,
-        })
+        return createMockResponse(status, body)
     }
 
     const previous = globalThis.fetch
@@ -53,9 +51,12 @@ test("trims whitespace from revision before sending If-Match", async () => {
 test("requires revision before saving", async () => {
     await assert.rejects(
         () =>
-            saveVisualNoteWorkspace(workspace as never, {
-                revision: null,
-            } as never),
+            saveVisualNoteWorkspace(
+                workspace as never,
+                {
+                    revision: null,
+                } as never,
+            ),
         error => {
             assert.equal((error as Error).message, "Workspace revision is required before saving.")
             return true

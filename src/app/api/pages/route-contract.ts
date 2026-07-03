@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { normalizeNotebookEditorSettings } from "@/lib/visual-note/factories"
 import type { ComponentKind, Notebook } from "@/lib/visual-note/types"
 
 const topicSchema = z.object({
@@ -108,7 +109,12 @@ export const parsePageUpdateRequest = async (request: Request, pageId: string): 
 
     return {
         ok: true,
-        notebook: parsed.data.notebook ? { ...parsed.data.notebook } : null,
+        notebook: parsed.data.notebook
+            ? {
+                  ...parsed.data.notebook,
+                  editorSettings: parsed.data.notebook.editorSettings ? normalizeNotebookEditorSettings(parsed.data.notebook.editorSettings) : undefined,
+              }
+            : null,
         page: parsed.data.page,
         topics: parsed.data.topics,
         views: parseDisplayInputs(parsed.data.views),

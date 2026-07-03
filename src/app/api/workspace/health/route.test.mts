@@ -25,33 +25,36 @@ const baseDependencies = (overrides: Partial<WorkspaceHealthDependencies> = {}):
     }),
     loadWorkspaceForUser: async () => makeWorkspace(),
     recordVisualNoteEvent: () => {},
-    repairWorkspaceConsistency: () => ({
-        ok: true,
-        value: {
-            notebookCount: 1,
-            pageCount: 0,
-            topicCount: 0,
-            viewCount: 0,
-            issues: [],
-            repaired: false,
-        },
-    } as never),
+    repairWorkspaceConsistency: () =>
+        ({
+            ok: true,
+            value: {
+                notebookCount: 1,
+                pageCount: 0,
+                topicCount: 0,
+                viewCount: 0,
+                issues: [],
+                repaired: false,
+            },
+        }) as never,
     resolveWorkspaceRevision: async () => "v1",
-    saveWorkspaceForUser: async () => ({} as never),
-    workspaceHealthCheck: () => ({
-        ok: true,
-        value: { notebookCount: 1, pageCount: 0, topicCount: 0, viewCount: 0, issues: [] },
-    } as never),
+    saveWorkspaceForUser: async () => ({}) as never,
+    workspaceHealthCheck: () =>
+        ({
+            ok: true,
+            value: { notebookCount: 1, pageCount: 0, topicCount: 0, viewCount: 0, issues: [] },
+        }) as never,
     ...overrides,
 })
 
 test("GET returns workspace health check results", async () => {
     const response = await runWorkspaceHealthGet(authContext, {
         ...baseDependencies(),
-        workspaceHealthCheck: () => ({
-            ok: true,
-            value: { notebookCount: 1, pageCount: 2, topicCount: 3, viewCount: 4, issues: [{ severity: "warning", scope: "page", id: "page-1", message: "Missing topic." }] },
-        } as never),
+        workspaceHealthCheck: () =>
+            ({
+                ok: true,
+                value: { notebookCount: 1, pageCount: 2, topicCount: 3, viewCount: 4, issues: [{ severity: "warning", scope: "page", id: "page-1", message: "Missing topic." }] },
+            }) as never,
     })
 
     assert.equal(response.status, 200)
@@ -76,15 +79,16 @@ test("GET maps workspace load failures to status 500", async () => {
 test("POST reports repair result when no changes are required", async () => {
     const response = await runWorkspaceHealthPost(authContext, {
         ...baseDependencies(),
-        repairWorkspaceConsistency: () => ({
-            ok: true,
-            value: {
-                orphanPages: [],
-                orphanTopics: [],
-                orphanViews: [],
-                repaired: false,
-            },
-        } as never),
+        repairWorkspaceConsistency: () =>
+            ({
+                ok: true,
+                value: {
+                    orphanPages: [],
+                    orphanTopics: [],
+                    orphanViews: [],
+                    repaired: false,
+                },
+            }) as never,
     })
 
     assert.equal(response.status, 200)
@@ -97,19 +101,21 @@ test("POST saves repaired workspace and returns new revision", async () => {
     let saved = false
     const response = await runWorkspaceHealthPost(authContext, {
         ...baseDependencies(),
-        repairWorkspaceConsistency: () => ({
-            ok: true,
-            value: {
-                orphanPages: ["page-1"],
-                orphanTopics: [],
-                orphanViews: [],
-                repaired: true,
-                repairedWorkspace: makeWorkspace(),
-            },
-        } as never),
+        repairWorkspaceConsistency: () =>
+            ({
+                ok: true,
+                value: {
+                    orphanPages: ["page-1"],
+                    orphanTopics: [],
+                    orphanViews: [],
+                    repaired: true,
+                    repairedWorkspace: makeWorkspace(),
+                },
+            }) as never,
         resolveWorkspaceRevision: async () => "v2",
         saveWorkspaceForUser: async () => {
             saved = true
+            return { workspace: makeWorkspace(), warnings: [] }
         },
     })
 
@@ -124,7 +130,7 @@ test("POST saves repaired workspace and returns new revision", async () => {
 test("POST maps repair calculation failures to 400", async () => {
     const response = await runWorkspaceHealthPost(authContext, {
         ...baseDependencies(),
-        repairWorkspaceConsistency: () => ({ ok: false, error: "repair validation failed" } as never),
+        repairWorkspaceConsistency: () => ({ ok: false, error: "repair validation failed" }) as never,
     })
 
     assert.equal(response.status, 400)
@@ -134,16 +140,17 @@ test("POST maps repair calculation failures to 400", async () => {
 test("POST maps repair persistence failures to 500", async () => {
     const response = await runWorkspaceHealthPost(authContext, {
         ...baseDependencies(),
-        repairWorkspaceConsistency: () => ({
-            ok: true,
-            value: {
-                orphanPages: ["page-1"],
-                orphanTopics: [],
-                orphanViews: [],
-                repaired: true,
-                repairedWorkspace: makeWorkspace(),
-            },
-        } as never),
+        repairWorkspaceConsistency: () =>
+            ({
+                ok: true,
+                value: {
+                    orphanPages: ["page-1"],
+                    orphanTopics: [],
+                    orphanViews: [],
+                    repaired: true,
+                    repairedWorkspace: makeWorkspace(),
+                },
+            }) as never,
         saveWorkspaceForUser: async () => {
             throw new Error("save failed")
         },

@@ -12,7 +12,8 @@ const authContext = {
 const readResponseBody = async (response: Response) => response.json()
 
 const baseInput: NotebookStorageSettingsInput = {
-    connectionName: "MinIO",
+    connectionId: "connection-1",
+        connectionName: "MinIO",
     region: "us-east-1",
     accessKeyId: "access-1",
     secretAccessKey: "secret",
@@ -31,6 +32,7 @@ const makeRequest = () =>
 const makeDependencies = (overrides: Partial<StorageSettingsRouteDependencies> = {}): StorageSettingsRouteDependencies => ({
     getSupabaseServiceRoleClient: () => ({}) as never,
     loadNotebookStorageSettings: async () => ({
+        connectionId: "connection-1",
         connectionName: "MinIO",
         region: "us-east-1",
         endpointUrl: "",
@@ -40,6 +42,7 @@ const makeDependencies = (overrides: Partial<StorageSettingsRouteDependencies> =
         bucketName: "bucket",
     }),
     saveNotebookStorageSettings: async () => ({
+        connectionId: "connection-1",
         connectionName: "MinIO",
         region: "us-east-1",
         endpointUrl: "",

@@ -21,7 +21,20 @@ const makeDependencies = (overrides: Partial<AssetRouteDependencies> = {}): Asse
     authenticateSupabaseMutationRequest: async () => authContext as never,
     authenticateSupabaseRequest: async () => authContext as never,
     deleteS3Object: async () => {},
-    getSupabaseServiceRoleClient: () => ({ from: () => ({ delete: () => ({ eq: () => ({ eq: () => ({ select: () => ({ maybeSingle: async () => ({ data: { id: "asset-1" }, error: null }) }) }) }) }) } }) as never,
+    getSupabaseServiceRoleClient: () =>
+        ({
+            from: () => ({
+                delete: () => ({
+                    eq: () => ({
+                        eq: () => ({
+                            select: () => ({
+                                maybeSingle: async () => ({ data: { id: "asset-1" }, error: null }),
+                            }),
+                        }),
+                    }),
+                }),
+            }),
+        }) as never,
     isAssetRequestAllowedByOrigin: () => true,
     isAllowedImageContentType: () => true,
     loadAssetStorage: async () => ({
@@ -61,7 +74,7 @@ const makeDependencies = (overrides: Partial<AssetRouteDependencies> = {}): Asse
         },
     }),
     readS3Object: async () => ({
-        body: Readable.toWeb(Readable.from([Buffer.from("abcd")])) as ReadableStream,
+        body: Readable.from([Buffer.from("abcd")]),
         contentType: "image/png",
         contentLength: 4,
     }),

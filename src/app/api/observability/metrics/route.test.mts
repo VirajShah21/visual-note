@@ -16,7 +16,7 @@ const runWithToken = (request: Request, events: MetricsEvent[], token = "mainten
     runObservabilityMetricsGet(request, {
         getMaintenanceToken: () => token,
         getSupabaseServiceRoleClient: () => ({}) as never,
-        recordVisualNoteEvent: event => {
+        recordVisualNoteEvent: (event: any) => {
             events.push(event)
         },
         snapshotVisualNoteMetrics: () => ({
@@ -30,7 +30,7 @@ const runWithToken = (request: Request, events: MetricsEvent[], token = "mainten
 test("GET returns 503 when maintenance token is not configured", async () => {
     const response = await runObservabilityMetricsGet(new Request("http://visual-note.test/api/observability/metrics"), {
         getMaintenanceToken: () => undefined,
-        getSupabaseServiceRoleClient: () => ({} as never),
+        getSupabaseServiceRoleClient: () => ({}) as never,
         recordVisualNoteEvent: () => {},
         snapshotVisualNoteMetrics: () => ({
             generatedAt: "2026-07-03T00:00:00.000Z",
@@ -63,5 +63,8 @@ test("GET returns metrics snapshot with a valid maintenance token", async () => 
     const body = await readResponseBody(response)
     assert.equal(body.totalEvents, 7)
     assert.equal(body.bySeverity.info, 4)
-    assert.equal(events.some(item => item.event === "observability.metrics_read"), true)
+    assert.equal(
+        events.some(item => item.event === "observability.metrics_read"),
+        true,
+    )
 })

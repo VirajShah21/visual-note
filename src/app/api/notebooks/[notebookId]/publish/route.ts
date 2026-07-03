@@ -7,7 +7,7 @@ export const runtime = "nodejs"
 
 type Authenticated = { supabase: Parameters<typeof loadWorkspaceForUser>[0]; userId: string }
 
-type PublishRouteDependencies = {
+export type PublishRouteDependencies = {
     exportPublishBundle: typeof exportPublishBundle
     loadWorkspaceForUser: typeof loadWorkspaceForUser
     parsePublishRequest: typeof parsePublishRequest
@@ -16,6 +16,8 @@ type PublishRouteDependencies = {
     saveWorkspaceForUser: typeof saveWorkspaceForUser
     userOwnsNotebook: typeof userOwnsNotebook
 }
+
+type PublishRouteContext = { params: Promise<{ notebookId: string }> }
 
 const defaultPublishRouteDependencies: PublishRouteDependencies = {
     exportPublishBundle,
@@ -27,12 +29,7 @@ const defaultPublishRouteDependencies: PublishRouteDependencies = {
     userOwnsNotebook,
 }
 
-export const runPublishPost = async (
-    auth: Authenticated,
-    request: Request,
-    notebookId: string,
-    dependencies = defaultPublishRouteDependencies,
-) => {
+export const runPublishPost = async (auth: Authenticated, request: Request, notebookId: string, dependencies = defaultPublishRouteDependencies) => {
     if (!(await dependencies.userOwnsNotebook(auth, notebookId))) return Response.json({ error: "Notebook not found." }, { status: 404 })
 
     const parsed = await dependencies.parsePublishRequest(request)
@@ -48,9 +45,7 @@ export const runPublishPost = async (
             includeJson: parsed.input.includeJson,
         })
 
-        if (!preview.ok) {
-            return Response.json({ error: preview.message }, { status: preview.error === "not_found" ? 404 : 400 })
-        }
+        if (!preview.ok) return Response.json({ error: preview.message }, { status: preview.error === "not_found" ? 404 : 400 })
 
         return Response.json({ preview: preview.value })
     }
@@ -60,9 +55,7 @@ export const runPublishPost = async (
         notebookId,
         publish: targetPublished,
     })
-    if (!publishResult.ok) {
-        return Response.json({ error: publishResult.message }, { status: publishResult.error === "not_found" ? 404 : 400 })
-    }
+    if (!publishResult.ok) return Response.json({ error: publishResult.message }, { status: publishResult.error === "not_found" ? 404 : 400 })
 
     try {
         await dependencies.saveWorkspaceForUser(auth.supabase, auth.userId, publishResult.value.workspace, parsed.input.revision, undefined)
@@ -74,7 +67,7 @@ export const runPublishPost = async (
     }
 }
 
-export async function POST(request: Request, context: RouteContext<"/api/notebooks/[notebookId]/publish">) {
+export async function POST(request: Request, context: PublishRouteContext) {
     const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 

@@ -4,11 +4,11 @@ import { readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from
 import { cleanupWorkspaceAssetOrphans } from "@/server/visual-note/workspace-store"
 import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 
-type Authenticated = { supabase: Parameters<typeof readPageMarkdown>[0]["supabase"]; userId: string }
+export type Authenticated = { supabase: Parameters<typeof readPageMarkdown>[0]["supabase"]; userId: string }
 
 const storageConfigurationError = STORAGE_CONTENT_WARNING
 
-type PageContentRouteDependencies = {
+export type PageContentRouteDependencies = {
     loadPageById: typeof loadPageById
     userOwnsNotebook: typeof userOwnsNotebook
     readPageMarkdown: typeof readPageMarkdown
@@ -62,12 +62,13 @@ export const runContentPut = async (auth: Authenticated, request: Request, pageI
     const warnings: string[] = []
 
     try {
-        const uploadResult = await savePageMarkdownWithFallback(
+        const uploadResultRaw = await savePageMarkdownWithFallback(
             { supabase: auth.supabase, userId: auth.userId },
             { notebookId: page.notebook_id, id: page.id },
             markdown,
             objectKey,
         )
+        const uploadResult = typeof uploadResultRaw === "string" ? { saved: true, objectKey: uploadResultRaw } : uploadResultRaw
         if (!uploadResult.saved) warnings.push(storageConfigurationError)
         if (warnings.length > 0) warnings.push(STORAGE_SETUP_HINT)
         await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore)

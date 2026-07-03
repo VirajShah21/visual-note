@@ -8,7 +8,8 @@ import { isAllowedImageContentType } from "@/server/storage/upload-validation"
 
 export const runtime = "nodejs"
 
-type Authenticated = { supabase: never; userId: string } | null
+type Authenticated = Exclude<Awaited<ReturnType<typeof authenticateSupabaseRequest>>, Response> | null
+type AssetRouteContext = { params: Promise<{ assetId: string }> }
 
 export type AssetRouteDependencies = {
     authenticateSupabaseMutationRequest: typeof authenticateSupabaseMutationRequest
@@ -57,11 +58,15 @@ const defaultAssetRouteDependencies: AssetRouteDependencies = {
     verifySignedAssetRequest,
 }
 
-export const runAssetGet = async (request: Request, context: RouteContext<"/api/assets/[assetId]">, dependencies = defaultAssetRouteDependencies) => {
+export const runAssetGet = async (request: Request, context: AssetRouteContext, dependencies = defaultAssetRouteDependencies) => {
     const { assetId } = await context.params
     const isSigned = dependencies.verifySignedAssetRequest(request, assetId)
-    const auth: Authenticated = isSigned ? null : await dependencies.authenticateSupabaseRequest(request)
-    if (auth instanceof Response) return auth
+    let auth: Authenticated = null
+    if (!isSigned) {
+        const authResult = await dependencies.authenticateSupabaseRequest(request)
+        if (authResult instanceof Response) return authResult
+        auth = authResult
+    }
     if (!dependencies.isAssetRequestAllowedByOrigin(request, isSigned)) {
         dependencies.recordVisualNoteEvent({
             event: "asset.read_blocked",
@@ -113,7 +118,7 @@ export const runAssetGet = async (request: Request, context: RouteContext<"/api/
     }
 }
 
-export const runAssetDelete = async (request: Request, context: RouteContext<"/api/assets/[assetId]">, dependencies = defaultAssetRouteDependencies) => {
+export const runAssetDelete = async (request: Request, context: AssetRouteContext, dependencies = defaultAssetRouteDependencies) => {
     const auth = await dependencies.authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 
@@ -132,27 +137,29 @@ export const runAssetDelete = async (request: Request, context: RouteContext<"/a
     }
     if (!data) return Response.json({ error: "Asset not found." }, { status: 404 })
 
-    await dependencies.deleteS3Object({
-        bucketName: resolved.asset.bucketName,
-        connection: resolved.connection,
-        objectKey: resolved.asset.objectKey,
-    }).catch(error =>
-        dependencies.recordVisualNoteEvent({
-            event: "asset.delete_object_failed",
-            severity: "warn",
-            userId: auth.userId,
-            metadata: { assetId, objectKey: resolved.asset.objectKey },
-            error,
-        }),
-    )
+    await dependencies
+        .deleteS3Object({
+            bucketName: resolved.asset.bucketName,
+            connection: resolved.connection,
+            objectKey: resolved.asset.objectKey,
+        })
+        .catch(error =>
+            dependencies.recordVisualNoteEvent({
+                event: "asset.delete_object_failed",
+                severity: "warn",
+                userId: auth.userId,
+                metadata: { assetId, objectKey: resolved.asset.objectKey },
+                error,
+            }),
+        )
 
     return Response.json({ ok: true })
 }
 
-export async function GET(request: Request, context: RouteContext<"/api/assets/[assetId]">) {
+export async function GET(request: Request, context: AssetRouteContext) {
     return runAssetGet(request, context)
 }
 
-export async function DELETE(request: Request, context: RouteContext<"/api/assets/[assetId]">) {
+export async function DELETE(request: Request, context: AssetRouteContext) {
     return runAssetDelete(request, context)
 }

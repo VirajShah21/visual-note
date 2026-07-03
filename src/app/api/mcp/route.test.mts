@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { OPTIONS, runMcpHandler } from "./route"
+import { runMcpHandler, runMcpOptions } from "./route"
 
 type TestEvent = {
     event: string
@@ -29,7 +29,7 @@ test("POST requests log MCP auth failures", async () => {
 test("OPTIONS with blocked origin logs mcp.request_blocked", async () => {
     const events: TestEvent[] = []
 
-    const response = await OPTIONS(new Request("http://visual-note.test/api/mcp", { method: "OPTIONS", headers: { origin: "https://evil.example" } }), {
+    const response = await runMcpOptions(new Request("http://visual-note.test/api/mcp", { method: "OPTIONS", headers: { origin: "https://evil.example" } }), {
         logEvent: event => events.push(event),
         now: () => "2026-07-03T00:00:00.000Z",
     })

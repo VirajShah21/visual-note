@@ -21,7 +21,7 @@ const makeWorkspace = () => ({
             color: "#111111",
             published: false,
             createdAt: "2026-06-01T00:00:00.000Z",
-            editorSettings: { blockInfo: "show", contents: "hide-title" },
+            editorSettings: { blockInfo: "show" as const, contents: "hide-title" as const, mode: "editing" as const },
         },
     ],
     pages: [
@@ -32,7 +32,7 @@ const makeWorkspace = () => ({
         { id: "topic-1", pageId: "page-1", title: "Topic A", position: 1, summary: "" },
         { id: "topic-2", pageId: "page-1", title: "Topic B", position: 0, summary: "" },
     ],
-    views: [{ id: "view-1", topicId: "topic-2", title: "View A", mode: "article", content: "body", displays: [] }],
+    views: [{ id: "view-1", topicId: "topic-2", title: "View A", mode: "article" as const, content: "body", displays: [] }],
 })
 
 const baseDependencies = (overrides: Partial<NotebookRouteDependencies> = {}): NotebookRouteDependencies => ({
@@ -40,9 +40,9 @@ const baseDependencies = (overrides: Partial<NotebookRouteDependencies> = {}): N
     authenticateSupabaseRequest: async () => authContext as never,
     loadWorkspaceForUser: async () => makeWorkspace(),
     normalizeNotebookEditorSettings: value => ({
-        blockInfo: value.blockInfo ?? "show",
-        contents: value.contents ?? "show",
-        mode: value.mode ?? "editing",
+        blockInfo: value?.blockInfo ?? "show",
+        contents: value?.contents ?? "show",
+        mode: value?.mode ?? "editing",
     }),
     userOwnsNotebook: async () => true,
     upsertNotebooks: async () => {},
@@ -125,7 +125,9 @@ test("PUT updates notebook and returns refreshed entity", async () => {
             upsertNotebooks: async () => {},
             loadWorkspaceForUser: async () => ({
                 ...makeWorkspace(),
-                notebooks: [{ ...makeWorkspace().notebooks[0], title: "New title", slug: "new-slug", editorSettings: { blockInfo: "show", contents: "hide-title", mode: "editing" } }],
+                notebooks: [
+                    { ...makeWorkspace().notebooks[0], title: "New title", slug: "new-slug", editorSettings: { blockInfo: "show", contents: "hide-title", mode: "editing" } },
+                ],
             }),
         }),
     )

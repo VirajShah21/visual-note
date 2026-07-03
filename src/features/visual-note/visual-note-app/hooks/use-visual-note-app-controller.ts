@@ -26,6 +26,7 @@ import type { PublishAction, PublishResponse } from "@/lib/visual-note/storage-a
 
 type PublishRequest = {
     action: PublishAction
+    revision?: string
     includeHtml?: boolean
     includeJson?: boolean
 }
@@ -288,7 +289,7 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         const notebookId = selected.currentSelection.notebookId
         if (!workspace || !notebookId) throw new Error("Choose a notebook before changing publish state.")
 
-        const revision = input.action === "preview" ? undefined : workspaceRevision ?? undefined
+        const revision = input.action === "preview" ? undefined : (input.revision ?? workspaceRevision ?? undefined)
         const payload: PublishRequestInput = {
             action: input.action,
             revision,
@@ -333,5 +334,5 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         uploadImage,
     }
 
-    return { galleryItems, isLoading, notice, sections, selected, authStatus, toastMessages, user, workspace, workspaceRecovery, actions }
+    return { galleryItems, isLoading, notice, sections, selected, authStatus, toastMessages, user, workspace, workspaceRecovery, workspaceRevision, actions }
 }

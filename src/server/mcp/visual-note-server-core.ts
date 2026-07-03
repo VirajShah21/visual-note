@@ -103,7 +103,7 @@ const recordMcpToolEvent = (
     event: string,
     context: RequestContext,
     toolScope: ToolScopeRequirement,
-    severity: "info" | "warn" = "warn",
+    severity: "info" | "warn" | "error" = "warn",
     reason?: string,
     missingScopes: readonly McpTokenScope[] = [],
 ) => {

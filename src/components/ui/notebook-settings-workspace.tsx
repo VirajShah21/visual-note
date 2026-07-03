@@ -18,7 +18,7 @@ export type NotebookSettingsWorkspaceProps = {
     notebookPublishedAt?: string
     notebookRevision: string | null
     storageEnabled: boolean
-    onPublish: (request: { action: PublishAction; includeHtml?: boolean; includeJson?: boolean }) => Promise<PublishResponse>
+    onPublish: (request: { action: PublishAction; revision?: string; includeHtml?: boolean; includeJson?: boolean }) => Promise<PublishResponse>
     onDone: () => void
 }
 
@@ -90,9 +90,8 @@ export function NotebookSettingsWorkspace({
             if (result.repaired) {
                 const repairedItems = result.orphanPages.length + result.orphanTopics.length + result.orphanViews.length
                 setHealthMessage(`Repaired ${repairedItems} orphaned relation ${repairedItems === 1 ? "item" : "items"}.`)
-            } else {
-                setHealthMessage("No repair actions were required.")
-            }
+            } else setHealthMessage("No repair actions were required.")
+
             await refreshHealthCheck()
         } catch (nextError) {
             setHealthError(nextError instanceof Error ? nextError.message : "Unable to repair workspace consistency.")
@@ -212,7 +211,7 @@ export function NotebookSettingsWorkspace({
             try {
                 const response = await onPublish({
                     action,
-                    revision: action === "preview" ? undefined : notebookRevision ?? undefined,
+                    revision: action === "preview" ? undefined : (notebookRevision ?? undefined),
                     includeHtml,
                     includeJson,
                 })
@@ -286,11 +285,7 @@ export function NotebookSettingsWorkspace({
                             </>
                         ) : null}
                         <Stack className={styles.actions} direction="horizontal" gap="sm">
-                            <Button
-                                variant="secondary"
-                                disabled={isHealthLoading || isSaving || isRepairing}
-                                onClick={() => void refreshHealthCheck()}
-                            >
+                            <Button variant="secondary" disabled={isHealthLoading || isSaving || isRepairing} onClick={() => void refreshHealthCheck()}>
                                 {isHealthLoading ? "Checking" : "Refresh check"}
                             </Button>
                             {healthCheck?.issues?.length ? (
@@ -317,18 +312,8 @@ export function NotebookSettingsWorkspace({
                     </Stack>
                     <Text size="small">Current state: {publishStatus}</Text>
                     <Stack gap="xs">
-                        <CheckboxField
-                            label="Include rendered HTML in preview"
-                            checked={includeHtmlPreview}
-                            onCheckedChange={setIncludeHtmlPreview}
-                            disabled={isPublishing}
-                        />
-                        <CheckboxField
-                            label="Include JSON in preview"
-                            checked={includeJsonPreview}
-                            onCheckedChange={setIncludeJsonPreview}
-                            disabled={isPublishing}
-                        />
+                        <CheckboxField label="Include rendered HTML in preview" checked={includeHtmlPreview} onCheckedChange={setIncludeHtmlPreview} disabled={isPublishing} />
+                        <CheckboxField label="Include JSON in preview" checked={includeJsonPreview} onCheckedChange={setIncludeJsonPreview} disabled={isPublishing} />
                     </Stack>
                     <Stack className={styles.actions} direction="horizontal" gap="sm">
                         <Button variant="secondary" disabled={isPublishing} onClick={previewNotebook}>
@@ -369,9 +354,7 @@ export function NotebookSettingsWorkspace({
                         </Heading>
                     </Stack>
                     {!storageEnabled ? (
-                        <Text>
-                            S3 image storage is not configured yet. Open the storage form and add valid credentials to persist markdown and image assets for this notebook.
-                        </Text>
+                        <Text>S3 image storage is not configured yet. Open the storage form and add valid credentials to persist markdown and image assets for this notebook.</Text>
                     ) : (
                         <>
                             <Grid columns="two" gap="sm">

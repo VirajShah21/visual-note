@@ -32,7 +32,7 @@ test("GET maps missing token store to service unavailable", async () => {
 test("GET returns token list from dependencies", async () => {
     const tokens = [{ id: "token-1", userId: "user-1", name: "CI", tokenPrefix: "vn_mcp_", scopes: ["visual-note:mcp:read"], createdAt: "2026-01-01T00:00:00.000Z" }]
     const response = await runMcpTokenList(auth, {
-        getTokenStore: () => ({} as never),
+        getTokenStore: () => ({}) as never,
         listMcpTokens: async () => tokens as never,
         createMcpToken: async () => {
             throw new Error("should not be called")
@@ -50,7 +50,7 @@ test("GET returns token list from dependencies", async () => {
 
 test("GET maps token store failures to status 500", async () => {
     const response = await runMcpTokenList(auth, {
-        getTokenStore: () => ({} as never),
+        getTokenStore: () => ({}) as never,
         listMcpTokens: async () => {
             throw new Error("token db down")
         },
@@ -74,7 +74,7 @@ test("POST maps parse failures to their mapped status", async () => {
         body: "{}",
     })
     const response = await runMcpTokenCreate(auth, request, {
-        getTokenStore: () => ({} as never),
+        getTokenStore: () => ({}) as never,
         listMcpTokens: async () => {
             throw new Error("should not be called")
         },
@@ -96,7 +96,7 @@ test("POST maps invalid scopes to status 400", async () => {
         body: JSON.stringify({ name: "CI", scopes: ["visual-note:mcp:invalid"] }),
     })
     const response = await runMcpTokenCreate(auth, request, {
-        getTokenStore: () => ({} as never),
+        getTokenStore: () => ({}) as never,
         listMcpTokens: async () => {
             throw new Error("should not be called")
         },
@@ -120,10 +120,26 @@ test("POST returns created token payload with 201", async () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: "CI", scopes: ["visual-note:mcp:read"] }),
     })
-    const created = { token: "vn_mcp_123", record: { id: "token-1", name: "CI", tokenPrefix: "vn_mcp_" } }
+    const created = {
+        token: "vn_mcp_123",
+        record: {
+            id: "token-1",
+            userId: "user-1",
+            name: "CI",
+            tokenPrefix: "vn_mcp_",
+            scopes: ["visual-note:mcp:read"],
+            lastUsedAt: null,
+            revokedAt: null,
+            expiresAt: null,
+            createdAt: "2026-07-03T00:00:00.000Z",
+            failedAttempts: 0,
+            deniedAttempts: 0,
+            lastAttemptAt: null,
+        },
+    }
 
     const response = await runMcpTokenCreate(auth, request, {
-        getTokenStore: () => ({} as never),
+        getTokenStore: () => ({}) as never,
         listMcpTokens: async () => {
             throw new Error("should not be called")
         },

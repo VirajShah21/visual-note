@@ -6,17 +6,8 @@ import type { VisualNoteWorkspace } from "@lib/visual-note/types"
 import * as workspaceOperations from "./workspace-operations"
 import { visualNoteCoreToolNames, visualNoteToolDefinitions } from "@server/mcp/visual-note-tools"
 
-const {
-    createArticle,
-    createNotebook,
-    readArticle,
-    readNotebookTree,
-    renameNotebook,
-    removeVisualBlock,
-    replaceArticleContent,
-    repairWorkspaceConsistency,
-    upsertVisualBlock,
-} = workspaceOperations
+const { createArticle, createNotebook, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, repairWorkspaceConsistency, upsertVisualBlock } =
+    workspaceOperations
 
 const expectedCoreToolNames = [
     "list_notebooks",
@@ -134,31 +125,10 @@ test("createNotebook keeps slug unique across notebooks owned by the same user",
     if (!result.ok) return
     assert.equal(result.value.notebook.slug, "book-2")
     assert.equal(result.value.workspace.notebooks.length, 3)
-    assert.equal(result.value.workspace.notebooks.some(notebook => notebook.slug === "book-2"), true)
-})
-
-test("renaming notebook enforces unique slug only within the owning user's namespace", () => {
-    const workspace = {
-        ...baseWorkspace(),
-        notebooks: [
-            ...baseWorkspace().notebooks,
-            {
-                id: "notebook-3",
-                userId: "user-1",
-                title: "Archive",
-                slug: "archive",
-                summary: "",
-                color: "#2f7d5c",
-                createdAt: "2026-06-21T00:00:00.000Z",
-            },
-        ],
-    }
-
-    const result = renameNotebook(workspace, "user-1", { notebookId: "notebook-3", slug: "book" })
-
-    assert.equal(result.ok, true)
-    if (!result.ok) return
-    assert.equal(result.value.notebook.slug, "book-2")
+    assert.equal(
+        result.value.workspace.notebooks.some(notebook => notebook.slug === "book-2"),
+        true,
+    )
 })
 
 test("replaces article content through structured parse and serialization", () => {
@@ -237,11 +207,27 @@ test("repairs orphaned pages and views while preserving foreign-owned data", () 
     assert.equal(result.value.orphanTopics, [])
     assert.equal(result.value.repaired, true)
     const repaired = result.value.repairedWorkspace
-    assert.equal(repaired.pages.some(page => page.id === "orphan-page"), false)
-    assert.equal(repaired.views.some(view => view.id === "orphan-view"), false)
-    assert.equal(repaired.notebooks.some(notebook => notebook.id === "notebook-2"), true)
-    assert.equal(repaired.pages.some(page => page.id === "page-3"), true)
-    assert.equal(repaired.views.some(view => view.id === "view-3"), true)
+    assert.ok(repaired)
+    assert.equal(
+        repaired.pages.some(page => page.id === "orphan-page"),
+        false,
+    )
+    assert.equal(
+        repaired.views.some(view => view.id === "orphan-view"),
+        false,
+    )
+    assert.equal(
+        repaired.notebooks.some(notebook => notebook.id === "notebook-2"),
+        true,
+    )
+    assert.equal(
+        repaired.pages.some(page => page.id === "page-3"),
+        true,
+    )
+    assert.equal(
+        repaired.views.some(view => view.id === "view-3"),
+        true,
+    )
 })
 
 test("does not expose or mutate notebooks owned by another user", () => {

@@ -38,7 +38,7 @@ const pruneSearchCache = (cache: Map<string, SearchCacheEntry>) => {
 }
 
 export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualNoteAppProps) {
-    const { actions, authStatus, galleryItems, isLoading, notice, sections, selected, toastMessages, user, workspace, workspaceRecovery } =
+    const { actions, authStatus, galleryItems, isLoading, notice, sections, selected, toastMessages, user, workspace, workspaceRecovery, workspaceRevision } =
         useVisualNoteAppController(initialNotebookId)
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
     const [isExportOpen, setIsExportOpen] = useState(false)
@@ -57,18 +57,19 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     const storageSetupMissing = workspaceRecovery.message.includes(STORAGE_CONTENT_WARNING)
     const showRecoveryBanner =
         workspaceRecovery.status === "offline" || workspaceRecovery.status === "conflict" || workspaceRecovery.status === "error" || workspaceRecovery.status === "warning"
-    const recoveryActionLabel = workspaceRecovery.status === "conflict"
-        ? "Reload remote workspace"
-        : workspaceRecovery.status === "offline"
-          ? "Retry when online"
-          : storageSetupMissing
-            ? "Open notebook settings"
-            : "Retry save"
-    const recoveryAction = storageSetupMissing ? openSettings : actions.retryWorkspaceRecovery
+    const recoveryActionLabel =
+        workspaceRecovery.status === "conflict"
+            ? "Reload remote workspace"
+            : workspaceRecovery.status === "offline"
+              ? "Retry when online"
+              : storageSetupMissing
+                ? "Open notebook settings"
+                : "Retry save"
     const openExportDialog = useCallback(() => setIsExportOpen(true), [])
     const toggleSidebar = useCallback(() => setIsSidebarOpen(current => !current), [])
     const openSettings = useCallback(() => setWorkspaceView("settings"), [])
     const openEditor = useCallback(() => setWorkspaceView("editor"), [])
+    const recoveryAction = storageSetupMissing ? openSettings : actions.retryWorkspaceRecovery
 
     const runSearch = useCallback(
         async (append: boolean, signal: AbortSignal) => {
@@ -155,18 +156,23 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                 }
 
                 setSearchError(true)
-                if (append && remoteSearch?.key === searchKey) {
-                    setRemoteSearch(previous =>
-                        previous?.key === searchKey ? { ...previous, hasMore: false } : previous ?? { key: searchKey, results: [], hasMore: false },
-                    )
-                } else {
-                    setRemoteSearch({ key: searchKey, results: [], hasMore: false })
-                }
+                if (append && remoteSearch?.key === searchKey)
+                    setRemoteSearch(previous => (previous?.key === searchKey ? { ...previous, hasMore: false } : (previous ?? { key: searchKey, results: [], hasMore: false })))
+                else setRemoteSearch({ key: searchKey, results: [], hasMore: false })
             } finally {
                 if (!signal.aborted) setIsSearching(false)
             }
         },
-        [searchKey, searchQueryTrimmed, remoteSearch?.key, remoteSearch?.results.length, selected.currentSelection, selected.currentSelection.notebookId, selected.currentSelection.pageId, workspace],
+        [
+            searchKey,
+            searchQueryTrimmed,
+            remoteSearch?.key,
+            remoteSearch?.results.length,
+            selected.currentSelection,
+            selected.currentSelection.notebookId,
+            selected.currentSelection.pageId,
+            workspace,
+        ],
     )
 
     useEffect(() => {
@@ -310,9 +316,7 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                             <Card className={styles.recoveryBanner} padding="compact" role="status">
                                 <Stack direction="horizontal" gap="md" className={styles.recoveryBannerContent}>
                                     <Stack gap="xs">
-                                        <Text tone="strong">
-                                            {workspaceRecovery.status === "conflict" ? "Workspace conflict detected" : "Workspace changes are not synced"}
-                                        </Text>
+                                        <Text tone="strong">{workspaceRecovery.status === "conflict" ? "Workspace conflict detected" : "Workspace changes are not synced"}</Text>
                                         <Text size="small">{workspaceRecovery.message}</Text>
                                     </Stack>
                                     <Button variant="secondary" onClick={recoveryAction}>

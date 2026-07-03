@@ -8,7 +8,7 @@ import { listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/note
 import { deletePage, loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
 import { cleanupWorkspaceAssetOrphans, loadWorkspaceForUser } from "@/server/visual-note/workspace-store"
 import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
-import { parsePageUpdateRequest, type PageUpdateParseResult } from "./route-contract"
+import { parsePageUpdateRequest, type PageUpdateParseResult } from "../route-contract"
 
 export const runtime = "nodejs"
 
@@ -76,18 +76,12 @@ export const runPageDelete = async (auth: Authenticated, pageId: string, depende
     try {
         const candidateAssetIds = collectPrivateAssetIdsFromValue(page)
         const previousMarkdown = await dependencies.readPageMarkdown({ supabase: auth.supabase, userId: auth.userId }, page.id)
-        if (previousMarkdown) {
-            collectPrivateAssetIdsFromValue(previousMarkdown).forEach(id => candidateAssetIds.add(id))
-        }
+        if (previousMarkdown) collectPrivateAssetIdsFromValue(previousMarkdown).forEach(id => candidateAssetIds.add(id))
 
         const cleanupUpdatedBefore = new Date().toISOString()
         await dependencies.deletePage(auth.supabase, auth.userId, page.id, page.notebook_id)
         await dependencies
-            .deletePageMarkdown(
-                { supabase: auth.supabase, userId: auth.userId },
-                { notebookId: page.notebook_id, id: page.id },
-                page.content_object_key,
-            )
+            .deletePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebook_id, id: page.id }, page.content_object_key)
             .catch(() => {})
         await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore)
 
@@ -147,10 +141,7 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
 
         const objectKey = dependencies.makePageObjectKey(page.notebookId, page.id)
         const cleanupUpdatedBefore = new Date().toISOString()
-        const previousContent =
-            typeof markdown === "string"
-                ? await dependencies.readPageMarkdown({ supabase: auth.supabase, userId: auth.userId }, page.id)
-                : null
+        const previousContent = typeof markdown === "string" ? await dependencies.readPageMarkdown({ supabase: auth.supabase, userId: auth.userId }, page.id) : null
         let savedContent = false
 
         try {
@@ -176,11 +167,11 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
         } catch (error) {
             if (savedContent)
                 if (previousContent === null)
+                    await dependencies.deletePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebookId, id: page.id }, objectKey).catch(() => {})
+                else
                     await dependencies
-                        .deletePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebookId, id: page.id }, objectKey)
+                        .savePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebookId, id: page.id }, previousContent, objectKey)
                         .catch(() => {})
-                else await dependencies.savePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebookId, id: page.id }, previousContent, objectKey)
-                    .catch(() => {})
 
             return Response.json({ error: error instanceof Error ? error.message : "Unable to save page." }, { status: 500 })
         }
@@ -196,9 +187,7 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
             },
         }
 
-        if (typeof markdown === "string" && !savedContent) {
-            response.warnings = [STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT]
-        }
+        if (typeof markdown === "string" && !savedContent) response.warnings = [STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT]
 
         return Response.json(response)
     } catch (error) {

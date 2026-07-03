@@ -30,7 +30,7 @@ test("GET returns markdown payload when page content is present", async () => {
         savePageMarkdown: async () => "x",
         makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
         cleanupWorkspaceAssetOrphans: async () => [],
-    } as PageContentRouteDependencies)
+    } as unknown as PageContentRouteDependencies)
 
     assert.equal(response.status, 200)
     assert.deepEqual(await readResponseBody(response), {
@@ -47,7 +47,7 @@ test("GET maps missing content to status 404", async () => {
         savePageMarkdown: async () => "x",
         makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
         cleanupWorkspaceAssetOrphans: async () => [],
-    } as PageContentRouteDependencies)
+    } as unknown as PageContentRouteDependencies)
 
     assert.equal(response.status, 404)
     assert.deepEqual(await readResponseBody(response), { error: "Page content not found." })
@@ -61,7 +61,7 @@ test("GET returns 404 when notebook is not owned", async () => {
         savePageMarkdown: async () => "x",
         makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
         cleanupWorkspaceAssetOrphans: async () => [],
-    } as PageContentRouteDependencies)
+    } as unknown as PageContentRouteDependencies)
 
     assert.equal(response.status, 404)
     assert.deepEqual(await readResponseBody(response), { error: "Page not found." })
@@ -83,7 +83,7 @@ test("PUT updates markdown and returns content key", async () => {
             loadPageById: async () => basePageRow,
             userOwnsNotebook: async () => true,
             readPageMarkdown: async () => null,
-            savePageMarkdown: async (_, __, markdown, objectKey) => {
+            savePageMarkdown: async (_context: any, _page: any, markdown: string, objectKey: string) => {
                 received = {
                     notebookId: basePageRow.notebook_id,
                     id: basePageRow.id,
@@ -95,7 +95,7 @@ test("PUT updates markdown and returns content key", async () => {
             cleanupWorkspaceAssetOrphans: async () => {
                 cleanupCalled = true
             },
-        } as PageContentRouteDependencies,
+        } as unknown as PageContentRouteDependencies,
     )
 
     assert.equal(response.status, 200)
@@ -103,7 +103,7 @@ test("PUT updates markdown and returns content key", async () => {
         pageId: "page-1",
         contentObjectKey: "notebooks/notebook-1/pages/page-1.md",
     })
-    assert.equal(received?.markdown, "# Updated")
+    assert.equal((received as { markdown: string } | null)?.markdown, "# Updated")
     assert.equal(cleanupCalled, true)
 })
 
@@ -115,7 +115,7 @@ test("PUT maps invalid payload to status 400", async () => {
         savePageMarkdown: async () => "x",
         makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
         cleanupWorkspaceAssetOrphans: async () => [],
-    } as PageContentRouteDependencies)
+    } as unknown as PageContentRouteDependencies)
 
     assert.equal(response.status, 400)
     assert.deepEqual(await readResponseBody(response), { error: "Invalid content payload." })
@@ -139,7 +139,7 @@ test("PUT maps save failures to status 500", async () => {
             },
             makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
             cleanupWorkspaceAssetOrphans: async () => [],
-        } as PageContentRouteDependencies,
+        } as unknown as PageContentRouteDependencies,
     )
 
     assert.equal(response.status, 500)
@@ -163,7 +163,7 @@ test("PUT returns warning when notebook storage is not configured for content sa
             savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "notebooks/notebook-1/pages/page-1.md" }),
             makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
             cleanupWorkspaceAssetOrphans: async () => {},
-        } as PageContentRouteDependencies,
+        } as unknown as PageContentRouteDependencies,
     )
 
     assert.equal(response.status, 200)
@@ -190,7 +190,7 @@ test("PUT maps asset cleanup failures to status 500", async () => {
             cleanupWorkspaceAssetOrphans: async () => {
                 throw new Error("cleanup failed")
             },
-        } as PageContentRouteDependencies,
+        } as unknown as PageContentRouteDependencies,
     )
 
     assert.equal(response.status, 500)

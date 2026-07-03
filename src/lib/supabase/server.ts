@@ -45,7 +45,7 @@ export const authenticateSupabaseRequest = async (request: Request): Promise<Aut
 
     const supabase = getSupabaseServiceRoleClient()
     if (!supabase) {
-        recordVisualNoteEvent({ event: "auth.misconfigured", severity: "error", metadata: { path: new URL(request.url).pathname, reason: "missing_service_role_client" })
+        recordVisualNoteEvent({ event: "auth.misconfigured", severity: "error", metadata: { path: new URL(request.url).pathname, reason: "missing_service_role_client" } })
         return Response.json({ error: "Application database auth is not configured." }, { status: 503 })
     }
 

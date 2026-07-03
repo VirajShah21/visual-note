@@ -18,6 +18,8 @@ const defaultAssetSignRouteDependencies: AssetSignRouteDependencies = {
     loadAssetStorage,
 }
 
+type AssetSignRouteContext = { params: Promise<{ assetId: string }> }
+
 const buildExpiry = (expiresParam: string | null) => {
     const parsed = Number(expiresParam)
     if (!Number.isFinite(parsed) || parsed <= 0) return 300
@@ -25,11 +27,7 @@ const buildExpiry = (expiresParam: string | null) => {
     return Math.max(60, Math.min(3600, Math.trunc(parsed)))
 }
 
-export const runAssetSignGet = async (
-    request: Request,
-    context: RouteContext<"/api/assets/[assetId]/sign">,
-    dependencies = defaultAssetSignRouteDependencies,
-) => {
+export const runAssetSignGet = async (request: Request, context: AssetSignRouteContext, dependencies = defaultAssetSignRouteDependencies) => {
     const auth = await dependencies.authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 
@@ -54,6 +52,6 @@ export const runAssetSignGet = async (
     })
 }
 
-export async function GET(request: Request, context: RouteContext<"/api/assets/[assetId]/sign">) {
+export async function GET(request: Request, context: AssetSignRouteContext) {
     return runAssetSignGet(request, context)
 }

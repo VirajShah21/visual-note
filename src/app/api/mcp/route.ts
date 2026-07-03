@@ -107,7 +107,7 @@ export const POST = (request: Request) => handler(request)
 export const GET = (request: Request) => handler(request)
 export const runMcpHandler = handler
 
-export const OPTIONS = (request: Request, dependencies = defaultMcpRouteDependencies) => {
+export const runMcpOptions = (request: Request, dependencies = defaultMcpRouteDependencies) => {
     const originError = rejectInvalidOrigin(request)
     if (originError) return logMcpRequestFailure(request, originError, dependencies)
 
@@ -121,3 +121,5 @@ export const OPTIONS = (request: Request, dependencies = defaultMcpRouteDependen
         },
     })
 }
+
+export const OPTIONS = (request: Request) => runMcpOptions(request)

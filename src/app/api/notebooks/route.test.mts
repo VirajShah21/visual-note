@@ -50,7 +50,7 @@ const makeDependencies = (overrides: Partial<NotebooksRouteDependencies> = {}): 
     makePageObjectKey: (notebookId, pageId) => `${notebookId}/${pageId}.md`,
     renderMarkdownExport: () => "# Exported",
     resolveExportAssets: async () => ({ assets: [], assetBySource: new Map(), warnings: [] }),
-    savePageMarkdownIfConfigured: async () => ({ saved: true }),
+    savePageMarkdownIfConfigured: async () => ({ saved: true, objectKey: "notebooks/notebook-1/pages/page-1.md" }),
     upsertNotebooks: async () => {},
     upsertPages: async () => {},
     ...overrides,
@@ -178,7 +178,7 @@ test("POST creates homepage content when storage is configured", async () => {
             },
             savePageMarkdownIfConfigured: async () => {
                 pageSaved = true
-                return { saved: true }
+                return { saved: true, objectKey: "notebooks/notebook-1/pages/page-1.md" }
             },
             loadWorkspaceForUser: async () => ({
                 notebooks: [
@@ -241,7 +241,7 @@ test("POST returns warning when storage is not configured for homepage markdown"
             headers: { "content-type": "application/json" },
         }),
         makeDependencies({
-            savePageMarkdownIfConfigured: async () => ({ saved: false }),
+            savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "notebooks/notebook-1/pages/page-1.md" }),
         }),
     )
 

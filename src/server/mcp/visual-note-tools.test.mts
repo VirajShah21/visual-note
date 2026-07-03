@@ -11,13 +11,15 @@ const readToolPayload = async (name: VisualNoteToolName, scopes: string[]) => {
     return tool!.handler({ viewId: "view-1" }, {
         authInfo: {
             token: "vn_mcp_fake",
+            clientId: "client-1",
+            scopes,
             extra: {
                 userId: "user-1",
                 scopes,
                 tokenId: "token-1",
             },
         },
-    } as ToolExtra)
+    } as unknown as ToolExtra)
 }
 
 const toolPayloadWithInput = async (name: VisualNoteToolName, scopes: string[], input: Record<string, unknown>) => {
@@ -27,20 +29,23 @@ const toolPayloadWithInput = async (name: VisualNoteToolName, scopes: string[], 
     return tool!.handler(input, {
         authInfo: {
             token: "vn_mcp_fake",
+            clientId: "client-1",
+            scopes,
             extra: {
                 userId: "user-1",
                 scopes,
                 tokenId: "token-1",
             },
         },
-    } as ToolExtra)
+    } as unknown as ToolExtra)
 }
 
 type ToolHandlerResult = ReturnType<NonNullable<(typeof visualNoteToolDefinitions)[number]["handler"]>>
 
 const parsePayload = async (result: Awaited<ToolHandlerResult>) => {
-    const text = result.content?.[0]?.text
-    assert.equal(typeof text, "string")
+    const content = result.content?.[0]
+    const text = content?.type === "text" ? content.text : undefined
+    if (typeof text !== "string") throw new Error("Expected text tool result")
 
     return JSON.parse(text)
 }
@@ -59,6 +64,7 @@ test("read tools require read scope", async () => {
 test("request context accepts top-level MCP auth scopes", () => {
     const context = requestContextFrom({
         token: "vn_mcp_fake",
+        clientId: "client-1",
         scopes: [mcpScopeRead],
         extra: {
             userId: "user-1",
@@ -72,6 +78,8 @@ test("request context accepts top-level MCP auth scopes", () => {
 test("request context treats missing MCP auth scopes as empty", () => {
     const context = requestContextFrom({
         token: "vn_mcp_fake",
+        clientId: "client-1",
+        scopes: [],
         extra: {
             userId: "user-1",
             tokenId: "token-1",

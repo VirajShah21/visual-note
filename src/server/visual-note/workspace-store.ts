@@ -6,7 +6,15 @@ import { normalizeWorkspace } from "@/lib/visual-note/factories"
 import type { NotebookPage, NotebookView, Topic, VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 import { deleteNotebooksNotIn, listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
-import { deletePagesNotIn, hydrateWorkspaceFromPageRows, listPagesForUser, listPagesForUserByNotebooks, makePageObjectKey, upsertPages, type PageRow } from "@/server/visual-note/page-store"
+import {
+    deletePagesNotIn,
+    hydrateWorkspaceFromPageRows,
+    listPagesForUser,
+    listPagesForUserByNotebooks,
+    makePageObjectKey,
+    upsertPages,
+    type PageRow,
+} from "@/server/visual-note/page-store"
 import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
 import { assertWorkspaceStoreReady } from "@/server/visual-note/workspace-readiness"
 import { mergeWorkspaceFromBase } from "@/server/visual-note/workspace-merge"
@@ -81,12 +89,7 @@ export type WorkspaceSaveResult = {
     warnings: string[]
 }
 
-const restorePreviousWorkspace = async (
-    supabase: SupabaseClient,
-    userId: string,
-    saveStartedAt: string,
-    snapshot: VisualNoteWorkspace | null,
-) => {
+const restorePreviousWorkspace = async (supabase: SupabaseClient, userId: string, saveStartedAt: string, snapshot: VisualNoteWorkspace | null) => {
     if (!snapshot) return
 
     const userNotebooks = snapshot.notebooks.filter(item => item.userId === userId)
@@ -149,15 +152,14 @@ export const cleanupWorkspaceAssetOrphans = async (
     userId: string,
     workspace?: VisualNoteWorkspace,
     deleteUpdatedBefore?: string,
-) : Promise<WorkspaceAssetCleanupResult> => {
+): Promise<WorkspaceAssetCleanupResult> => {
     const current = workspace ?? (await loadWorkspaceForUser(supabase, userId))
-    if (!current) {
+    if (!current)
         return {
             deletedReferencedAssets: 0,
             deletedMissingNotebookAssets: 0,
             deletedAssetRecords: 0,
         }
-    }
 
     const notebookIds = new Set<string>(current.notebooks.filter(notebook => notebook.userId === userId).map(notebook => notebook.id))
     if (notebookIds.size === 0)
@@ -204,10 +206,7 @@ const listUserIdsWithAssetRecords = async (supabase: SupabaseClient) => {
     return [...userIds]
 }
 
-export const cleanupWorkspaceAssetOrphansForAllUsers = async (
-    supabase: SupabaseClient,
-    deleteUpdatedBefore?: string,
-): Promise<WorkspaceAssetReconciliationResult> => {
+export const cleanupWorkspaceAssetOrphansForAllUsers = async (supabase: SupabaseClient, deleteUpdatedBefore?: string): Promise<WorkspaceAssetReconciliationResult> => {
     const userIds = await listUserIdsWithAssetRecords(supabase)
     let deletedReferencedAssets = 0
     let deletedMissingNotebookAssets = 0
@@ -360,7 +359,7 @@ export const saveWorkspaceForUser = async (
             savedContent = (await savePageMarkdownIfConfigured({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, markdown, contentObjectKey)).saved
             if (!savedContent) storageWarningPages.add(page.id)
         } catch (error) {
-            if (savedContent) {
+            if (savedContent)
                 if (previousContent === null) await deletePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, contentObjectKey).catch(() => {})
                 else
                     await savePageMarkdown(
@@ -369,7 +368,6 @@ export const saveWorkspaceForUser = async (
                         previousContent,
                         existingPage?.content_object_key ?? contentObjectKey,
                     ).catch(() => {})
-            }
 
             for (const prepared of preparedPages) {
                 if (!prepared.savedContent) continue
@@ -426,17 +424,14 @@ export const saveWorkspaceForUser = async (
     }
 
     for (const prepared of preparedPages) {
-        if (prepared.existingPage?.content_object_key && prepared.existingPage.content_object_key !== prepared.contentObjectKey) {
+        if (prepared.existingPage?.content_object_key && prepared.existingPage.content_object_key !== prepared.contentObjectKey)
             await deletePageMarkdown({ supabase, userId }, { notebookId: prepared.existingPage.notebook_id, id: prepared.page.id }, prepared.existingPage.content_object_key).catch(() => {})
-        }
     }
 
     try {
         const deletedPages = await deletePagesNotIn(supabase, userId, pageIds, saveStartedAt)
         await Promise.allSettled(
-            deletedPages.map(page =>
-                deletePageMarkdown({ supabase, userId }, { notebookId: page.notebook_id, id: page.id }, page.content_object_key).catch(() => {}),
-            ),
+            deletedPages.map(page => deletePageMarkdown({ supabase, userId }, { notebookId: page.notebook_id, id: page.id }, page.content_object_key).catch(() => {})),
         )
         await cleanupWorkspaceAssetOrphans(supabase, userId, normalizedWorkspace, saveStartedAt)
         await deleteNotebooksNotIn(supabase, userId, notebookIds, saveStartedAt)
@@ -446,13 +441,14 @@ export const saveWorkspaceForUser = async (
         throw error
     }
 
-    const warnings = storageWarningPages.size > 0
-        ? [
-              `${storageWarningPages.size} page${storageWarningPages.size === 1 ? "" : "s"} did not persist markdown content because notebook storage is not configured.`,
-              STORAGE_CONTENT_WARNING,
-              STORAGE_SETUP_HINT,
-          ]
-        : []
+    const warnings =
+        storageWarningPages.size > 0
+            ? [
+                  `${storageWarningPages.size} page${storageWarningPages.size === 1 ? "" : "s"} did not persist markdown content because notebook storage is not configured.`,
+                  STORAGE_CONTENT_WARNING,
+                  STORAGE_SETUP_HINT,
+              ]
+            : []
 
     return { workspace: normalizedWorkspace, warnings }
 }

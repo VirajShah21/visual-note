@@ -9,6 +9,8 @@ const testScopes: unknown[] = ["visual-note:mcp:read", "visual-note:mcp:write"]
 test("requestContextFrom returns null when auth token is missing", () => {
     const context = requestContextFrom({
         token: "",
+        clientId: "client-1",
+        scopes: [],
         extra: {
             userId: "user-1",
         },
@@ -20,6 +22,8 @@ test("requestContextFrom returns null when auth token is missing", () => {
 test("requestContextFrom returns context when token and user are present", () => {
     const context = requestContextFrom({
         token: "vn_mcp_fake",
+        clientId: "client-1",
+        scopes: ["visual-note:mcp:read", "visual-note:mcp:write"],
         extra: {
             userId: "user-1",
             tokenId: "token-1",
@@ -45,8 +49,8 @@ test("scopeDeniedPayload includes deterministic missing fields", () => {
 })
 
 test("withWorkspaceReadResult blocks tools lacking read scope", async () => {
-    const authInfo = { token: "vn_mcp_test", extra: { userId: "user-1", scopes: [mcpScopeWrite] } }
-    const payload = await withWorkspaceReadResult({ authInfo } as ToolExtra, () => ({ ok: true, value: true } as const), {
+    const authInfo = { token: "vn_mcp_test", clientId: "client-1", scopes: [mcpScopeWrite], extra: { userId: "user-1", scopes: [mcpScopeWrite] } }
+    const payload = await withWorkspaceReadResult({ authInfo } as unknown as ToolExtra, () => ({ ok: true, value: { allowed: true } }) as const, {
         toolName: "read_notebook",
         requiredScopes: [mcpScopeRead],
     })
@@ -59,11 +63,15 @@ test("withWorkspaceReadResult blocks tools lacking read scope", async () => {
 })
 
 test("withWorkspaceMutation blocks tools lacking write scope", async () => {
-    const authInfo = { token: "vn_mcp_test", extra: { userId: "user-1", scopes: [mcpScopeRead] } }
-    const payload = await withWorkspaceMutation({ authInfo } as ToolExtra, () => ({ ok: true, value: { workspace: { notebooks: [], pages: [], topics: [], views: [] } } } as const), {
-        toolName: "create_article",
-        requiredScopes: [mcpScopeRead, mcpScopeWrite],
-    })
+    const authInfo = { token: "vn_mcp_test", clientId: "client-1", scopes: [mcpScopeRead], extra: { userId: "user-1", scopes: [mcpScopeRead] } }
+    const payload = await withWorkspaceMutation(
+        { authInfo } as unknown as ToolExtra,
+        () => ({ ok: true, value: { workspace: { notebooks: [], pages: [], topics: [], views: [] } } }) as const,
+        {
+            toolName: "create_article",
+            requiredScopes: [mcpScopeRead, mcpScopeWrite],
+        },
+    )
 
     const parsed = JSON.parse(payload.content[0].text)
     assert.equal(parsed.ok, false)

@@ -27,7 +27,7 @@ test("rejects cross-origin logouts", async () => {
 test("revokes active app session and clears cookie", async () => {
     let revokedToken: string | null = null
 
-    const response = await runLogout(new Request("https://app.test/api/auth/logout", { method: "POST", headers: { origin: "https://app.test" }), {
+    const response = await runLogout(new Request("https://app.test/api/auth/logout", { method: "POST", headers: { origin: "https://app.test" } }), {
         ...makeDependencies(),
         readSessionCookie: () => "token-1",
         revokeAppSession: async (_supabase, token) => {
@@ -43,7 +43,7 @@ test("revokes active app session and clears cookie", async () => {
 
 test("still clears cookie when no session exists", async () => {
     const response = await runLogout(
-        new Request("https://app.test/api/auth/logout", { method: "POST", headers: { origin: "https://app.test" }),
+        new Request("https://app.test/api/auth/logout", { method: "POST", headers: { origin: "https://app.test" } }),
         makeDependencies({
             readSessionCookie: () => "",
         }),
