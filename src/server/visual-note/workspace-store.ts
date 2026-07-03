@@ -423,10 +423,11 @@ export const saveWorkspaceForUser = async (
         throw error
     }
 
-    for (const prepared of preparedPages) {
+    for (const prepared of preparedPages)
         if (prepared.existingPage?.content_object_key && prepared.existingPage.content_object_key !== prepared.contentObjectKey)
-            await deletePageMarkdown({ supabase, userId }, { notebookId: prepared.existingPage.notebook_id, id: prepared.page.id }, prepared.existingPage.content_object_key).catch(() => {})
-    }
+            await deletePageMarkdown({ supabase, userId }, { notebookId: prepared.existingPage.notebook_id, id: prepared.page.id }, prepared.existingPage.content_object_key).catch(
+                () => {},
+            )
 
     try {
         const deletedPages = await deletePagesNotIn(supabase, userId, pageIds, saveStartedAt)

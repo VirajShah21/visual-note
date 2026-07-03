@@ -13,7 +13,7 @@ const readResponseBody = async (response: Response) => response.json()
 
 const baseInput: NotebookStorageSettingsInput = {
     connectionId: "connection-1",
-        connectionName: "MinIO",
+    connectionName: "MinIO",
     region: "us-east-1",
     accessKeyId: "access-1",
     secretAccessKey: "secret",
