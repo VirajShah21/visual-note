@@ -75,9 +75,9 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
     - Files: `src/app/api/pages/[pageId]/route.ts`, `src/app/api/notebooks/[notebookId]/assets/route.ts`, `src/app/api/assets/[assetId]/route.ts`, `src/server/storage/notebook-storage.ts`.
 
 6. Limited observability and operational insight
-    - No production telemetry around save conflicts, auth failures, MCP call failures, or storage errors.
-    - Incident recovery and debugging currently depends on logs and manual UI notices.
-    - Files: API routes and controllers emit generic notices without structured metrics.
+    - No centralized metrics collection/alerting for request classes, retry rates, and long-tail failure patterns.
+    - Incident recovery and debugging should move from local logs to aggregated dashboards and trend views.
+    - Files: `src/server/observability/visual-note-events.ts` and all API routes that emit high-cardinality operational events.
 
 ## Critical feature gaps
 
