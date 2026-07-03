@@ -88,6 +88,18 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
     - `src/app/api/notebooks/[notebookId]/publish/route.test.mts`
 17. Added CI workflow for automated quality gates (format, lint, type-check, tests, build).
     - `.github/workflows/ci.yml`
+18. Added search result caching and offline fallback behavior for notebook discovery.
+    - `src/features/visual-note/visual-note-app/visual-note-app.tsx`
+    - `src/features/visual-note/visual-note-app/utils/notebook-search.ts`
+    - `src/lib/visual-note/storage-messages.ts`
+19. Standardized storage-setup warning copy and setup guidance across storage writes and autosave surfaces.
+    - `src/app/api/notebooks/route.ts`
+    - `src/app/api/pages/[pageId]/route.ts`
+    - `src/app/api/pages/[pageId]/content/route.ts`
+    - `src/features/visual-note/visual-note-app/hooks/use-visual-note-workspace-autosave.ts`
+    - `src/server/visual-note/page-content-store.ts`
+    - `src/server/visual-note/workspace-store.ts`
+    - `src/lib/visual-note/storage-messages.ts`
 
 ## Current risks (should be addressed first)
 
@@ -95,16 +107,7 @@ No risks currently listed in this section.
 
 ## Critical feature gaps
 
-1. Search, filtering, and discoverability scale
-    - Search now uses the notebook search API and paginated query windows, but no indexed/offline-friendly query strategy exists yet.
-    - Large workspaces still need deeper query indexing and offline caches to avoid repeated content fetch costs.
-    - Files: `src/features/visual-note/visual-note-app.tsx`, `src/features/visual-note/visual-note-app/utils/notebook-search.ts`, `src/server/visual-note/notebook-search-store.ts`.
-
-2. Storage UX blocked without explicit setup
-    - Notebook content persistence is coupled to per-notebook S3 configuration.
-    - `savePageMarkdown` throws until storage is configured, causing content creation routes to fail in partially onboarded accounts.
-    - Requires onboarding improvements and clearer setup guidance.
-    - Files: `src/server/storage/notebook-storage.ts`, `src/app/api/notebooks/route.ts`, `src/app/api/pages/[pageId]/route.ts`, `src/features/visual-note/visual-note-app.tsx`.
+No critical feature gaps remain in this list after the latest fixes.
 ## Developer and quality gaps
 
 1. Tooling and release automation missing
