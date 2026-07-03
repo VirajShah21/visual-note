@@ -1,14 +1,8 @@
 import { authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
 import { searchNotebookForUser } from "@/server/visual-note/notebook-search-store"
+import { parseSearchRequest } from "./route-contract"
 
 export const runtime = "nodejs"
-
-const numericParam = (value: string | null) => {
-    if (!value) return undefined
-
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : undefined
-}
 
 export async function GET(request: Request, context: RouteContext<"/api/notebooks/[notebookId]/search">) {
     const auth = await authenticateSupabaseRequest(request)
@@ -17,16 +11,15 @@ export async function GET(request: Request, context: RouteContext<"/api/notebook
     const { notebookId } = await context.params
     if (!(await userOwnsNotebook(auth, notebookId))) return Response.json({ error: "Notebook not found." }, { status: 404 })
 
-    const url = new URL(request.url)
-    const query = url.searchParams.get("q") ?? ""
-    const currentPageId = url.searchParams.get("currentPageId") ?? undefined
-
     try {
+        const parsed = parseSearchRequest(request)
+        if (!parsed.ok) return Response.json({ error: parsed.error }, { status: parsed.status })
+
         const response = await searchNotebookForUser(auth.supabase, auth.userId, notebookId, {
-            currentPageId,
-            limit: numericParam(url.searchParams.get("limit")),
-            offset: numericParam(url.searchParams.get("offset")),
-            query,
+            currentPageId: parsed.input.currentPageId,
+            limit: parsed.input.limit,
+            offset: parsed.input.offset,
+            query: parsed.input.query,
         })
 
         return Response.json(response)
