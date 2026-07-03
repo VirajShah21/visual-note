@@ -3,15 +3,14 @@ import { createExportDocument } from "@/lib/visual-note/export/document"
 import { renderMarkdownExport } from "@/lib/visual-note/export/markdown"
 import { resolveExportAssets } from "@/lib/visual-note/export/assets"
 import { normalizeWorkspace } from "@/lib/visual-note/factories"
-import type { NotebookPage, VisualNoteWorkspace } from "@/lib/visual-note/types"
+import type { NotebookPage, NotebookView, Topic, VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { deleteNotebooksNotIn, listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
-import { deletePagesNotIn, hydrateWorkspaceFromPageRows, listPagesForUser, listPagesForUserByNotebooks, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
+import { deletePagesNotIn, hydrateWorkspaceFromPageRows, listPagesForUser, listPagesForUserByNotebooks, makePageObjectKey, upsertPages, type PageRow } from "@/server/visual-note/page-store"
 import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
 import { assertWorkspaceStoreReady } from "@/server/visual-note/workspace-readiness"
 import { mergeWorkspaceFromBase } from "@/server/visual-note/workspace-merge"
 import { listWorkspaceSnapshotsForUser, upsertWorkspaceSnapshotsForUser } from "@/server/visual-note/workspace-snapshot-store"
 import { deleteAssetObjects, deleteAssetsNotInNotebooks, deleteAssetsNotReferencedByWorkspace } from "@/server/storage/notebook-asset-cleanup"
-import { deleteS3Object } from "@/server/storage/s3"
 
 type SupabaseRecord = {
     id: string
@@ -185,42 +184,96 @@ export const saveWorkspaceForUser = async (
 
     await upsertNotebooks(supabase, userId, normalizedWorkspace.notebooks)
 
-    for (const page of normalizedWorkspace.pages.filter((entry: NotebookPage) => notebookIds.has(entry.notebookId))) {
+    const relevantPages = normalizedWorkspace.pages.filter((entry: NotebookPage) => notebookIds.has(entry.notebookId))
+    const preparedPages: Array<{
+        page: NotebookPage
+        notebookId: string
+        topics: Topic[]
+        views: NotebookView[]
+        contentObjectKey: string
+        existingPage?: PageRow
+        savedContent: boolean
+        previousContent: string | null
+    }> = []
+
+    for (const page of relevantPages) {
         const contentObjectKey = makePageObjectKey(page.notebookId, page.id)
         const topics = normalizedWorkspace.topics.filter(topic => topic.pageId === page.id)
         const topicIds = new Set<string>(topics.map(topic => topic.id))
         const views = normalizedWorkspace.views.filter(view => topicIds.has(view.topicId))
         const markdown = await pageMarkdownFromWorkspace(normalizedWorkspace, page.id)
         const existingPage = existingPageById.get(page.id)
-        const existingNotebookId = existingPage?.notebook_id ?? page.notebookId
         const previousContent = existingPage ? await readPageMarkdown({ supabase, userId }, page.id) : null
         let savedContent = false
 
         try {
             savedContent = (await savePageMarkdownIfConfigured({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, markdown, contentObjectKey)).saved
-            await upsertPages(supabase, userId, [
-                {
-                    page,
-                    notebookId: page.notebookId,
-                    topics,
-                    views,
-                    contentObjectKey,
-                },
-            ])
         } catch (error) {
-            if (savedContent && existingPage) {
+            if (savedContent) {
                 if (previousContent === null) await deletePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, contentObjectKey).catch(() => {})
-                else await savePageMarkdown({ supabase, userId }, { notebookId: existingNotebookId, id: page.id }, previousContent, existingPage.content_object_key).catch(() => {})
+                else
+                    await savePageMarkdown(
+                        { supabase, userId },
+                        { notebookId: existingPage?.notebook_id ?? page.notebookId, id: page.id },
+                        previousContent,
+                        existingPage?.content_object_key ?? contentObjectKey,
+                    ).catch(() => {})
+            }
 
-                if (existingPage.content_object_key !== contentObjectKey)
-                    await deletePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, contentObjectKey).catch(() => {})
-            } else if (savedContent) await deletePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, contentObjectKey).catch(() => {})
+            for (const prepared of preparedPages) {
+                if (!prepared.savedContent) continue
 
+                const originalNotebookId = prepared.existingPage?.notebook_id ?? prepared.notebookId
+                if (prepared.previousContent === null)
+                    await deletePageMarkdown({ supabase, userId }, { notebookId: prepared.notebookId, id: prepared.page.id }, prepared.contentObjectKey).catch(() => {})
+                else
+                    await savePageMarkdown(
+                        { supabase, userId },
+                        { notebookId: originalNotebookId, id: prepared.page.id },
+                        prepared.previousContent,
+                        prepared.existingPage?.content_object_key ?? prepared.contentObjectKey,
+                    ).catch(() => {})
+            }
             throw error
         }
 
-        if (existingPage?.content_object_key && existingPage?.content_object_key !== contentObjectKey)
-            await deletePageMarkdown({ supabase, userId }, { notebookId: existingNotebookId, id: page.id }, existingPage.content_object_key).catch(() => {})
+        preparedPages.push({ page, notebookId: page.notebookId, topics, views, contentObjectKey, existingPage, savedContent, previousContent })
+    }
+
+    try {
+        await upsertPages(
+            supabase,
+            userId,
+            preparedPages.map(page => ({
+                page: page.page,
+                notebookId: page.notebookId,
+                topics: page.topics,
+                views: page.views,
+                contentObjectKey: page.contentObjectKey,
+            })),
+        )
+    } catch (error) {
+        for (const prepared of preparedPages) {
+            if (!prepared.savedContent) continue
+
+            if (prepared.previousContent === null)
+                await deletePageMarkdown({ supabase, userId }, { notebookId: prepared.notebookId, id: prepared.page.id }, prepared.contentObjectKey).catch(() => {})
+            else
+                await savePageMarkdown(
+                    { supabase, userId },
+                    { notebookId: prepared.existingPage?.notebook_id ?? prepared.notebookId, id: prepared.page.id },
+                    prepared.previousContent,
+                    prepared.existingPage?.content_object_key ?? prepared.contentObjectKey,
+                ).catch(() => {})
+        }
+
+        throw error
+    }
+
+    for (const prepared of preparedPages) {
+        if (prepared.existingPage?.content_object_key && prepared.existingPage.content_object_key !== prepared.contentObjectKey) {
+            await deletePageMarkdown({ supabase, userId }, { notebookId: prepared.existingPage.notebook_id, id: prepared.page.id }, prepared.existingPage.content_object_key).catch(() => {})
+        }
     }
 
     const deletedPages = await deletePagesNotIn(supabase, userId, pageIds, saveStartedAt)
