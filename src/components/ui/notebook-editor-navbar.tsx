@@ -197,12 +197,7 @@ export function NotebookEditorNavbar({
                         )}
 
                         {searchHasMore ? (
-                            <Button
-                                className={styles.searchLoadMore}
-                                disabled={searchLoading}
-                                onClick={handleSearchLoadMore}
-                                variant="secondary"
-                            >
+                            <Button className={styles.searchLoadMore} disabled={searchLoading} onClick={handleSearchLoadMore} variant="secondary">
                                 Load more results
                             </Button>
                         ) : null}

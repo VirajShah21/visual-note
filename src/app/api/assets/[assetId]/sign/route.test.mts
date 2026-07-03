@@ -51,30 +51,42 @@ test("GET signs a private asset URL", async () => {
 })
 
 test("GET maps unsigned storage access to 404", async () => {
-    const response = await runAssetSignGet(new Request("https://visual-note.test/api/assets/missing/sign"), { params: Promise.resolve({ assetId: "missing" }) } as AssetSignRouteContext, {
-        ...makeDependencies(),
-        loadAssetStorage: async () => null,
-    })
+    const response = await runAssetSignGet(
+        new Request("https://visual-note.test/api/assets/missing/sign"),
+        { params: Promise.resolve({ assetId: "missing" }) } as AssetSignRouteContext,
+        {
+            ...makeDependencies(),
+            loadAssetStorage: async () => null,
+        },
+    )
 
     assert.equal(response.status, 404)
     assert.equal((await readResponseBody(response)).error, "Asset not found.")
 })
 
 test("GET maps missing signing secret to 503", async () => {
-    const response = await runAssetSignGet(new Request("https://visual-note.test/api/assets/asset-1/sign"), { params: Promise.resolve({ assetId: "asset-1" }) } as AssetSignRouteContext, {
-        ...makeDependencies(),
-        createSignedAssetUrl: () => "",
-    })
+    const response = await runAssetSignGet(
+        new Request("https://visual-note.test/api/assets/asset-1/sign"),
+        { params: Promise.resolve({ assetId: "asset-1" }) } as AssetSignRouteContext,
+        {
+            ...makeDependencies(),
+            createSignedAssetUrl: () => "",
+        },
+    )
 
     assert.equal(response.status, 503)
     assert.equal((await readResponseBody(response)).error, "Asset signing is not configured.")
 })
 
 test("GET maps missing storage service to 503", async () => {
-    const response = await runAssetSignGet(new Request("https://visual-note.test/api/assets/asset-1/sign"), { params: Promise.resolve({ assetId: "asset-1" }) } as AssetSignRouteContext, {
-        ...makeDependencies(),
-        getSupabaseServiceRoleClient: () => null,
-    })
+    const response = await runAssetSignGet(
+        new Request("https://visual-note.test/api/assets/asset-1/sign"),
+        { params: Promise.resolve({ assetId: "asset-1" }) } as AssetSignRouteContext,
+        {
+            ...makeDependencies(),
+            getSupabaseServiceRoleClient: () => null,
+        },
+    )
 
     assert.equal(response.status, 503)
     assert.equal((await readResponseBody(response)).error, "Server database access is not configured for storage routes.")
