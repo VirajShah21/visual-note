@@ -32,6 +32,7 @@ const defaultWorkspaceRouteDependencies: WorkspaceRouteDependencies = {
 export const runWorkspaceLoad = async (auth: Authenticated, dependencies = defaultWorkspaceRouteDependencies) => {
     try {
         const { workspace, revision } = await dependencies.loadWorkspaceForUserWithRevision(auth.supabase, auth.userId)
+        dependencies.logEvent({ event: "workspace.load_success", severity: "info", userId: auth.userId })
         return Response.json({ workspace, revision }, { headers: { ETag: `"${revision}"` } })
     } catch (error) {
         dependencies.logEvent({ event: "workspace.load_failed", severity: "error", userId: auth.userId, error })
@@ -56,6 +57,7 @@ export const runWorkspaceSave = async (auth: Authenticated, parsed: WorkspaceSav
     try {
         await dependencies.saveWorkspaceForUser(auth.supabase, auth.userId, parsed.workspace, parsed.revision, parsed.baseWorkspace)
         const nextRevision = await dependencies.resolveWorkspaceRevision(auth.supabase, auth.userId)
+        dependencies.logEvent({ event: "workspace.save_success", severity: "info", userId: auth.userId, metadata: { nextRevision } })
         return Response.json({ revision: nextRevision })
     } catch (error) {
         if (dependencies.isWorkspaceIntegrityError(error)) {
