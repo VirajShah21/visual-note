@@ -11,12 +11,13 @@ type MetricsEvent = {
 const readResponseBody = async (response: Response) => response.json()
 
 type ObservabilityDependencies = Parameters<typeof runObservabilityMetricsGet>[1]
+type RecordVisualNoteEvent = ObservabilityDependencies["recordVisualNoteEvent"]
 
 const runWithToken = (request: Request, events: MetricsEvent[], token = "maintenance-token") =>
     runObservabilityMetricsGet(request, {
         getMaintenanceToken: () => token,
         getSupabaseServiceRoleClient: () => ({}) as never,
-        recordVisualNoteEvent: (event: any) => {
+        recordVisualNoteEvent: (event: Parameters<RecordVisualNoteEvent>[0]) => {
             events.push(event)
         },
         snapshotVisualNoteMetrics: () => ({

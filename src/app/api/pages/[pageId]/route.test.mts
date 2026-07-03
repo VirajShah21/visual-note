@@ -42,6 +42,11 @@ const parseContext = {
 } as unknown as PageUpdateParseResult
 
 const readResponseBody = async (response: Response) => response.json()
+type NormalizeNotebookEditorSettings = PageRouteDependencies["normalizeNotebookEditorSettings"]
+type UpsertNotebooks = PageRouteDependencies["upsertNotebooks"]
+type UpsertPages = PageRouteDependencies["upsertPages"]
+type DeleteAssetRecord = NonNullable<PageRouteDependencies["deleteAssetRecord"]>
+type PageUpsertRow = Parameters<UpsertPages>[2][number]
 
 const basePageRow = {
     id: "page-1",
@@ -61,7 +66,7 @@ test("GET returns page payload when owner exists", async () => {
         userOwnsNotebook: async () => true,
         listNotebooksForUser: async () => [],
         upsertNotebooks: async () => {},
-        normalizeNotebookEditorSettings: (value: any) => value ?? {},
+        normalizeNotebookEditorSettings: (value: Parameters<NormalizeNotebookEditorSettings>[0]) => value ?? {},
         makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
         readPageMarkdown: async () => "existing",
         savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "x" }),
@@ -84,7 +89,7 @@ test("GET returns 404 when page cannot be found or owned", async () => {
         userOwnsNotebook: async () => false,
         listNotebooksForUser: async () => [],
         upsertNotebooks: async () => {},
-        normalizeNotebookEditorSettings: (value: any) => value ?? {},
+        normalizeNotebookEditorSettings: (value: Parameters<NormalizeNotebookEditorSettings>[0]) => value ?? {},
         makePageObjectKey: () => "",
         readPageMarkdown: async () => "x",
         savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "x" }),
@@ -103,7 +108,7 @@ test("GET returns 404 when page cannot be found or owned", async () => {
         userOwnsNotebook: async () => false,
         listNotebooksForUser: async () => [],
         upsertNotebooks: async () => {},
-        normalizeNotebookEditorSettings: (value: any) => value ?? {},
+        normalizeNotebookEditorSettings: (value: Parameters<NormalizeNotebookEditorSettings>[0]) => value ?? {},
         makePageObjectKey: () => "",
         readPageMarkdown: async () => "x",
         savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "x" }),
@@ -124,7 +129,7 @@ test("DELETE returns 404 for missing page", async () => {
         userOwnsNotebook: async () => false,
         listNotebooksForUser: async () => [],
         upsertNotebooks: async () => {},
-        normalizeNotebookEditorSettings: (value: any) => value ?? {},
+        normalizeNotebookEditorSettings: (value: Parameters<NormalizeNotebookEditorSettings>[0]) => value ?? {},
         makePageObjectKey: () => "",
         readPageMarkdown: async () => null,
         savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "x" }),
@@ -145,7 +150,7 @@ test("DELETE maps deletion failures to status 500", async () => {
         userOwnsNotebook: async () => true,
         listNotebooksForUser: async () => [],
         upsertNotebooks: async () => {},
-        normalizeNotebookEditorSettings: (value: any) => value ?? {},
+        normalizeNotebookEditorSettings: (value: Parameters<NormalizeNotebookEditorSettings>[0]) => value ?? {},
         makePageObjectKey: () => "",
         readPageMarkdown: async () => null,
         savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "x" }),
@@ -168,7 +173,7 @@ test("PUT maps invalid payload to status 400", async () => {
         userOwnsNotebook: async () => true,
         listNotebooksForUser: async () => [],
         upsertNotebooks: async () => {},
-        normalizeNotebookEditorSettings: (value: any) => value ?? {},
+        normalizeNotebookEditorSettings: (value: Parameters<NormalizeNotebookEditorSettings>[0]) => value ?? {},
         makePageObjectKey: () => "",
         readPageMarkdown: async () => null,
         savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "x" }),
@@ -189,7 +194,7 @@ test("PUT returns warnings when notebook storage is not configured for page cont
         userOwnsNotebook: async () => true,
         listNotebooksForUser: async () => [],
         upsertNotebooks: async () => {},
-        normalizeNotebookEditorSettings: (value: any) => value ?? {},
+        normalizeNotebookEditorSettings: (value: Parameters<NormalizeNotebookEditorSettings>[0]) => value ?? {},
         makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
         readPageMarkdown: async () => null,
         savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "notebooks/notebook-1/pages/page-1.md" }),
@@ -208,7 +213,7 @@ test("PUT returns warnings when notebook storage is not configured for page cont
 
 test("PUT creates missing page using existing notebook lookup", async () => {
     const upsertedNotebooks: Array<Record<string, unknown>> = []
-    const upsertedPages: any[] = []
+    const upsertedPages: PageUpsertRow[] = []
     const response = await runPageSave(auth, parseContext, {
         loadPageById: async () => null,
         userOwnsNotebook: async () => true,
@@ -224,14 +229,14 @@ test("PUT creates missing page using existing notebook lookup", async () => {
                 editorSettings: { blockInfo: "show", contents: "hide-title" },
             } as never,
         ],
-        upsertNotebooks: async (_supabase: any, _userId: string, notebooks: any[]) => {
+        upsertNotebooks: async (_supabase: Parameters<UpsertNotebooks>[0], _userId: string, notebooks: Parameters<UpsertNotebooks>[2]) => {
             upsertedNotebooks.push(...notebooks)
         },
-        normalizeNotebookEditorSettings: (value: any) => value,
+        normalizeNotebookEditorSettings: (value: Parameters<NormalizeNotebookEditorSettings>[0]) => value,
         makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
         readPageMarkdown: async () => null,
         savePageMarkdownIfConfigured: async () => ({ saved: true, objectKey: "x" }),
-        upsertPages: async (_supabase: any, _userId: string, rows: any[]) => {
+        upsertPages: async (_supabase: Parameters<UpsertPages>[0], _userId: string, rows: Parameters<UpsertPages>[2]) => {
             upsertedPages.push(...rows)
         },
         savePageMarkdown: async () => "x",
@@ -255,7 +260,7 @@ test("PUT rolls back page markdown on content write + database failure", async (
         userOwnsNotebook: async () => true,
         listNotebooksForUser: async () => [],
         upsertNotebooks: async () => {},
-        normalizeNotebookEditorSettings: (value: any) => value ?? {},
+        normalizeNotebookEditorSettings: (value: Parameters<NormalizeNotebookEditorSettings>[0]) => value ?? {},
         makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
         readPageMarkdown: async () => null,
         savePageMarkdownIfConfigured: async () => ({ saved: true, objectKey: "notebooks/notebook-1/pages/page-1.md" }),
@@ -286,7 +291,7 @@ test("DELETE clears page markdown and triggers workspace asset cleanup", async (
         userOwnsNotebook: async () => true,
         listNotebooksForUser: async () => [],
         upsertNotebooks: async () => {},
-        normalizeNotebookEditorSettings: (value: any) => value ?? {},
+        normalizeNotebookEditorSettings: (value: Parameters<NormalizeNotebookEditorSettings>[0]) => value ?? {},
         makePageObjectKey: () => "",
         readPageMarkdown: async () => null,
         savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "x" }),
@@ -316,7 +321,7 @@ test("DELETE deletes unreferenced asset records after page delete", async () => 
         userOwnsNotebook: async () => true,
         listNotebooksForUser: async () => [],
         upsertNotebooks: async () => {},
-        normalizeNotebookEditorSettings: (value: any) => value ?? {},
+        normalizeNotebookEditorSettings: (value: Parameters<NormalizeNotebookEditorSettings>[0]) => value ?? {},
         makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
         readPageMarkdown: async () => "![Delete](/api/assets/asset-delete)\n![Keep](/api/assets/asset-keep)",
         savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "x" }),
@@ -343,7 +348,7 @@ test("DELETE deletes unreferenced asset records after page delete", async () => 
                 views: [{ id: "view-2", topicId: "topic-2", title: "Another", mode: "article", content: "![Keep](/api/assets/asset-keep)", displays: [] }],
                 snapshots: [],
             }) as never,
-        deleteAssetRecord: async (_supabase: any, _userId: string, assetId: string) => {
+        deleteAssetRecord: async (_supabase: Parameters<DeleteAssetRecord>[0], _userId: string, assetId: string) => {
             deletedAssetIds.push(assetId)
             return { id: assetId }
         },
@@ -361,7 +366,7 @@ test("DELETE maps workspace cleanup failures to status 500", async () => {
         userOwnsNotebook: async () => true,
         listNotebooksForUser: async () => [],
         upsertNotebooks: async () => {},
-        normalizeNotebookEditorSettings: (value: any) => value ?? {},
+        normalizeNotebookEditorSettings: (value: Parameters<NormalizeNotebookEditorSettings>[0]) => value ?? {},
         makePageObjectKey: () => "",
         readPageMarkdown: async () => null,
         savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "x" }),

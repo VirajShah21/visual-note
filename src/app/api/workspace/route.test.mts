@@ -12,10 +12,11 @@ const workspace = {
 
 const authContext = {
     userId: "user-1",
-    supabase: {} as any,
+    supabase: {} as never,
 }
 
 const readResponseBody = async (response: Response) => response.json()
+type WorkspaceLogEvent = WorkspaceRouteDependencies["logEvent"]
 
 test("GET returns workspace data and revision from dependencies", async () => {
     const events: Array<{ event: string; userId?: string; severity?: string; metadata?: unknown }> = []
@@ -24,7 +25,7 @@ test("GET returns workspace data and revision from dependencies", async () => {
         loadWorkspaceForUserWithRevision: async () => ({ workspace, revision: "v1|notebooks:0:0|pages:0:0" }),
         resolveWorkspaceRevision: async () => "v1",
         saveWorkspaceForUser: async () => ({}) as never,
-        logEvent: (event: any) => {
+        logEvent: (event: Parameters<WorkspaceLogEvent>[0]) => {
             events.push(event)
         },
         isWorkspaceConflictError: () => false,
@@ -168,7 +169,7 @@ test("PUT maps unknown save failures to status 500", async () => {
             saveWorkspaceForUser: async () => {
                 throw new Error("database down")
             },
-            logEvent: (event: any) => {
+            logEvent: (event: Parameters<WorkspaceLogEvent>[0]) => {
                 events.push(event)
             },
             isWorkspaceConflictError: () => false,
@@ -200,7 +201,7 @@ test("PUT logs workspace save success for successful saves", async () => {
             loadWorkspaceForUserWithRevision: async () => ({ workspace, revision: "v1" }),
             resolveWorkspaceRevision: async () => "v2",
             saveWorkspaceForUser: async () => ({}) as never,
-            logEvent: (event: any) => {
+            logEvent: (event: Parameters<WorkspaceLogEvent>[0]) => {
                 events.push(event)
             },
             isWorkspaceConflictError: () => false,
@@ -231,7 +232,7 @@ test("GET auth failures are logged with workspace.auth_failed", async () => {
         loadWorkspaceForUserWithRevision: async () => ({ workspace: { notebooks: [], pages: [], topics: [], views: [] }, revision: "v1" }),
         resolveWorkspaceRevision: async () => "v1",
         saveWorkspaceForUser: async () => ({}) as never,
-        logEvent: (event: any) => {
+        logEvent: (event: Parameters<WorkspaceLogEvent>[0]) => {
             events.push(event)
         },
         isWorkspaceConflictError: () => false,
@@ -256,7 +257,7 @@ test("PUT auth failures are logged with workspace.auth_failed", async () => {
         loadWorkspaceForUserWithRevision: async () => ({ workspace: { notebooks: [], pages: [], topics: [], views: [] }, revision: "v1" }),
         resolveWorkspaceRevision: async () => "v1",
         saveWorkspaceForUser: async () => ({}) as never,
-        logEvent: (event: any) => {
+        logEvent: (event: Parameters<WorkspaceLogEvent>[0]) => {
             events.push(event)
         },
         isWorkspaceConflictError: () => false,

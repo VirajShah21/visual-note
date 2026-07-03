@@ -3,6 +3,8 @@ import test from "node:test"
 import { runAssetSignGet } from "./route"
 import type { AssetSignRouteDependencies } from "./route"
 
+type AssetSignRouteContext = Parameters<typeof runAssetSignGet>[1]
+
 const authContext = {
     userId: "user-1",
     supabase: {} as never,
@@ -38,7 +40,7 @@ const makeDependencies = (overrides: Partial<AssetSignRouteDependencies> = {}): 
 test("GET signs a private asset URL", async () => {
     const response = await runAssetSignGet(
         new Request("https://visual-note.test/api/assets/asset-1/sign?ttlSeconds=180"),
-        { params: Promise.resolve({ assetId: "asset-1" }) } as any,
+        { params: Promise.resolve({ assetId: "asset-1" }) } as AssetSignRouteContext,
         makeDependencies(),
     )
 
@@ -49,7 +51,7 @@ test("GET signs a private asset URL", async () => {
 })
 
 test("GET maps unsigned storage access to 404", async () => {
-    const response = await runAssetSignGet(new Request("https://visual-note.test/api/assets/missing/sign"), { params: Promise.resolve({ assetId: "missing" }) } as any, {
+    const response = await runAssetSignGet(new Request("https://visual-note.test/api/assets/missing/sign"), { params: Promise.resolve({ assetId: "missing" }) } as AssetSignRouteContext, {
         ...makeDependencies(),
         loadAssetStorage: async () => null,
     })
@@ -59,7 +61,7 @@ test("GET maps unsigned storage access to 404", async () => {
 })
 
 test("GET maps missing signing secret to 503", async () => {
-    const response = await runAssetSignGet(new Request("https://visual-note.test/api/assets/asset-1/sign"), { params: Promise.resolve({ assetId: "asset-1" }) } as any, {
+    const response = await runAssetSignGet(new Request("https://visual-note.test/api/assets/asset-1/sign"), { params: Promise.resolve({ assetId: "asset-1" }) } as AssetSignRouteContext, {
         ...makeDependencies(),
         createSignedAssetUrl: () => "",
     })
@@ -69,7 +71,7 @@ test("GET maps missing signing secret to 503", async () => {
 })
 
 test("GET maps missing storage service to 503", async () => {
-    const response = await runAssetSignGet(new Request("https://visual-note.test/api/assets/asset-1/sign"), { params: Promise.resolve({ assetId: "asset-1" }) } as any, {
+    const response = await runAssetSignGet(new Request("https://visual-note.test/api/assets/asset-1/sign"), { params: Promise.resolve({ assetId: "asset-1" }) } as AssetSignRouteContext, {
         ...makeDependencies(),
         getSupabaseServiceRoleClient: () => null,
     })

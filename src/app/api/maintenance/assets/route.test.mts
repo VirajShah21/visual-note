@@ -8,6 +8,8 @@ type TestEvent = {
     event: string
 }
 
+type RecordVisualNoteEvent = AssetCleanupDependencies["recordVisualNoteEvent"]
+
 test("POST returns 503 when maintenance token is not configured", async () => {
     const response = await runAssetCleanup(new Request("http://visual-note.test/api/maintenance/assets", { method: "POST" }), {
         cleanupWorkspaceAssetOrphans: async () => ({ deletedReferencedAssets: 0, deletedMissingNotebookAssets: 0, deletedAssetRecords: 0 }),
@@ -84,7 +86,7 @@ test("POST runs global cleanup and emits event", async () => {
             }),
             getMaintenanceToken: () => "maintenance-token",
             getSupabaseServiceRoleClient: () => ({}) as never,
-            recordVisualNoteEvent: (event: any) => {
+            recordVisualNoteEvent: (event: Parameters<RecordVisualNoteEvent>[0]) => {
                 events.push(event)
             },
         } as unknown as AssetCleanupDependencies,

@@ -9,6 +9,7 @@ const auth = {
 } as Authenticated
 
 const readResponseBody = async (response: Response) => response.json()
+type SavePageMarkdown = PageContentRouteDependencies["savePageMarkdown"]
 
 const basePageRow = {
     id: "page-1",
@@ -83,7 +84,7 @@ test("PUT updates markdown and returns content key", async () => {
             loadPageById: async () => basePageRow,
             userOwnsNotebook: async () => true,
             readPageMarkdown: async () => null,
-            savePageMarkdown: async (_context: any, _page: any, markdown: string, objectKey: string) => {
+            savePageMarkdown: async (_context: Parameters<SavePageMarkdown>[0], _page: Parameters<SavePageMarkdown>[1], markdown: string, objectKey: string) => {
                 received = {
                     notebookId: basePageRow.notebook_id,
                     id: basePageRow.id,

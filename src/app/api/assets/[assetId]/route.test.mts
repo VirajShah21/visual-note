@@ -3,6 +3,8 @@ import { Readable } from "node:stream"
 import test from "node:test"
 import { runAssetGet, type AssetRouteDependencies } from "./route"
 
+type AssetRouteContext = Parameters<typeof runAssetGet>[1]
+
 const authContext = {
     userId: "user-1",
     supabase: {} as never,
@@ -84,7 +86,7 @@ const makeDependencies = (overrides: Partial<AssetRouteDependencies> = {}): Asse
 })
 
 test("GET returns asset stream on successful private read", async () => {
-    const response = await runAssetGet(new Request("https://visual-note.test/api/assets/asset-1"), { params: Promise.resolve({ assetId: "asset-1" }) } as any, {
+    const response = await runAssetGet(new Request("https://visual-note.test/api/assets/asset-1"), { params: Promise.resolve({ assetId: "asset-1" }) } as AssetRouteContext, {
         ...makeDependencies(),
     })
 
@@ -97,7 +99,7 @@ test("GET rejects cross-site unsigned reads", async () => {
         new Request("https://visual-note.test/api/assets/asset-1", {
             headers: { "sec-fetch-site": "cross-site", Origin: "https://evil.example" },
         }),
-        { params: Promise.resolve({ assetId: "asset-1" }) } as any,
+        { params: Promise.resolve({ assetId: "asset-1" }) } as AssetRouteContext,
         makeDependencies({
             isAssetRequestAllowedByOrigin: () => false,
         }),
@@ -110,7 +112,7 @@ test("GET rejects cross-site unsigned reads", async () => {
 test("GET allows signed requests even from cross-site referers", async () => {
     const response = await runAssetGet(
         createSignedRequest("asset-1"),
-        { params: Promise.resolve({ assetId: "asset-1" }) } as any,
+        { params: Promise.resolve({ assetId: "asset-1" }) } as AssetRouteContext,
         makeDependencies({ verifySignedAssetRequest: () => true }),
     )
 
@@ -118,7 +120,7 @@ test("GET allows signed requests even from cross-site referers", async () => {
 })
 
 test("GET maps unsupported types to status 415", async () => {
-    const response = await runAssetGet(new Request("https://visual-note.test/api/assets/asset-1"), { params: Promise.resolve({ assetId: "asset-1" }) } as any, {
+    const response = await runAssetGet(new Request("https://visual-note.test/api/assets/asset-1"), { params: Promise.resolve({ assetId: "asset-1" }) } as AssetRouteContext, {
         ...makeDependencies(),
         isAllowedImageContentType: () => false,
     })
@@ -128,7 +130,7 @@ test("GET maps unsupported types to status 415", async () => {
 })
 
 test("GET maps not found to status 404", async () => {
-    const response = await runAssetGet(new Request("https://visual-note.test/api/assets/missing"), { params: Promise.resolve({ assetId: "missing" }) } as any, {
+    const response = await runAssetGet(new Request("https://visual-note.test/api/assets/missing"), { params: Promise.resolve({ assetId: "missing" }) } as AssetRouteContext, {
         ...makeDependencies(),
         loadAssetStorage: async () => null,
     })
