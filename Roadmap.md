@@ -122,6 +122,7 @@ No risks currently listed in this section.
 ## Critical feature gaps
 
 No critical feature gaps remain in this list after the latest fixes.
+
 ## Developer and quality gaps
 
 No remaining developer and quality risks remain in this section after these fixes.
@@ -130,38 +131,58 @@ No remaining developer and quality risks remain in this section after these fixe
 
 ### Q1 (Stability and correctness)
 
-1. Add transaction-like save orchestration for workspace + content writes (idempotent staging and rollback semantics).
-2. Add workspace versioning/ETag and reject stale saves.
-3. Add conflict-aware merge strategy for concurrent editors.
-4. Enforce MCP scopes on every tool action.
-5. Rework local fallback behavior into explicit offline mode with explicit recovery UX.
-6. Add deterministic migration verification for environments still onboarding normalized storage.
+Completed by the current roadmap cleanup:
+
+1. Added transaction-like workspace save orchestration with revision validation and optimistic conflict handling.
+2. Added workspace versioning/revision rejection for stale saves.
+3. Added explicit conflict recovery state for concurrent workspace updates.
+4. Enforced MCP scopes on tool actions.
+5. Reworked local fallback behavior into explicit offline and recovery UX.
+6. Removed legacy normalized-storage fallback paths and covered onboarding readiness with clearer setup failures.
 
 ### Q2 (Security and platform)
 
-1. Expand auth controls: rate limiting, brute-force protection, session invalidation policy, better CSRF protections where relevant.
-2. Add storage hygiene: delete asset records and remote objects when notebook/page/topic/view data is removed.
-3. Add upload hardening (MIME allowlist checks beyond prefix, scan path, lifecycle cleanup).
-4. Add signing/expiring asset access pattern for private media.
+Completed by the current roadmap cleanup:
+
+1. Expanded auth controls with login abuse protection and session hardening.
+2. Added storage hygiene for page-level and workspace-level orphan asset cleanup.
+3. Added maintenance cleanup endpoints for periodic orphan reconciliation.
+4. Added signing/expiring asset access for private media.
+
+Remaining product hardening:
+
+1. Add deeper upload scanning beyond current MIME allowlist checks when production infrastructure is selected.
 
 ### Q3 (Product quality and collaboration)
 
+Completed by the current roadmap cleanup:
+
+1. Added search result caching and offline fallback behavior for notebook discovery.
+2. Added notebook publish preview/apply workflow with persistence and test coverage.
+3. Added explicit setup UX copy for storage configuration and graceful degraded behavior.
+
+Remaining product roadmap:
+
 1. Implement server-side notebook/topic/view pagination and filtered search APIs.
-2. Add publish snapshots/versioning and shareable notebook revisions.
-3. Add publish workflow preview and approval flow for versioned snapshots.
-4. Add explicit setup UX for storage configuration and graceful degraded mode.
+2. Add publish snapshot history and shareable notebook revisions.
 
 ### Q4 (Scale and confidence)
 
-1. Add comprehensive route tests (auth + mutation edges + storage errors).
-2. Add integration E2E for auth + notebook create/edit + page save + asset upload + export.
-3. Add observability (request error taxonomy, retry counters, save failure metrics, MCP request auditing).
-4. Add CI pipeline for lint/typecheck/tests/build/security checks.
+Completed by the current roadmap cleanup:
+
+1. Added route tests across auth, MCP token, workspace health, asset delivery, signed assets, and publish workflow boundaries.
+2. Added structured workspace/auth/MCP event telemetry and operational metrics readback.
+3. Added CI workflow and unified repo QA entrypoints for format, lint, type-check, tests, and build.
+
+Remaining confidence roadmap:
+
+1. Add integration E2E for auth + notebook create/edit + page save + asset upload + export.
+2. Add security checks to the automated release gate once the security tooling choice is finalized.
 
 ## Suggested next immediate actions (first 2 sprints)
 
-1. Implement scoped MCP tool authorization + add MCP token usage audit.
-2. Add background/periodic orphaned-asset reconciliation outside mutation paths.
-3. Add centralized metrics collection, alerting, and dashboards for save/retry/error classes.
-4. Add route-level tests for auth + `/api/workspace`, `/api/pages`, `/api/notebooks/[id]/assets`, and `/api/notebooks/[id]/storage-settings`.
-5. Add migration readiness checks for teams with partial schema/config onboarding and fail fast with clear setup guidance.
+1. Add integration E2E coverage for auth + notebook create/edit + page save + asset upload + export.
+2. Implement server-side notebook/topic/view pagination and filtered search APIs.
+3. Add publish snapshot history and shareable notebook revision URLs.
+4. Choose and wire production upload scanning for private media.
+5. Add security checks to `npm run qa`/CI once the security tooling choice is finalized.
