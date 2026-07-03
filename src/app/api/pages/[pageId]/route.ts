@@ -41,9 +41,10 @@ export async function DELETE(request: Request, context: RouteContext<"/api/pages
     if (!(await userOwnsNotebook(auth, page.notebook_id))) return Response.json({ error: "Page not found." }, { status: 404 })
 
     try {
+        const cleanupUpdatedBefore = new Date().toISOString()
         await deletePage(auth.supabase, auth.userId, page.id, page.notebook_id)
         await deletePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebook_id, id: page.id }, page.content_object_key).catch(() => {})
-        await cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId).catch(() => {})
+        await cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore).catch(() => {})
     } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "Unable to delete page." }, { status: 500 })
     }
