@@ -31,7 +31,13 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     const appAuthReady = authStatus === "ready"
     const storageSetupMissing = workspaceRecovery.message.includes("Configure notebook storage before saving page content to MinIO.")
     const showRecoveryBanner = workspaceRecovery.status === "offline" || workspaceRecovery.status === "conflict" || workspaceRecovery.status === "error"
-    const recoveryActionLabel = workspaceRecovery.status === "conflict" ? "Reload remote workspace" : storageSetupMissing ? "Open notebook settings" : "Retry save"
+    const recoveryActionLabel = workspaceRecovery.status === "conflict"
+        ? "Reload remote workspace"
+        : workspaceRecovery.status === "offline"
+          ? "Retry when online"
+          : storageSetupMissing
+            ? "Open notebook settings"
+            : "Retry save"
     const recoveryAction = storageSetupMissing ? openSettings : actions.retryWorkspaceRecovery
     const openExportDialog = useCallback(() => setIsExportOpen(true), [])
     const toggleSidebar = useCallback(() => setIsSidebarOpen(current => !current), [])
