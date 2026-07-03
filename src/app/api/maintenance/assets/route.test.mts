@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { runAssetCleanup } from "./route"
 
-type AssetCleanupDependencies = Parameters<typeof runAssetCleanup>[1]
+type AssetCleanupDependencies = NonNullable<Parameters<typeof runAssetCleanup>[1]>
 
 type TestEvent = {
     event: string

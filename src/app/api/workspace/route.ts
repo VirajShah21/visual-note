@@ -1,5 +1,6 @@
 import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest } from "@/lib/supabase/server"
-import { loadWorkspaceForUserWithRevision, resolveWorkspaceRevision, saveWorkspaceForUser } from "@/server/visual-note/workspace-store"
+import { resolveWorkspaceRevision } from "@/server/visual-note/workspace-revision-store"
+import { loadWorkspaceForUserWithRevision, saveWorkspaceForUser } from "@/server/visual-note/workspace-store"
 import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
 import { isWorkspaceConflictError, parseWorkspaceSaveRequest } from "./route-contract"
 

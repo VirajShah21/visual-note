@@ -1,5 +1,6 @@
 import { authenticateSupabaseMutationRequest, userOwnsNotebook } from "@/lib/supabase/server"
-import { loadWorkspaceForUser, resolveWorkspaceRevision, saveWorkspaceForUser } from "@/server/visual-note/workspace-store"
+import { resolveWorkspaceRevision } from "@/server/visual-note/workspace-revision-store"
+import { loadWorkspaceForUser, saveWorkspaceForUser } from "@/server/visual-note/workspace-store"
 import { exportPublishBundle, publishNotebook } from "@/server/visual-note/workspace-operations"
 import { parsePublishRequest } from "./route-contract"
 

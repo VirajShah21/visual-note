@@ -10,7 +10,7 @@ type MetricsEvent = {
 
 const readResponseBody = async (response: Response) => response.json()
 
-type ObservabilityDependencies = Parameters<typeof runObservabilityMetricsGet>[1]
+type ObservabilityDependencies = NonNullable<Parameters<typeof runObservabilityMetricsGet>[1]>
 type RecordVisualNoteEvent = ObservabilityDependencies["recordVisualNoteEvent"]
 
 const runWithToken = (request: Request, events: MetricsEvent[], token = "maintenance-token") =>

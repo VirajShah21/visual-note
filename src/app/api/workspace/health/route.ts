@@ -1,7 +1,8 @@
 import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest } from "@/lib/supabase/server"
 import { createEmptyWorkspace } from "@/lib/visual-note/factories"
 import { repairWorkspaceConsistency, workspaceHealthCheck } from "@/server/visual-note/workspace-operations"
-import { loadWorkspaceForUser, resolveWorkspaceRevision, saveWorkspaceForUser } from "@/server/visual-note/workspace-store"
+import { resolveWorkspaceRevision } from "@/server/visual-note/workspace-revision-store"
+import { loadWorkspaceForUser, saveWorkspaceForUser } from "@/server/visual-note/workspace-store"
 import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
 
 export const runtime = "nodejs"
