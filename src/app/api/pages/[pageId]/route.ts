@@ -8,7 +8,7 @@ import { listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/note
 import { deletePage, loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
 import { cleanupWorkspaceAssetOrphans, loadWorkspaceForUser } from "@/server/visual-note/workspace-store"
 import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
-import { parsePageUpdateRequest, type PageUpdateParseResult } from "../route-contract"
+import { parsePageUpdateRequest, type PageUpdateParseResult } from "@app/api/pages/route-contract"
 
 export const runtime = "nodejs"
 

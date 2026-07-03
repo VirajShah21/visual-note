@@ -1,6 +1,6 @@
 import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, getSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { createMcpToken, InvalidMcpScopeError, listMcpTokens, validateAndNormalizeMcpScopes } from "@/server/mcp/token-store"
-import { parseMcpTokenCreateRequest } from "../route-contract"
+import { parseMcpTokenCreateRequest } from "@app/api/mcp/route-contract"
 
 export const runtime = "nodejs"
 
