@@ -24,7 +24,18 @@ export async function PUT(request: Request) {
 
     try {
         const parsed = await parseWorkspaceSaveRequest(request)
-        if (!parsed.ok) return Response.json({ error: parsed.error }, { status: parsed.status })
+        if (!parsed.ok) {
+            recordVisualNoteEvent({
+                event: "workspace.save_request_invalid",
+                severity: "warn",
+                userId: auth.userId,
+                metadata: {
+                    reason: parsed.error,
+                    status: parsed.status,
+                },
+            })
+            return Response.json({ error: parsed.error }, { status: parsed.status })
+        }
 
         await saveWorkspaceForUser(auth.supabase, auth.userId, parsed.workspace, parsed.revision, parsed.baseWorkspace)
         const nextRevision = await resolveWorkspaceRevision(auth.supabase, auth.userId)
