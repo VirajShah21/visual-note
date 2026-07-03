@@ -23,6 +23,9 @@ export const parseWorkspaceSaveRequest = async (request: Request): Promise<Works
     const body = (await request.json().catch(() => null)) as WorkspaceSaveBody | null
     if (!body?.workspace) return { ok: false, error: "Workspace is required.", status: 400 }
     if (body.revision != null && typeof body.revision !== "string") return { ok: false, error: "Revision must be a string.", status: 400 }
+    if (body.baseWorkspace != null && !body.revision && !parseIfMatchRevision(request.headers.get("if-match"))) {
+        return { ok: false, error: "Revision is required when baseWorkspace is provided.", status: 400 }
+    }
 
     const ifMatch = parseIfMatchRevision(request.headers.get("if-match"))
     if (request.headers.get("if-match") && ifMatch === null) return { ok: false, error: "Invalid If-Match revision header.", status: 400 }

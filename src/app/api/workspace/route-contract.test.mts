@@ -55,6 +55,21 @@ test("normalizes accepted workspace save revisions", async () => {
     assert.equal(parsed.revision, "revision-1")
 })
 
+test("requires revision with baseWorkspace", async () => {
+    const parsed = await parseWorkspaceSaveRequest(
+        workspaceRequest({
+            workspace,
+            baseWorkspace: workspace,
+        }),
+    )
+
+    assert.deepEqual(parsed, {
+        ok: false,
+        error: "Revision is required when baseWorkspace is provided.",
+        status: 400,
+    })
+})
+
 test("rejects invalid If-Match revision headers", async () => {
     const request = new Request("http://visual-note.test/api/workspace", {
         body: JSON.stringify({ workspace }),
@@ -83,6 +98,24 @@ test("rejects mismatched revision and If-Match header", async () => {
         error: "Revision in payload must match If-Match header.",
         status: 400,
     })
+})
+
+test("accepts baseWorkspace with valid If-Match header", async () => {
+    const parsed = await parseWorkspaceSaveRequest(
+        new Request("http://visual-note.test/api/workspace", {
+            body: JSON.stringify({ workspace, baseWorkspace: workspace }),
+            method: "PUT",
+            headers: {
+                "if-match": '"revision-header"',
+            },
+        }),
+    )
+
+    assert.equal(parsed.ok, true)
+    if (!parsed.ok) return
+
+    assert.equal(parsed.revision, "revision-header")
+    assert.equal(parsed.baseWorkspace, workspace)
 })
 
 test("accepts revision from a valid If-Match header", async () => {
