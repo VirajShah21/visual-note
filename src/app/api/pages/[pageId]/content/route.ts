@@ -1,15 +1,18 @@
 import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
 import { loadPageById, makePageObjectKey } from "@/server/visual-note/page-store"
-import { readPageMarkdown, savePageMarkdown } from "@/server/visual-note/page-content-store"
+import { readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
 import { cleanupWorkspaceAssetOrphans } from "@/server/visual-note/workspace-store"
 
 type Authenticated = { supabase: Parameters<typeof readPageMarkdown>[0]["supabase"]; userId: string }
+
+const storageConfigurationError = "Configure notebook storage before saving page content to MinIO."
 
 type PageContentRouteDependencies = {
     loadPageById: typeof loadPageById
     userOwnsNotebook: typeof userOwnsNotebook
     readPageMarkdown: typeof readPageMarkdown
     savePageMarkdown: typeof savePageMarkdown
+    savePageMarkdownIfConfigured?: typeof savePageMarkdownIfConfigured
     makePageObjectKey: typeof makePageObjectKey
     cleanupWorkspaceAssetOrphans: typeof cleanupWorkspaceAssetOrphans
 }
@@ -19,6 +22,7 @@ const defaultPageContentRouteDependencies: PageContentRouteDependencies = {
     userOwnsNotebook,
     readPageMarkdown,
     savePageMarkdown,
+    savePageMarkdownIfConfigured,
     makePageObjectKey,
     cleanupWorkspaceAssetOrphans,
 }
@@ -53,11 +57,26 @@ export const runContentPut = async (auth: Authenticated, request: Request, pageI
 
     const objectKey = dependencies.makePageObjectKey(page.notebook_id, page.id)
     const cleanupUpdatedBefore = new Date().toISOString()
+    const savePageMarkdownWithFallback = dependencies.savePageMarkdownIfConfigured ?? dependencies.savePageMarkdown
+    const warnings: string[] = []
 
     try {
-        await dependencies.savePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebook_id, id: page.id }, markdown, objectKey)
+        const uploadResult = await savePageMarkdownWithFallback(
+            { supabase: auth.supabase, userId: auth.userId },
+            { notebookId: page.notebook_id, id: page.id },
+            markdown,
+            objectKey,
+        )
+        if (!uploadResult.saved) warnings.push(storageConfigurationError)
         await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore)
-        return Response.json({ pageId, contentObjectKey: objectKey })
+
+        const response = {
+            pageId,
+            contentObjectKey: objectKey,
+            ...(warnings.length > 0 ? { warnings } : {}),
+        }
+
+        return Response.json(response)
     } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "Unable to save page content." }, { status: 500 })
     }

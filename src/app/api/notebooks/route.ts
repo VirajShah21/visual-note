@@ -105,6 +105,7 @@ export const runNotebooksPost = async (auth: Authenticated, request: Request, de
 
         const notebook = dependencies.createNotebook(auth.userId, parse.data.title)
         const now = new Date().toISOString()
+        const warnings: string[] = []
         const createdNotebook = {
             ...notebook,
             summary: parse.data.summary?.trim() || notebook.summary,
@@ -146,12 +147,13 @@ export const runNotebooksPost = async (auth: Authenticated, request: Request, de
                 markdown,
                 dependencies.makePageObjectKey(createdNotebook.id, page.id),
             )
-            if (!uploadResult.saved) return Response.json({ error: storageConfigurationError }, { status: 400 })
+            if (!uploadResult.saved) warnings.push(storageConfigurationError)
         }
 
         const detail = await dependencies.loadWorkspaceForUser(auth.supabase, auth.userId)
         const created = detail?.notebooks.find(item => item.id === createdNotebook.id) ?? createdNotebook
-        return Response.json({ notebook: created, workspace: detail })
+        const response = { notebook: created, workspace: detail, ...(warnings.length > 0 ? { warnings } : {}) }
+        return Response.json(response)
     } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "Unable to create notebook." }, { status: 500 })
     }

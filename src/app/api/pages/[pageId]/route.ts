@@ -163,7 +163,6 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
                     objectKey,
                 )
                 savedContent = uploadResult.saved
-                if (!uploadResult.saved) return Response.json({ error: storageConfigurationError }, { status: 400 })
             }
 
             await dependencies.upsertPages(auth.supabase, auth.userId, [
@@ -188,7 +187,7 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
         }
         await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore)
 
-        return Response.json({
+        const response: { page: { id: string; notebookId: string; title: string; position: number; contentObjectKey: string }; warnings?: string[] } = {
             page: {
                 id: page.id,
                 notebookId: page.notebookId,
@@ -196,7 +195,13 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
                 position: page.position,
                 contentObjectKey: objectKey,
             },
-        })
+        }
+
+        if (typeof markdown === "string" && !savedContent) {
+            response.warnings = [storageConfigurationError]
+        }
+
+        return Response.json(response)
     } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "Unable to save page." }, { status: 500 })
     }
