@@ -80,10 +80,24 @@ export const useVisualNoteWorkspaceAutosave = ({
         setWorkspaceRecovery({ message: "Workspace changes are waiting for remote save.", status: "saving" })
 
         saveTimeoutRef.current = setTimeout(() => {
+            const trimmedRevision = workspaceRevision?.trim()
+            if (!trimmedRevision) {
+                hasActiveSaveErrorRef.current = true
+                const recovery = {
+                    message: "Workspace revision is missing. Reload the workspace to continue saving.",
+                    status: "error" as const,
+                }
+
+                setWorkspaceRecovery(recovery)
+                setNotice(recovery.message)
+                pushToast("Workspace save blocked", recovery.message, "error")
+                return
+            }
+
             void saveVisualNoteWorkspace(workspace, {
                 baseWorkspace,
                 signal: abortController.signal,
-                revision: workspaceRevision,
+                revision: trimmedRevision,
             })
                 .then(response => {
                     if (saveRequestIdRef.current !== requestId) return

@@ -63,13 +63,17 @@ export const openWorkspaceForUser = async ({
         setNotice("Workspace changes are saved to the Visual Note workspace store.")
         pushToast("Workspace opened", "Changes will save to the workspace database.", "info")
     } catch {
+        const offlineMessage = typeof navigator !== "undefined" && !navigator.onLine
+            ? "You appear to be offline. Workspace sync is paused until connection returns."
+            : "Unable to open workspace. Please retry after signing in."
+
         hasActiveSaveErrorRef.current = false
         setWorkspace(null)
         setSelection(blankSelection)
         setWorkspaceRevision(null)
-        setWorkspaceRecovery({ message: "Unable to open workspace. Please retry after signing in.", status: "error" })
-        setNotice("Unable to open workspace. Please retry after signing in.")
-        pushToast("Unable to open workspace", "Remote workspace load failed. Changes will not save yet.", "error")
+        setWorkspaceRecovery({ message: offlineMessage, status: offlineMessage.startsWith("You appear") ? "offline" : "error" })
+        setNotice(offlineMessage)
+        pushToast("Unable to open workspace", `${offlineMessage} Changes will not save yet.`, "error")
     }
 }
 

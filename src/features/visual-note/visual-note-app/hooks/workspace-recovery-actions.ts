@@ -34,6 +34,13 @@ export const retryWorkspaceRecovery = async ({
     workspaceRevision,
 }: RetryWorkspaceRecoveryOptions) => {
     if (!user) return
+    if (!workspaceRevision?.trim()) {
+        setWorkspaceRecovery({ message: "Workspace revision is missing. Reloading workspace before retrying save.", status: "error" })
+        setNotice("Workspace revision is missing. Reloading workspace before retrying save.")
+        await openWorkspaceForUser(user)
+        return
+    }
+
     if (workspaceRecovery.status === "conflict") {
         await openWorkspaceForUser(user)
         return
