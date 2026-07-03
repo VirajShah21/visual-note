@@ -20,6 +20,22 @@ const readToolPayload = async (name: VisualNoteToolName, scopes: string[]) => {
     } as ToolExtra)
 }
 
+const toolPayloadWithInput = async (name: VisualNoteToolName, scopes: string[], input: Record<string, unknown>) => {
+    const tool = visualNoteToolDefinitions.find(entry => entry.name === name)
+    assert.equal(Boolean(tool), true)
+
+    return tool!.handler(input, {
+        authInfo: {
+            token: "vn_mcp_fake",
+            extra: {
+                userId: "user-1",
+                scopes,
+                tokenId: "token-1",
+            },
+        },
+    } as ToolExtra)
+}
+
 type ToolHandlerResult = ReturnType<NonNullable<(typeof visualNoteToolDefinitions)[number]["handler"]>>
 
 const parsePayload = async (result: Awaited<ToolHandlerResult>) => {
@@ -100,6 +116,18 @@ test("write tool returns deterministic forbidden payload when scope is missing",
     assert.equal(payload.error, "forbidden")
     assert.equal(payload.tool, "create_notebook")
     assert.deepEqual(payload.requiredScopes, [mcpScopeWrite])
+    assert.deepEqual(payload.scopeSatisfied, [mcpScopeRead])
+    assert.deepEqual(payload.missingScopes, [mcpScopeWrite])
+})
+
+test("workspace snapshot tools require read and write scopes", async () => {
+    const result = await toolPayloadWithInput("restore_workspace_snapshot", [mcpScopeRead], { snapshotId: "snapshot-1" })
+    const payload = await parsePayload(result)
+
+    assert.equal(payload.ok, false)
+    assert.equal(payload.error, "forbidden")
+    assert.equal(payload.tool, "restore_workspace_snapshot")
+    assert.deepEqual(payload.requiredScopes, [mcpScopeRead, mcpScopeWrite])
     assert.deepEqual(payload.scopeSatisfied, [mcpScopeRead])
     assert.deepEqual(payload.missingScopes, [mcpScopeWrite])
 })
