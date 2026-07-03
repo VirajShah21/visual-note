@@ -43,6 +43,7 @@ export async function DELETE(request: Request, context: RouteContext<"/api/pages
     try {
         await deletePage(auth.supabase, auth.userId, page.id, page.notebook_id)
         await deletePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebook_id, id: page.id }, page.content_object_key).catch(() => {})
+        await cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId).catch(() => {})
     } catch (error) {
         return Response.json({ error: error instanceof Error ? error.message : "Unable to delete page." }, { status: 500 })
     }
@@ -96,6 +97,7 @@ export async function PUT(request: Request, context: RouteContext<"/api/pages/[p
     }
 
     const objectKey = makePageObjectKey(page.notebookId, page.id)
+    const cleanupUpdatedBefore = new Date().toISOString()
     const previousContent = typeof markdown === "string" ? await readPageMarkdown({ supabase: auth.supabase, userId: auth.userId }, pageId) : null
     let savedContent = false
 
@@ -121,7 +123,7 @@ export async function PUT(request: Request, context: RouteContext<"/api/pages/[p
 
         return Response.json({ error: error instanceof Error ? error.message : "Unable to save page." }, { status: 500 })
     }
-    await cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId).catch(() => {})
+    await cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore).catch(() => {})
 
     return Response.json({
         page: {

@@ -40,8 +40,9 @@ export async function PUT(request: Request, context: RouteContext<"/api/pages/[p
     if (markdown === null) return Response.json({ error: "Invalid content payload." }, { status: 400 })
 
     const objectKey = makePageObjectKey(page.notebook_id, page.id)
+    const cleanupUpdatedBefore = new Date().toISOString()
     await savePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebook_id, id: page.id }, markdown, objectKey)
-    await cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId).catch(() => {})
+    await cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore).catch(() => {})
 
     return Response.json({ pageId, contentObjectKey: objectKey })
 }
