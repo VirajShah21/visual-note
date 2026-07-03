@@ -75,6 +75,7 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
     - `src/app/api/workspace/health/route.test.mts`
     - `src/app/api/assets/[assetId]/route.ts`
     - `src/app/api/assets/[assetId]/route.test.mts`
+    - `src/components/ui/notebook-settings-workspace.tsx`
 15. Added CI workflow for automated quality gates (format, lint, type-check, tests, build).
     - `.github/workflows/ci.yml`
 
@@ -85,27 +86,22 @@ No risks currently listed in this section.
 ## Critical feature gaps
 
 1. Search, filtering, and discoverability scale
-    - Search is implemented in-memory on the loaded workspace; no indexed/offline-friendly query strategy.
-    - Large workspaces will degrade quickly without server-side filtering/pagination and field indexes in API queries.
-    - Files: `src/features/visual-note/visual-note-app.tsx`, `src/features/visual-note/visual-note-app/utils/notebook-search.ts`.
+    - Search now uses the notebook search API and paginated query windows, but no indexed/offline-friendly query strategy exists yet.
+    - Large workspaces still need deeper query indexing and offline caches to avoid repeated content fetch costs.
+    - Files: `src/features/visual-note/visual-note-app.tsx`, `src/features/visual-note/visual-note-app/utils/notebook-search.ts`, `src/server/visual-note/notebook-search-store.ts`.
 
 2. Incomplete publish/export workflow
     - Export supports markdown/web/json generation paths but there is no persisted publish state and no preview/approval chain.
     - There is no versioned snapshot or public sharing mode tied to notebook configuration.
     - Files: `src/lib/visual-note/export/*`, `src/server/visual-note/workspace-operations/exports.ts`.
 
-3. No workspace recovery UI for health checks
-    - Health/repair logic has API access (`workspaceHealthCheck`, `repairWorkspaceConsistency`) but is not surfaced as visible UI action.
-    - Inconsistencies can continue to accumulate silently.
-    - Files: `src/server/visual-note/workspace-operations/health.ts`.
-
-4. Storage UX blocked without explicit setup
+3. Storage UX blocked without explicit setup
     - Notebook content persistence is coupled to per-notebook S3 configuration.
     - `savePageMarkdown` throws until storage is configured, causing content creation routes to fail in partially onboarded accounts.
     - Requires onboarding improvements and clearer setup guidance.
     - Files: `src/server/storage/notebook-storage.ts`, `src/app/api/notebooks/route.ts`, `src/app/api/pages/[pageId]/route.ts`, `src/features/visual-note/visual-note-app.tsx`.
 
-5. Weak asset delivery security model
+4. Weak asset delivery security model
     - Asset fetch uses authenticated routes and short cache but no explicit content validation/virus scanning hooks.
     - No anti-hotlinking or signed URL policy and no size/type hardening beyond upload route checks.
     - Files: `src/app/api/assets/[assetId]/route.ts`, `src/app/api/notebooks/[notebookId]/assets/route.ts`.
@@ -148,7 +144,7 @@ No risks currently listed in this section.
 
 1. Implement server-side notebook/topic/view pagination and filtered search APIs.
 2. Add publish snapshots/versioning and shareable notebook revisions.
-3. Surface workspace health and repair in UI with user-confirmed cleanup.
+3. Add publish workflow preview and approval flow for versioned snapshots.
 4. Add explicit setup UX for storage configuration and graceful degraded mode.
 
 ### Q4 (Scale and confidence)
