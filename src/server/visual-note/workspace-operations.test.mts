@@ -6,7 +6,8 @@ import type { VisualNoteWorkspace } from "@lib/visual-note/types"
 import * as workspaceOperations from "./workspace-operations"
 import { visualNoteCoreToolNames, visualNoteToolDefinitions } from "@server/mcp/visual-note-tools"
 
-const { createArticle, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, upsertVisualBlock } = workspaceOperations
+const { createArticle, createNotebook, readArticle, readNotebookTree, renameNotebook, removeVisualBlock, replaceArticleContent, upsertVisualBlock } =
+    workspaceOperations
 
 const expectedCoreToolNames = [
     "list_notebooks",
@@ -115,6 +116,40 @@ test("creates or reuses notebook page-topic paths and updates article content", 
     assert.equal(result.value.createdView, true)
     assert.equal(result.value.workspace.pages.length, workspace.pages.length)
     assert.match(result.value.view.content, /## Reused/)
+})
+
+test("createNotebook keeps slug unique across notebooks owned by the same user", () => {
+    const result = createNotebook(baseWorkspace(), "user-1", { title: "Book" })
+
+    assert.equal(result.ok, true)
+    if (!result.ok) return
+    assert.equal(result.value.notebook.slug, "book-2")
+    assert.equal(result.value.workspace.notebooks.length, 3)
+    assert.equal(result.value.workspace.notebooks.some(notebook => notebook.slug === "book-2"), true)
+})
+
+test("renaming notebook enforces unique slug only within the owning user's namespace", () => {
+    const workspace = {
+        ...baseWorkspace(),
+        notebooks: [
+            ...baseWorkspace().notebooks,
+            {
+                id: "notebook-3",
+                userId: "user-1",
+                title: "Archive",
+                slug: "archive",
+                summary: "",
+                color: "#2f7d5c",
+                createdAt: "2026-06-21T00:00:00.000Z",
+            },
+        ],
+    }
+
+    const result = renameNotebook(workspace, "user-1", { notebookId: "notebook-3", slug: "book" })
+
+    assert.equal(result.ok, true)
+    if (!result.ok) return
+    assert.equal(result.value.notebook.slug, "book-2")
 })
 
 test("replaces article content through structured parse and serialization", () => {
