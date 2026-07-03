@@ -1,40 +1,36 @@
-name: CI
+name: ci
 
 on:
-    pull_request:
     push:
         branches:
             - main
-            - fix/**
-            - codex/**
+            - "feature/*"
+            - "fix/*"
+            - "release/*"
+    pull_request:
+        branches:
+            - main
 
 jobs:
-    verify:
+    test-and-lint:
         runs-on: ubuntu-latest
         steps:
-            - name: Checkout
+            - name: Checkout repository
               uses: actions/checkout@v4
-
-            - name: Setup Node
+            - name: Setup Node.js
               uses: actions/setup-node@v4
               with:
-                  node-version: 24
+                  node-version: 22
                   cache: npm
-
             - name: Install dependencies
               run: npm ci
-
-            - name: Lint
-              run: npm run lint:check
-
-            - name: Check formatting
+            - name: Verify formatting
               run: npm run format:check
-
-            - name: Type check
+            - name: Verify linting
+              run: npm run lint:check
+            - name: Run type-check
               run: npm run type-check
-
-            - name: Test
-              run: npm test
-
-            - name: Build
+            - name: Run full tests
+              run: npm run test
+            - name: Build project
               run: npm run build

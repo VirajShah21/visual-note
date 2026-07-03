@@ -75,6 +75,8 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
     - `src/app/api/workspace/health/route.test.mts`
     - `src/app/api/assets/[assetId]/route.ts`
     - `src/app/api/assets/[assetId]/route.test.mts`
+15. Added CI workflow for automated quality gates (format, lint, type-check, tests, build).
+    - `.github/workflows/ci.yml`
 
 ## Current risks (should be addressed first)
 
@@ -111,8 +113,6 @@ No risks currently listed in this section.
 ## Developer and quality gaps
 
 1. Tooling and release automation missing
-    - No CI pipeline files or GitHub actions are present in-tree.
-    - No full test command that runs all checks together; `lint` only runs auto-fix.
     - Build/lint/test gating is manual and inconsistent across environments.
     - Files: `package.json`, repo root.
 
