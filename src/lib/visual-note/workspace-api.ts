@@ -52,6 +52,7 @@ export const loadVisualNoteWorkspaceState = async (): Promise<VisualNoteWorkspac
 }
 
 type SaveVisualNoteWorkspaceOptions = {
+    baseWorkspace?: VisualNoteWorkspace | null
     signal?: AbortSignal
     revision?: string | null
 }
@@ -72,6 +73,7 @@ export const saveVisualNoteWorkspace = async (workspace: VisualNoteWorkspace, op
         },
         signal: options.signal,
         body: JSON.stringify({
+            baseWorkspace: options.baseWorkspace ?? null,
             workspace,
             revision: options.revision ?? null,
         }),

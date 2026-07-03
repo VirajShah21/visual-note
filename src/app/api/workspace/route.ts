@@ -23,12 +23,12 @@ export async function PUT(request: Request) {
     if (auth instanceof Response) return auth
 
     try {
-        const body = (await request.json().catch(() => null)) as { workspace?: VisualNoteWorkspace; revision?: string | null } | null
+        const body = (await request.json().catch(() => null)) as { baseWorkspace?: VisualNoteWorkspace; workspace?: VisualNoteWorkspace; revision?: string | null } | null
         if (!body?.workspace) return Response.json({ error: "Workspace is required." }, { status: 400 })
         if (body.revision != null && typeof body.revision !== "string") return Response.json({ error: "Revision must be a string." }, { status: 400 })
 
         const revision = body.revision?.trim()
-        await saveWorkspaceForUser(auth.supabase, auth.userId, body.workspace, revision || undefined)
+        await saveWorkspaceForUser(auth.supabase, auth.userId, body.workspace, revision || undefined, body.baseWorkspace)
         const nextRevision = await resolveWorkspaceRevision(auth.supabase, auth.userId)
         return Response.json({ revision: nextRevision })
     } catch (error) {

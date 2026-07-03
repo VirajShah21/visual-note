@@ -8,6 +8,7 @@ import { deleteNotebooksNotIn, listNotebooksForUser, upsertNotebooks } from "@/s
 import { deletePagesNotIn, hydrateWorkspaceFromPageRows, listPagesForUser, listPagesForUserByNotebooks, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
 import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
 import { assertWorkspaceStoreReady } from "@/server/visual-note/workspace-readiness"
+import { mergeWorkspaceFromBase } from "@/server/visual-note/workspace-merge"
 import { listWorkspaceSnapshotsForUser, upsertWorkspaceSnapshotsForUser } from "@/server/visual-note/workspace-snapshot-store"
 import { deleteAssetsNotInNotebooks, deleteAssetsNotReferencedByWorkspace } from "@/server/storage/notebook-asset-cleanup"
 import { deleteS3Object } from "@/server/storage/s3"
@@ -35,14 +36,20 @@ const pageMarkdownFromWorkspace = async (workspace: VisualNoteWorkspace, pageId:
     return renderMarkdownExport(document, { assetMode: "ignore", assetResolution: context })
 }
 
-const throwOwnershipConflict = (resourceName: string, ids: string[]) => {
+const throwOwnershipConflict = (resourceName: string, ids: string[]): never => {
     const error = new Error(`${resourceName} IDs belong to a different user: ${ids.join(", ")}`) as Error & { code: string }
     error.code = "ownership_conflict"
     throw error
 }
 
-const throwWorkspaceConflict = () => {
+const throwWorkspaceConflict = (): never => {
     const error = new Error("Workspace was modified while editing. Reload before saving.") as Error & { code: string }
+    error.code = "workspace_conflict"
+    throw error
+}
+
+const throwWorkspaceMergeConflict = (conflicts: string[]): never => {
+    const error = new Error(`Workspace was modified in another session and could not be merged automatically. Conflicts: ${conflicts.join(", ")}`) as Error & { code: string }
     error.code = "workspace_conflict"
     throw error
 }
@@ -137,16 +144,33 @@ export const loadWorkspaceForUser = async (supabase: SupabaseClient, userId: str
     }
 }
 
-export const saveWorkspaceForUser = async (supabase: SupabaseClient, userId: string, workspace: VisualNoteWorkspace, expectedRevision?: string) => {
+export const saveWorkspaceForUser = async (
+    supabase: SupabaseClient,
+    userId: string,
+    workspace: VisualNoteWorkspace,
+    expectedRevision?: string,
+    baseWorkspace?: VisualNoteWorkspace,
+) => {
     await assertWorkspaceStoreReady(supabase)
 
     const saveStartedAt = new Date().toISOString()
-    const normalizedWorkspace = normalizeWorkspace(workspace)
+    let normalizedWorkspace = normalizeWorkspace(workspace)
     const existingPages = await listPagesForUser(supabase, userId)
     const existingPageById = new Map(existingPages.map(page => [page.id, page]))
     if (expectedRevision) {
         const currentRevision = await resolveWorkspaceRevision(supabase, userId)
-        if (currentRevision !== expectedRevision) throwWorkspaceConflict()
+        if (currentRevision !== expectedRevision) {
+            if (!baseWorkspace) throwWorkspaceConflict()
+            const base = baseWorkspace as VisualNoteWorkspace
+            const currentWorkspace = await loadWorkspaceForUser(supabase, userId)
+            const merged = mergeWorkspaceFromBase(
+                normalizeWorkspace(base),
+                normalizeWorkspace(currentWorkspace ?? { notebooks: [], pages: [], topics: [], views: [] }),
+                normalizedWorkspace,
+            )
+            if (merged.ok) normalizedWorkspace = normalizeWorkspace(merged.workspace)
+            else throwWorkspaceMergeConflict(merged.conflicts)
+        }
     }
 
     const notebookIds = new Set<string>(normalizedWorkspace.notebooks.filter(item => item.userId === userId).map(item => item.id))

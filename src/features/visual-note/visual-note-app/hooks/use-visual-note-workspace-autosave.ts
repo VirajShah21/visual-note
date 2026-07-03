@@ -63,6 +63,7 @@ export const useVisualNoteWorkspaceAutosave = ({
 
         const serializedWorkspace = JSON.stringify(workspace)
         if (serializedWorkspace === syncedWorkspaceRef.current) return
+        const baseWorkspace = syncedWorkspaceRef.current ? (JSON.parse(syncedWorkspaceRef.current) as VisualNoteWorkspace) : null
 
         const requestId = saveRequestIdRef.current + 1
         saveRequestIdRef.current = requestId
@@ -76,6 +77,7 @@ export const useVisualNoteWorkspaceAutosave = ({
 
         saveTimeoutRef.current = setTimeout(() => {
             void saveVisualNoteWorkspace(workspace, {
+                baseWorkspace,
                 signal: abortController.signal,
                 revision: workspaceRevision,
             })
