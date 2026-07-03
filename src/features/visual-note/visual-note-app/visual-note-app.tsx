@@ -29,8 +29,10 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     const searchResults = remoteSearch?.key === searchKey ? remoteSearch.results : localSearchResults
     const editorSettings = selected.notebook?.editorSettings ?? defaultNotebookEditorSettings
     const appAuthReady = authStatus === "ready"
+    const storageSetupMissing = workspaceRecovery.message.includes("Configure notebook storage before saving page content to MinIO.")
     const showRecoveryBanner = workspaceRecovery.status === "offline" || workspaceRecovery.status === "conflict" || workspaceRecovery.status === "error"
-    const recoveryActionLabel = workspaceRecovery.status === "conflict" ? "Reload remote workspace" : "Retry save"
+    const recoveryActionLabel = workspaceRecovery.status === "conflict" ? "Reload remote workspace" : storageSetupMissing ? "Open notebook settings" : "Retry save"
+    const recoveryAction = storageSetupMissing ? openSettings : actions.retryWorkspaceRecovery
     const openExportDialog = useCallback(() => setIsExportOpen(true), [])
     const toggleSidebar = useCallback(() => setIsSidebarOpen(current => !current), [])
     const openSettings = useCallback(() => setWorkspaceView("settings"), [])
@@ -169,7 +171,7 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                                         <Text tone="strong">{workspaceRecovery.status === "conflict" ? "Workspace conflict detected" : "Workspace changes are not synced"}</Text>
                                         <Text size="small">{workspaceRecovery.message}</Text>
                                     </Stack>
-                                    <Button variant="secondary" onClick={actions.retryWorkspaceRecovery}>
+                                    <Button variant="secondary" onClick={recoveryAction}>
                                         {recoveryActionLabel}
                                     </Button>
                                 </Stack>
