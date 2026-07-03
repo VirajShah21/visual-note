@@ -1,6 +1,7 @@
 import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, getSupabaseServiceRoleClient, userOwnsNotebook } from "@/lib/supabase/server"
 import { loadNotebookStorageSettings, saveNotebookStorageSettings } from "@/server/storage/notebook-storage"
 import type { NotebookStorageSettingsInput } from "@/lib/visual-note/storage-settings"
+import { parseStorageSettingsRequest } from "./route-contract"
 
 export const runtime = "nodejs"
 
@@ -31,9 +32,10 @@ export async function PUT(request: Request, context: RouteContext<"/api/notebook
     if (!storageSupabase) return Response.json({ error: "Server database access is not configured for storage routes." }, { status: 503 })
 
     try {
-        const input = (await request.json()) as NotebookStorageSettingsInput
-        const validation = validateSettingsInput(input)
-        if (validation) return Response.json({ error: validation }, { status: 400 })
+        const parsed = await parseStorageSettingsRequest(request)
+        if (!parsed.ok) return Response.json({ error: parsed.error }, { status: parsed.status })
+
+        const input = parsed.input as NotebookStorageSettingsInput
 
         const settings = await saveNotebookStorageSettings(storageSupabase, auth.userId, notebookId, input)
         return Response.json({ settings })
@@ -42,13 +44,4 @@ export async function PUT(request: Request, context: RouteContext<"/api/notebook
         const status = message.toLowerCase().includes("duplicate key") ? 409 : 500
         return Response.json({ error: message }, { status })
     }
-}
-
-const validateSettingsInput = (input: NotebookStorageSettingsInput) => {
-    if (!input.connectionName?.trim()) return "Connection name is required."
-    if (!input.region?.trim()) return "Region is required."
-    if (!input.accessKeyId?.trim()) return "Access key ID is required."
-    if (!input.connectionId && !input.secretAccessKey?.trim()) return "Secret access key is required."
-    if (!input.bucketName?.trim()) return "Bucket name is required."
-    return null
 }
