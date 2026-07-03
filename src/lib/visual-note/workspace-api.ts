@@ -66,11 +66,14 @@ type SaveVisualNoteWorkspaceResult = {
 }
 
 export const saveVisualNoteWorkspace = async (workspace: VisualNoteWorkspace, options: SaveVisualNoteWorkspaceOptions = {}): Promise<SaveVisualNoteWorkspaceResult> => {
+    const headers: HeadersInit = {
+        "Content-Type": "application/json",
+    }
+    if (typeof options.revision === "string" && options.revision.trim()) headers["If-Match"] = `"${options.revision.trim()}"`
+
     const response = await fetch("/api/workspace", {
         method: "PUT",
-        headers: {
-            "Content-Type": "application/json",
-        },
+        headers,
         signal: options.signal,
         body: JSON.stringify({
             baseWorkspace: options.baseWorkspace ?? null,
