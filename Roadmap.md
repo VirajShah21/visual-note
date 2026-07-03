@@ -36,6 +36,13 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
     - `eslint-rules/prefer-tsconfig-paths.mjs`
     - `scripts/fix-tsconfig-imports.mjs`
 
+7. Enforced MCP scope authorization and added MCP auth-failure observability at route boundary.
+    - `src/server/mcp/token-store.ts`
+    - `src/server/mcp/visual-note-server-core.ts`
+    - `src/server/mcp/visual-note-tools.ts`
+    - `src/server/mcp/visual-note-workspace-tools.ts`
+    - `src/app/api/mcp/route.ts`
+
 ## Current risks (should be addressed first)
 
 1. Data integrity risk in workspace save flow
@@ -62,17 +69,12 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
     - Missing safeguards like rate limiting, suspicious-login detection, lockout policy, and token/session rotation.
     - Files: `src/server/auth/*`, `src/app/api/auth/*`.
 
-5. MCP security scope model is currently non-functional
-    - Tokens have `scopes`, and `verifyMcpToken` captures them, but tool handlers do not enforce scope-based authorization.
-    - Any valid token can call all MCP tools.
-    - Files: `src/server/mcp/token-store.ts`, `src/server/mcp/visual-note-tools.ts`, `src/server/mcp/visual-note-server-core.ts`.
-
-6. No explicit orphan cleanup lifecycle for assets
+5. No explicit orphan cleanup lifecycle for assets
     - Pages can be deleted while uploaded assets remain in S3/object keys and in records.
     - No background cleanup job or hard delete path tied to page/topic/view deletion.
     - Files: `src/app/api/pages/[pageId]/route.ts`, `src/app/api/notebooks/[notebookId]/assets/route.ts`, `src/app/api/assets/[assetId]/route.ts`, `src/server/storage/notebook-storage.ts`.
 
-7. Limited observability and operational insight
+6. Limited observability and operational insight
     - No production telemetry around save conflicts, auth failures, MCP call failures, or storage errors.
     - Incident recovery and debugging currently depends on logs and manual UI notices.
     - Files: API routes and controllers emit generic notices without structured metrics.
