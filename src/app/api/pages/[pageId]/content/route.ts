@@ -2,10 +2,11 @@ import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, userO
 import { loadPageById, makePageObjectKey } from "@/server/visual-note/page-store"
 import { readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
 import { cleanupWorkspaceAssetOrphans } from "@/server/visual-note/workspace-store"
+import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 
 type Authenticated = { supabase: Parameters<typeof readPageMarkdown>[0]["supabase"]; userId: string }
 
-const storageConfigurationError = "Configure notebook storage before saving page content to MinIO."
+const storageConfigurationError = STORAGE_CONTENT_WARNING
 
 type PageContentRouteDependencies = {
     loadPageById: typeof loadPageById
@@ -68,6 +69,7 @@ export const runContentPut = async (auth: Authenticated, request: Request, pageI
             objectKey,
         )
         if (!uploadResult.saved) warnings.push(storageConfigurationError)
+        if (warnings.length > 0) warnings.push(STORAGE_SETUP_HINT)
         await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore)
 
         const response = {

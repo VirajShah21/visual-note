@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { loadPageById, makePageObjectKey } from "@/server/visual-note/page-store"
 import { deleteS3Object, readS3Object, uploadS3Object } from "@/server/storage/s3"
 import { resolveNotebookStorage } from "@/server/storage/notebook-storage"
+import { STORAGE_CONTENT_WARNING } from "@/lib/visual-note/storage-messages"
 
 const streamToText = async (stream: NodeJS.ReadableStream): Promise<string> => {
     const chunks: Uint8Array[] = []
@@ -38,7 +39,7 @@ export const readPageMarkdown = async (context: AuthContext, pageId: string): Pr
 
 export const savePageMarkdown = async (context: AuthContext, page: { notebookId: string; id: string }, content: string, objectKeyOverride?: string) => {
     const result = await savePageMarkdownIfConfigured(context, page, content, objectKeyOverride)
-    if (!result.saved) throw new Error("Configure notebook storage before saving page content to MinIO.")
+    if (!result.saved) throw new Error(STORAGE_CONTENT_WARNING)
 
     return result.objectKey
 }

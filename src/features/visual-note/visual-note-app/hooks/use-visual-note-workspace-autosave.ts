@@ -3,6 +3,7 @@ import { saveVisualNoteWorkspace } from "@/lib/visual-note/workspace-api"
 import type { SaveVisualNoteWorkspaceError } from "@/lib/visual-note/workspace-api"
 import type { ToastTone } from "@/components/ui"
 import type { VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
+import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 
 type UseVisualNoteWorkspaceAutosaveOptions = {
     user: VisualUser | null
@@ -104,10 +105,8 @@ export const useVisualNoteWorkspaceAutosave = ({
                     syncedWorkspaceRef.current = serializedWorkspace
                     setWorkspaceRevision(response.revision)
                     if (response.warnings.length > 0) {
-                        const storageWarning =
-                            "S3 image storage is not configured. Open Notebook Settings and set up the S3 Image Storage section before saving content."
-                        const message = response.warnings.find(item => item.includes("Configure notebook storage before saving page content to MinIO."))
-                            ? storageWarning
+                        const message = response.warnings.find(item => item.includes(STORAGE_CONTENT_WARNING))
+                            ? STORAGE_SETUP_HINT
                             : response.warnings[0] ?? "Some workspace content was not saved due to configuration issues."
 
                         hasActiveSaveErrorRef.current = true

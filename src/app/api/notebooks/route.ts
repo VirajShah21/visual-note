@@ -9,6 +9,7 @@ import { upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
 import { loadWorkspaceForUser } from "@/server/visual-note/workspace-store"
 import { savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
+import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 
 const notebookInputSchema = z.object({
     title: z.string().min(1),
@@ -16,7 +17,6 @@ const notebookInputSchema = z.object({
     color: z.string().optional(),
     createHomePage: z.boolean().optional(),
 })
-const storageConfigurationError = "Configure notebook storage before saving page content to MinIO."
 
 const pageSelection = (notebookId: string, pageId: string) => ({
     notebookId,
@@ -147,7 +147,10 @@ export const runNotebooksPost = async (auth: Authenticated, request: Request, de
                 markdown,
                 dependencies.makePageObjectKey(createdNotebook.id, page.id),
             )
-            if (!uploadResult.saved) warnings.push(storageConfigurationError)
+            if (!uploadResult.saved) {
+                warnings.push(STORAGE_CONTENT_WARNING)
+                warnings.push(STORAGE_SETUP_HINT)
+            }
         }
 
         const detail = await dependencies.loadWorkspaceForUser(auth.supabase, auth.userId)

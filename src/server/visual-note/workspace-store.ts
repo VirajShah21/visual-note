@@ -4,6 +4,7 @@ import { renderMarkdownExport } from "@/lib/visual-note/export/markdown"
 import { resolveExportAssets } from "@/lib/visual-note/export/assets"
 import { normalizeWorkspace } from "@/lib/visual-note/factories"
 import type { NotebookPage, NotebookView, Topic, VisualNoteWorkspace } from "@/lib/visual-note/types"
+import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 import { deleteNotebooksNotIn, listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { deletePagesNotIn, hydrateWorkspaceFromPageRows, listPagesForUser, listPagesForUserByNotebooks, makePageObjectKey, upsertPages, type PageRow } from "@/server/visual-note/page-store"
 import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
@@ -448,7 +449,8 @@ export const saveWorkspaceForUser = async (
     const warnings = storageWarningPages.size > 0
         ? [
               `${storageWarningPages.size} page${storageWarningPages.size === 1 ? "" : "s"} did not persist markdown content because notebook storage is not configured.`,
-              "Configure notebook storage before saving page content to MinIO.",
+              STORAGE_CONTENT_WARNING,
+              STORAGE_SETUP_HINT,
           ]
         : []
 

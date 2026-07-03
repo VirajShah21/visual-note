@@ -7,6 +7,7 @@ import { collectPrivateAssetIdsFromValue } from "@/server/storage/notebook-asset
 import { listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { deletePage, loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
 import { cleanupWorkspaceAssetOrphans, loadWorkspaceForUser } from "@/server/visual-note/workspace-store"
+import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 import { parsePageUpdateRequest, type PageUpdateParseResult } from "./route-contract"
 
 export const runtime = "nodejs"
@@ -30,8 +31,6 @@ export type PageRouteDependencies = {
     deleteAssetRecord?: typeof deleteAssetRecord
     cleanupWorkspaceAssetOrphans: typeof cleanupWorkspaceAssetOrphans
 }
-
-const storageConfigurationError = "Configure notebook storage before saving page content to MinIO."
 
 const defaultPageRouteDependencies: PageRouteDependencies = {
     loadPageById,
@@ -198,7 +197,7 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
         }
 
         if (typeof markdown === "string" && !savedContent) {
-            response.warnings = [storageConfigurationError]
+            response.warnings = [STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT]
         }
 
         return Response.json(response)
