@@ -1,0 +1,142 @@
+import assert from "node:assert/strict"
+import test from "node:test"
+import { runContentGet, runContentPut, type Authenticated, type PageContentRouteDependencies } from "./route"
+
+const auth = {
+    supabase: {} as never,
+    userId: "user-1",
+} as Authenticated
+
+const readResponseBody = async (response: Response) => response.json()
+
+const basePageRow = {
+    id: "page-1",
+    notebook_id: "notebook-1",
+    user_id: "user-1",
+    title: "Welcome",
+    position: 0,
+    content_object_key: "notebooks/notebook-1/pages/page-1.md",
+    topics: [],
+    views: [],
+    created_at: "2026-01-01T00:00:00.000Z",
+}
+
+test("GET returns markdown payload when page content is present", async () => {
+    const response = await runContentGet(auth, "page-1", {
+        loadPageById: async () => basePageRow,
+        userOwnsNotebook: async () => true,
+        readPageMarkdown: async () => "# Welcome",
+        savePageMarkdown: async () => "x",
+        makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
+        cleanupWorkspaceAssetOrphans: async () => [],
+    } as PageContentRouteDependencies)
+
+    assert.equal(response.status, 200)
+    assert.deepEqual(await readResponseBody(response), {
+        pageId: "page-1",
+        markdown: "# Welcome",
+    })
+})
+
+test("GET maps missing content to status 404", async () => {
+    const response = await runContentGet(auth, "page-1", {
+        loadPageById: async () => basePageRow,
+        userOwnsNotebook: async () => true,
+        readPageMarkdown: async () => null,
+        savePageMarkdown: async () => "x",
+        makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
+        cleanupWorkspaceAssetOrphans: async () => [],
+    } as PageContentRouteDependencies)
+
+    assert.equal(response.status, 404)
+    assert.deepEqual(await readResponseBody(response), { error: "Page content not found." })
+})
+
+test("GET returns 404 when notebook is not owned", async () => {
+    const response = await runContentGet(auth, "page-1", {
+        loadPageById: async () => basePageRow,
+        userOwnsNotebook: async () => false,
+        readPageMarkdown: async () => "# Welcome",
+        savePageMarkdown: async () => "x",
+        makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
+        cleanupWorkspaceAssetOrphans: async () => [],
+    } as PageContentRouteDependencies)
+
+    assert.equal(response.status, 404)
+    assert.deepEqual(await readResponseBody(response), { error: "Page not found." })
+})
+
+test("PUT updates markdown and returns content key", async () => {
+    let received: { notebookId: string; id: string; markdown: string } | null = null
+
+    const response = await runContentPut(
+        auth,
+        new Request("http://visual-note.test/api/pages/page-1/content", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ markdown: "# Updated" }),
+        }),
+        "page-1",
+        {
+            loadPageById: async () => basePageRow,
+            userOwnsNotebook: async () => true,
+            readPageMarkdown: async () => null,
+            savePageMarkdown: async (_, __, markdown, objectKey) => {
+                received = {
+                    notebookId: basePageRow.notebook_id,
+                    id: basePageRow.id,
+                    markdown,
+                }
+                return objectKey
+            },
+            makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
+            cleanupWorkspaceAssetOrphans: async () => [],
+        } as PageContentRouteDependencies,
+    )
+
+    assert.equal(response.status, 200)
+    assert.deepEqual(await readResponseBody(response), {
+        pageId: "page-1",
+        contentObjectKey: "notebooks/notebook-1/pages/page-1.md",
+    })
+    assert.equal(received?.markdown, "# Updated")
+})
+
+test("PUT maps invalid payload to status 400", async () => {
+    const response = await runContentPut(auth, new Request("http://visual-note.test/api/pages/page-1/content", { method: "PUT" }), "page-1", {
+        loadPageById: async () => basePageRow,
+        userOwnsNotebook: async () => true,
+        readPageMarkdown: async () => null,
+        savePageMarkdown: async () => "x",
+        makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
+        cleanupWorkspaceAssetOrphans: async () => [],
+    } as PageContentRouteDependencies)
+
+    assert.equal(response.status, 400)
+    assert.deepEqual(await readResponseBody(response), { error: "Invalid content payload." })
+})
+
+test("PUT maps save failures to status 500", async () => {
+    const response = await runContentPut(
+        auth,
+        new Request("http://visual-note.test/api/pages/page-1/content", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ markdown: "# Failed" }),
+        }),
+        "page-1",
+        {
+            loadPageById: async () => basePageRow,
+            userOwnsNotebook: async () => true,
+            readPageMarkdown: async () => null,
+            savePageMarkdown: async () => {
+                throw new Error("save failed")
+            },
+            makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
+            cleanupWorkspaceAssetOrphans: async () => [],
+        } as PageContentRouteDependencies,
+    )
+
+    assert.equal(response.status, 500)
+    assert.deepEqual(await readResponseBody(response), { error: "save failed" })
+})
