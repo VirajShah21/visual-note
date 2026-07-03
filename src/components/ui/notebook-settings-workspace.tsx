@@ -1,14 +1,14 @@
 "use client"
 
-import { ArrowLeft, Save, Server } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { useCallback, useEffect, useState, type ChangeEvent } from "react"
 import { Button } from "./button"
-import { Card, Grid, Heading, Stack, Text } from "./primitives"
-import { CheckboxField, TextField } from "./form-controls"
+import { Heading, Stack, Text } from "./primitives"
 import type { PublishAction, PublishResponse, PublishPreviewPayload } from "@/lib/visual-note/storage-api"
 import { emptyNotebookStorageSettings, type NotebookStorageSettingsInput } from "@/lib/visual-note/storage-settings"
 import { repairWorkspaceConsistency, runWorkspaceHealthCheck, type WorkspaceHealthCheckPayload } from "@/lib/visual-note/workspace-health-api"
 import { loadNotebookStorageSettings, saveNotebookStorageSettings } from "@/lib/visual-note/storage-api"
+import { PublishWorkflowSection, StorageSettingsSection, WorkspaceHealthSection } from "./notebook-settings-workspace-sections"
 import styles from "./notebook-settings-workspace.module.css"
 
 export type NotebookSettingsWorkspaceProps = {
@@ -21,9 +21,6 @@ export type NotebookSettingsWorkspaceProps = {
     onPublish: (request: { action: PublishAction; revision?: string; includeHtml?: boolean; includeJson?: boolean }) => Promise<PublishResponse>
     onDone: () => void
 }
-
-const hasJsonPreview = (preview?: PublishPreviewPayload | null) => Boolean(preview?.json)
-const hasHtmlPreview = (preview?: PublishPreviewPayload | null) => Boolean(preview?.web)
 
 export function NotebookSettingsWorkspace({
     notebookId,
@@ -255,146 +252,42 @@ export function NotebookSettingsWorkspace({
                     <Text size="small">{notebookTitle}</Text>
                 </Stack>
             </Stack>
-            <Card className={styles.panel}>
-                <Stack gap="md">
-                    <Stack className={styles.sectionTitle} direction="horizontal" gap="sm">
-                        <Server size={17} />
-                        <Heading as="h3" size="sm">
-                            Workspace consistency
-                        </Heading>
-                    </Stack>
-                    <Stack gap="xs">
-                        {isHealthLoading ? <Text size="small">Checking workspace consistency…</Text> : null}
-                        {healthError ? (
-                            <Text as="span" size="small" className={styles.error}>
-                                {healthError}
-                            </Text>
-                        ) : null}
-                        {!isHealthLoading && !healthError && healthCheck ? (
-                            <>
-                                <Text size="small">
-                                    Loaded {healthCheck.notebookCount} notebooks, {healthCheck.pageCount} pages, {healthCheck.topicCount} topics, and {healthCheck.viewCount} views.
-                                </Text>
-                                <Text size="small">{healthCheck.issues.length ? `${healthCheck.issues.length} consistency issue(s) found.` : "No consistency issues found."}</Text>
-                                {healthCheck.issues.length > 0 ? (
-                                    <Stack gap="xs">
-                                        {healthCheck.issues.map((issue: WorkspaceHealthCheckPayload["issues"][number]) => (
-                                            <Text as="span" size="small" key={`${issue.scope}-${issue.id}`}>
-                                                {`${issue.scope} ${issue.id}: ${issue.message}`}
-                                            </Text>
-                                        ))}
-                                    </Stack>
-                                ) : null}
-                            </>
-                        ) : null}
-                        <Stack className={styles.actions} direction="horizontal" gap="sm">
-                            <Button variant="secondary" disabled={isHealthLoading || isSaving || isRepairing} onClick={refreshHealth}>
-                                {isHealthLoading ? "Checking" : "Refresh check"}
-                            </Button>
-                            {healthCheck?.issues?.length ? (
-                                <Button variant="primary" disabled={isHealthLoading || isSaving || isRepairing} onClick={runRepair}>
-                                    {isRepairing ? "Repairing" : "Repair consistency"}
-                                </Button>
-                            ) : null}
-                        </Stack>
-                        {healthMessage ? (
-                            <Text as="span" size="small">
-                                {healthMessage}
-                            </Text>
-                        ) : null}
-                    </Stack>
-                </Stack>
-            </Card>
-            <Card className={styles.panel}>
-                <Stack gap="md">
-                    <Stack className={styles.sectionTitle} direction="horizontal" gap="sm">
-                        <Server size={17} />
-                        <Heading as="h3" size="sm">
-                            Publish workflow
-                        </Heading>
-                    </Stack>
-                    <Text size="small">Current state: {publishStatus}</Text>
-                    <Stack gap="xs">
-                        <CheckboxField label="Include rendered HTML in preview" checked={includeHtmlPreview} onCheckedChange={setIncludeHtmlPreview} disabled={isPublishing} />
-                        <CheckboxField label="Include JSON in preview" checked={includeJsonPreview} onCheckedChange={setIncludeJsonPreview} disabled={isPublishing} />
-                    </Stack>
-                    <Stack className={styles.actions} direction="horizontal" gap="sm">
-                        <Button variant="secondary" disabled={isPublishing} onClick={previewNotebook}>
-                            {isPublishing ? "Preparing preview" : "Preview publish bundle"}
-                        </Button>
-                        <Button variant="primary" disabled={isPublishing || !notebookRevision} onClick={applyPublishAction}>
-                            {isPublishing ? "Saving publish state" : publishActionLabel}
-                        </Button>
-                    </Stack>
-                    {publishMessage ? (
-                        <Text as="span" size="small" tone="strong">
-                            {publishMessage}
-                        </Text>
-                    ) : null}
-                    {publishError ? (
-                        <Text as="span" size="small" className={styles.error}>
-                            {publishError}
-                        </Text>
-                    ) : null}
-                    {previewPayload ? (
-                        <Stack gap="xs">
-                            <Text size="small" tone="strong">
-                                Preview diagnostics
-                            </Text>
-                            <Text size="small">{`Markdown length: ${previewPayload.markdown.length}`}</Text>
-                            <Text size="small">{`Include HTML: ${hasHtmlPreview(previewPayload) ? "yes" : "no"}`}</Text>
-                            <Text size="small">{`Include JSON: ${hasJsonPreview(previewPayload) ? "yes" : "no"}`}</Text>
-                        </Stack>
-                    ) : null}
-                </Stack>
-            </Card>
-            <Card className={styles.panel}>
-                <Stack gap="md">
-                    <Stack className={styles.sectionTitle} direction="horizontal" gap="sm">
-                        <Server size={17} />
-                        <Heading as="h3" size="sm">
-                            S3 Image Storage
-                        </Heading>
-                    </Stack>
-                    {!storageEnabled ? (
-                        <Text>S3 image storage is not configured yet. Open the storage form and add valid credentials to persist markdown and image assets for this notebook.</Text>
-                    ) : (
-                        <>
-                            <Grid columns="two" gap="sm">
-                                <TextField label="Connection name" value={settings.connectionName} onChange={updateText("connectionName")} disabled={isLoading || isSaving} />
-                                <TextField label="Bucket name" value={settings.bucketName} onChange={updateText("bucketName")} disabled={isLoading || isSaving} />
-                                <TextField label="Endpoint URL" value={settings.endpointUrl} onChange={updateText("endpointUrl")} disabled={isLoading || isSaving} />
-                                <TextField label="Region" value={settings.region} onChange={updateText("region")} disabled={isLoading || isSaving} />
-                                <TextField label="Access key ID" value={settings.accessKeyId} onChange={updateText("accessKeyId")} disabled={isLoading || isSaving} />
-                                <TextField
-                                    label="Secret access key"
-                                    value={settings.secretAccessKey ?? ""}
-                                    type="password"
-                                    placeholder={settings.connectionId ? "Leave blank to keep existing secret" : ""}
-                                    onChange={updateText("secretAccessKey")}
-                                    disabled={isLoading || isSaving}
-                                />
-                                <CheckboxField label="Force path style" checked={settings.forcePathStyle} onCheckedChange={updateForcePathStyle} disabled={isLoading || isSaving} />
-                            </Grid>
-                            <Stack className={styles.actions} direction="horizontal" gap="sm">
-                                <Button icon={<Save size={15} />} variant="primary" disabled={isLoading || isSaving} onClick={saveSettings}>
-                                    {isSaving ? "Saving" : "Save"}
-                                </Button>
-                                {message ? (
-                                    <Text as="span" size="small" tone="strong">
-                                        {message}
-                                    </Text>
-                                ) : null}
-                                {error ? (
-                                    <Text as="span" size="small" className={styles.error}>
-                                        {error}
-                                    </Text>
-                                ) : null}
-                            </Stack>
-                        </>
-                    )}
-                </Stack>
-            </Card>
+            <WorkspaceHealthSection
+                healthCheck={healthCheck}
+                healthError={healthError}
+                healthMessage={healthMessage}
+                isHealthLoading={isHealthLoading}
+                isRepairing={isRepairing}
+                isSaving={isSaving}
+                onRefreshHealth={refreshHealth}
+                onRepair={runRepair}
+            />
+            <PublishWorkflowSection
+                includeHtmlPreview={includeHtmlPreview}
+                includeJsonPreview={includeJsonPreview}
+                isPublishing={isPublishing}
+                notebookRevision={notebookRevision}
+                previewPayload={previewPayload}
+                publishActionLabel={publishActionLabel}
+                publishError={publishError}
+                publishMessage={publishMessage}
+                publishStatus={publishStatus}
+                onApplyPublishAction={applyPublishAction}
+                onIncludeHtmlPreviewChange={setIncludeHtmlPreview}
+                onIncludeJsonPreviewChange={setIncludeJsonPreview}
+                onPreviewNotebook={previewNotebook}
+            />
+            <StorageSettingsSection
+                error={error}
+                isLoading={isLoading}
+                isSaving={isSaving}
+                message={message}
+                settings={settings}
+                storageEnabled={storageEnabled}
+                onForcePathStyleChange={updateForcePathStyle}
+                onSaveSettings={saveSettings}
+                onTextChange={updateText}
+            />
         </Stack>
     )
 }

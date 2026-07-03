@@ -21,22 +21,7 @@ import { uploadImageForNotebook } from "./workspace-image-actions"
 import { retryWorkspaceRecovery as retryWorkspaceRecoveryAction } from "./workspace-recovery-actions"
 import { openWorkspaceForUser as openWorkspaceForUserAction, signOutOfWorkspace } from "./workspace-session-actions"
 import { useVisualNoteWorkspaceAutosave, type WorkspaceRecoveryState } from "./use-visual-note-workspace-autosave"
-import { publishNotebook as publishNotebookStorage } from "@/lib/visual-note/storage-api"
-import type { PublishAction, PublishResponse } from "@/lib/visual-note/storage-api"
-
-type PublishRequest = {
-    action: PublishAction
-    revision?: string
-    includeHtml?: boolean
-    includeJson?: boolean
-}
-
-type PublishRequestInput = {
-    action: PublishAction
-    revision?: string
-    includeHtml?: boolean
-    includeJson?: boolean
-}
+import { useVisualNotePublish } from "./use-visual-note-publish"
 export const useVisualNoteAppController = (initialNotebookId: string) => {
     const router = useRouter()
     const [user, setUser] = useState<VisualUser | null>(null)
@@ -285,30 +270,7 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         updateView({ ...selected.view, displays: selected.view.displays.map(item => (item.id === display.id ? display : item)) })
     }
     const uploadImage = (file: File) => uploadImageForNotebook(selected.currentSelection.notebookId, file, pushToast)
-    const publishNotebook = async (input: PublishRequest) => {
-        const notebookId = selected.currentSelection.notebookId
-        if (!workspace || !notebookId) throw new Error("Choose a notebook before changing publish state.")
-
-        const revision = input.action === "preview" ? undefined : (input.revision ?? workspaceRevision ?? undefined)
-        const payload: PublishRequestInput = {
-            action: input.action,
-            revision,
-            includeHtml: input.includeHtml,
-            includeJson: input.includeJson,
-        }
-
-        const response = (await publishNotebookStorage(notebookId, payload)) as PublishResponse
-        if ("notebook" in response) {
-            const nextRevision = response.revision
-            setWorkspace(current => {
-                if (!current) return current
-                return { ...current, notebooks: current.notebooks.map(item => (item.id === response.notebook.id ? response.notebook : item)) }
-            })
-            if (nextRevision) setWorkspaceRevision(nextRevision)
-        }
-
-        return response
-    }
+    const publishNotebook = useVisualNotePublish({ selected, setWorkspace, setWorkspaceRevision, workspace, workspaceRevision })
     const actions = {
         addSection,
         addTopic,

@@ -1,15 +1,30 @@
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js"
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js"
 import type { ServerNotification, ServerRequest } from "@modelcontextprotocol/sdk/types.js"
-import { z } from "zod"
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { normalizeWorkspace } from "@/lib/visual-note/factories"
-import { visualBlockKinds } from "@/lib/visual-note/visual-blocks"
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
 import { loadWorkspaceForUser, saveWorkspaceForUser } from "@/server/visual-note/workspace-store"
 import { logMcpToolAudit, type McpTokenScope, normalizeScopeSet } from "./token-store"
 import type { WorkspaceOperationResult } from "@/server/visual-note/workspace-operations"
+export {
+    blockInfoSchema,
+    componentKindSchema,
+    contentModeSchema,
+    editorModeSchema,
+    policyCheckSchema,
+    requireAtLeastOne,
+    resolveNotebookInput,
+    resolvePageInput,
+    resolveTopicInput,
+    resolveViewInput,
+    riskLevelSchema,
+    viewKindSchema,
+    viewModeSchema,
+    visualBlockKindSchema,
+    z,
+} from "./visual-note-server-schemas"
 
 export type ToolExtra = RequestHandlerExtra<ServerRequest, ServerNotification>
 
@@ -35,27 +50,6 @@ export const emptyWorkspace: VisualNoteWorkspace = {
     topics: [],
     views: [],
 }
-
-export const visualBlockKindSchema = z.enum(visualBlockKinds)
-export const componentKindSchema = z.enum([
-    "data-card",
-    "checklist",
-    "timeline",
-    "dashboard",
-    "work-logs",
-    "bugs-list",
-    "shopping-list",
-    "pull-request",
-    "url",
-    "code-block",
-] as const)
-export const viewModeSchema = z.enum(["article", "structured", "dashboard"])
-export const viewKindSchema = z.enum(["notebook", "page", "topic", "view", "display"])
-export const blockInfoSchema = z.enum(["show", "type-only", "metadata-only"])
-export const contentModeSchema = z.enum(["show", "hide-title", "hide"])
-export const editorModeSchema = z.enum(["editing", "source", "reader"])
-export const policyCheckSchema = z.enum(["notebook_summary", "non_empty_titles", "display_or_content", "layout_density"])
-export const riskLevelSchema = z.enum(["low", "medium", "high"])
 
 export const jsonResult = (payload: unknown) => ({
     content: [
@@ -279,39 +273,3 @@ export const withWorkspaceReadResult = async (
         })
     }
 }
-
-export const requireAtLeastOne = (schema: Record<string, unknown>, fields: string[]) =>
-    z
-        .object(schema)
-        .partial()
-        .refine(value => fields.some(field => Boolean((value as Record<string, string | undefined>)[field])), {
-            message: `${fields.join(" or ")} is required.`,
-        })
-
-export const resolveNotebookInput = requireAtLeastOne({ notebookId: z.string().min(1), title: z.string().min(1) }, ["notebookId", "title"])
-export const resolvePageInput = requireAtLeastOne(
-    {
-        pageId: z.string().min(1),
-        title: z.string().min(1),
-        notebookId: z.string().min(1),
-    },
-    ["pageId", "title"],
-)
-export const resolveTopicInput = requireAtLeastOne(
-    {
-        topicId: z.string().min(1),
-        title: z.string().min(1),
-        pageId: z.string().min(1),
-    },
-    ["topicId", "title"],
-)
-export const resolveViewInput = requireAtLeastOne(
-    {
-        viewId: z.string().min(1),
-        title: z.string().min(1),
-        topicId: z.string().min(1),
-    },
-    ["viewId", "title"],
-)
-
-export { z }

@@ -1,7 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { createExportDocument } from "@/lib/visual-note/export/document"
-import { renderMarkdownExport } from "@/lib/visual-note/export/markdown"
-import { resolveExportAssets } from "@/lib/visual-note/export/assets"
 import { normalizeWorkspace } from "@/lib/visual-note/factories"
 import type { NotebookPage, NotebookView, Topic, VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
@@ -19,69 +16,25 @@ import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdow
 import { assertWorkspaceStoreReady } from "@/server/visual-note/workspace-readiness"
 import { mergeWorkspaceFromBase } from "@/server/visual-note/workspace-merge"
 import { listWorkspaceSnapshotsForUser, upsertWorkspaceSnapshotsForUser } from "@/server/visual-note/workspace-snapshot-store"
-import { deleteAssetObjects, deleteAssetsNotInNotebooks, deleteAssetsNotReferencedByWorkspace } from "@/server/storage/notebook-asset-cleanup"
+import { resolveWorkspaceRevision } from "@/server/visual-note/workspace-revision-store"
+import {
+    cleanupWorkspaceAssetOrphansForEveryUser,
+    cleanupWorkspaceAssetOrphansForUser,
+    type WorkspaceAssetCleanupResult,
+    type WorkspaceAssetReconciliationResult,
+} from "@/server/visual-note/workspace-asset-reconciliation-store"
+import {
+    pageMarkdownFromWorkspace,
+    restorePreviousWorkspace,
+    throwOwnershipConflict,
+    throwWorkspaceConflict,
+    throwWorkspaceIntegrityError,
+    throwWorkspaceMergeConflict,
+} from "@/server/visual-note/workspace-store-save-helpers"
 
 type SupabaseRecord = {
     id: string
     user_id: string
-}
-
-type WorkspaceAssetCleanupResult = {
-    deletedReferencedAssets: number
-    deletedMissingNotebookAssets: number
-    deletedAssetRecords: number
-}
-
-type WorkspaceAssetReconciliationResult = {
-    usersScanned: number
-    deletedReferencedAssets: number
-    deletedMissingNotebookAssets: number
-    deletedAssetRecords: number
-}
-
-const pageSelection = (notebookId: string, pageId: string) => ({
-    notebookId,
-    pageId,
-    topicId: "",
-    viewId: "",
-})
-
-const pageMarkdownFromWorkspace = async (workspace: VisualNoteWorkspace, pageId: string) => {
-    const page = workspace.pages.find(item => item.id === pageId)
-    if (!page) return ""
-
-    const document = createExportDocument({ scope: "page", selection: pageSelection(page.notebookId, page.id), workspace })
-    if (!document) return ""
-
-    const context = await resolveExportAssets(document, "ignore")
-    return renderMarkdownExport(document, { assetMode: "ignore", assetResolution: context })
-}
-
-const throwOwnershipConflict = (resourceName: string, ids: string[]): never => {
-    const error = new Error(`${resourceName} IDs belong to a different user: ${ids.join(", ")}`) as Error & { code: string }
-    error.code = "ownership_conflict"
-    throw error
-}
-
-const throwWorkspaceConflict = (): never => {
-    const error = new Error("Workspace was modified while editing. Reload before saving.") as Error & { code: string }
-    error.code = "workspace_conflict"
-    throw error
-}
-
-const throwWorkspaceMergeConflict = (conflicts: string[]): never => {
-    const error = new Error(`Workspace was modified in another session and could not be merged automatically. Conflicts: ${conflicts.join(", ")}`) as Error & { code: string }
-    error.code = "workspace_conflict"
-    throw error
-}
-
-const throwWorkspaceIntegrityError = (issues: string[]): void => {
-    if (issues.length === 0) return
-
-    const error = new Error(`Workspace payload is malformed: ${issues.join(", ")}`) as Error & { code: string; issues: string[] }
-    error.code = "workspace_integrity"
-    error.issues = issues
-    throw error
 }
 
 export type WorkspaceSaveResult = {
@@ -89,154 +42,15 @@ export type WorkspaceSaveResult = {
     warnings: string[]
 }
 
-const restorePreviousWorkspace = async (supabase: SupabaseClient, userId: string, saveStartedAt: string, snapshot: VisualNoteWorkspace | null) => {
-    if (!snapshot) return
-
-    const userNotebooks = snapshot.notebooks.filter(item => item.userId === userId)
-    const snapshotNotebookIds = new Set(userNotebooks.map(notebook => notebook.id))
-    const snapshotPages = snapshot.pages.filter(page => snapshotNotebookIds.has(page.notebookId))
-    const snapshotPageIds = new Set(snapshotPages.map(page => page.id))
-
-    await upsertNotebooks(supabase, userId, userNotebooks)
-    await upsertPages(
-        supabase,
-        userId,
-        snapshotPages.map(page => {
-            const topics = snapshot.topics.filter(topic => topic.pageId === page.id)
-            const topicIds = new Set(topics.map(topic => topic.id))
-            const views = snapshot.views.filter(view => topicIds.has(view.topicId))
-
-            return {
-                page,
-                notebookId: page.notebookId,
-                topics,
-                views,
-                contentObjectKey: makePageObjectKey(page.notebookId, page.id),
-            }
-        }),
-    )
-
-    await Promise.allSettled(
-        snapshotPages.map(async page => {
-            if (typeof page.content !== "string") return
-
-            const objectKey = makePageObjectKey(page.notebookId, page.id)
-            const result = await savePageMarkdownIfConfigured({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, page.content, objectKey)
-            if (!result.saved) return
-        }),
-    )
-
-    await deletePagesNotIn(supabase, userId, snapshotPageIds, saveStartedAt)
-    await deleteNotebooksNotIn(supabase, userId, snapshotNotebookIds, saveStartedAt)
-    await upsertWorkspaceSnapshotsForUser(supabase, userId, snapshot.snapshots)
-}
-
-const normalizeRevisionTimestamp = (value: string | null | undefined) => value ?? "0"
-
-const latestUpdatedAt = async (supabase: SupabaseClient, userId: string, table: "visual_note_notebooks" | "visual_note_pages") => {
-    const { data, error } = await supabase.from(table).select("updated_at").eq("user_id", userId).order("updated_at", { ascending: false }).limit(1).maybeSingle()
-    if (error) throw error
-
-    return normalizeRevisionTimestamp((data as { updated_at?: string } | null)?.updated_at)
-}
-
-const rowCount = async (supabase: SupabaseClient, userId: string, table: "visual_note_notebooks" | "visual_note_pages") => {
-    const { count, error } = await supabase.from(table).select("id", { count: "exact", head: true }).eq("user_id", userId)
-    if (error) throw error
-
-    return count ?? 0
-}
-
 export const cleanupWorkspaceAssetOrphans = async (
     supabase: SupabaseClient,
     userId: string,
     workspace?: VisualNoteWorkspace,
     deleteUpdatedBefore?: string,
-): Promise<WorkspaceAssetCleanupResult> => {
-    const current = workspace ?? (await loadWorkspaceForUser(supabase, userId))
-    if (!current)
-        return {
-            deletedReferencedAssets: 0,
-            deletedMissingNotebookAssets: 0,
-            deletedAssetRecords: 0,
-        }
+): Promise<WorkspaceAssetCleanupResult> => cleanupWorkspaceAssetOrphansForUser(supabase, userId, loadWorkspaceForUser, workspace, deleteUpdatedBefore)
 
-    const notebookIds = new Set<string>(current.notebooks.filter(notebook => notebook.userId === userId).map(notebook => notebook.id))
-    if (notebookIds.size === 0)
-        return {
-            deletedReferencedAssets: 0,
-            deletedMissingNotebookAssets: 0,
-            deletedAssetRecords: 0,
-        }
-
-    const deletedUnreferencedAssets = await deleteAssetsNotReferencedByWorkspace(supabase, userId, current, deleteUpdatedBefore)
-    await deleteAssetObjects(deletedUnreferencedAssets)
-
-    const deletedAssets = await deleteAssetsNotInNotebooks(supabase, userId, notebookIds, deleteUpdatedBefore)
-    await deleteAssetObjects(deletedAssets)
-
-    return {
-        deletedReferencedAssets: deletedUnreferencedAssets.length,
-        deletedMissingNotebookAssets: deletedAssets.length,
-        deletedAssetRecords: deletedUnreferencedAssets.length + deletedAssets.length,
-    }
-}
-
-const listUserIdsWithAssetRecords = async (supabase: SupabaseClient) => {
-    const userIds = new Set<string>()
-    const pageSize = 500
-    let page = 0
-
-    while (true) {
-        const start = page * pageSize
-        const end = start + pageSize - 1
-        const { data, error } = await supabase.from("visual_note_assets").select("user_id").range(start, end)
-        if (error) throw error
-
-        if (!data || data.length === 0) return [...userIds]
-
-        data.forEach(row => {
-            if (typeof (row as { user_id?: string }).user_id === "string") userIds.add((row as { user_id: string }).user_id)
-        })
-
-        if (data.length < pageSize) break
-        page += 1
-    }
-
-    return [...userIds]
-}
-
-export const cleanupWorkspaceAssetOrphansForAllUsers = async (supabase: SupabaseClient, deleteUpdatedBefore?: string): Promise<WorkspaceAssetReconciliationResult> => {
-    const userIds = await listUserIdsWithAssetRecords(supabase)
-    let deletedReferencedAssets = 0
-    let deletedMissingNotebookAssets = 0
-
-    for (const userId of userIds) {
-        const summary = await cleanupWorkspaceAssetOrphans(supabase, userId, undefined, deleteUpdatedBefore)
-        deletedReferencedAssets += summary.deletedReferencedAssets
-        deletedMissingNotebookAssets += summary.deletedMissingNotebookAssets
-    }
-
-    return {
-        usersScanned: userIds.length,
-        deletedReferencedAssets,
-        deletedMissingNotebookAssets,
-        deletedAssetRecords: deletedReferencedAssets + deletedMissingNotebookAssets,
-    }
-}
-
-export const resolveWorkspaceRevision = async (supabase: SupabaseClient, userId: string) => {
-    await assertWorkspaceStoreReady(supabase)
-
-    const [notebookUpdatedAt, pageUpdatedAt, notebookCount, pageCount] = await Promise.all([
-        latestUpdatedAt(supabase, userId, "visual_note_notebooks"),
-        latestUpdatedAt(supabase, userId, "visual_note_pages"),
-        rowCount(supabase, userId, "visual_note_notebooks"),
-        rowCount(supabase, userId, "visual_note_pages"),
-    ])
-
-    return `v1|notebooks:${notebookCount}:${notebookUpdatedAt}|pages:${pageCount}:${pageUpdatedAt}`
-}
+export const cleanupWorkspaceAssetOrphansForAllUsers = async (supabase: SupabaseClient, deleteUpdatedBefore?: string): Promise<WorkspaceAssetReconciliationResult> =>
+    cleanupWorkspaceAssetOrphansForEveryUser(supabase, cleanupWorkspaceAssetOrphans, deleteUpdatedBefore)
 
 export const loadWorkspaceForUserWithRevision = async (supabase: SupabaseClient, userId: string) => {
     const [workspace, revision] = await Promise.all([loadWorkspaceForUser(supabase, userId), resolveWorkspaceRevision(supabase, userId)])

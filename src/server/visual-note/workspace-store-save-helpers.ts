@@ -1,0 +1,96 @@
+import type { SupabaseClient } from "@supabase/supabase-js"
+import { createExportDocument } from "@/lib/visual-note/export/document"
+import { renderMarkdownExport } from "@/lib/visual-note/export/markdown"
+import { resolveExportAssets } from "@/lib/visual-note/export/assets"
+import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
+import { deleteNotebooksNotIn, upsertNotebooks } from "@/server/visual-note/notebook-store"
+import { deletePagesNotIn, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
+import { savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
+import { upsertWorkspaceSnapshotsForUser } from "@/server/visual-note/workspace-snapshot-store"
+
+const pageSelection = (notebookId: string, pageId: string) => ({
+    notebookId,
+    pageId,
+    topicId: "",
+    viewId: "",
+})
+
+export const pageMarkdownFromWorkspace = async (workspace: VisualNoteWorkspace, pageId: string) => {
+    const page = workspace.pages.find(item => item.id === pageId)
+    if (!page) return ""
+
+    const document = createExportDocument({ scope: "page", selection: pageSelection(page.notebookId, page.id), workspace })
+    if (!document) return ""
+
+    const context = await resolveExportAssets(document, "ignore")
+    return renderMarkdownExport(document, { assetMode: "ignore", assetResolution: context })
+}
+
+export const throwOwnershipConflict = (resourceName: string, ids: string[]): never => {
+    const error = new Error(`${resourceName} IDs belong to a different user: ${ids.join(", ")}`) as Error & { code: string }
+    error.code = "ownership_conflict"
+    throw error
+}
+
+export const throwWorkspaceConflict = (): never => {
+    const error = new Error("Workspace was modified while editing. Reload before saving.") as Error & { code: string }
+    error.code = "workspace_conflict"
+    throw error
+}
+
+export const throwWorkspaceMergeConflict = (conflicts: string[]): never => {
+    const error = new Error(`Workspace was modified in another session and could not be merged automatically. Conflicts: ${conflicts.join(", ")}`) as Error & { code: string }
+    error.code = "workspace_conflict"
+    throw error
+}
+
+export const throwWorkspaceIntegrityError = (issues: string[]): void => {
+    if (issues.length === 0) return
+
+    const error = new Error(`Workspace payload is malformed: ${issues.join(", ")}`) as Error & { code: string; issues: string[] }
+    error.code = "workspace_integrity"
+    error.issues = issues
+    throw error
+}
+
+export const restorePreviousWorkspace = async (supabase: SupabaseClient, userId: string, saveStartedAt: string, snapshot: VisualNoteWorkspace | null) => {
+    if (!snapshot) return
+
+    const userNotebooks = snapshot.notebooks.filter(item => item.userId === userId)
+    const snapshotNotebookIds = new Set(userNotebooks.map(notebook => notebook.id))
+    const snapshotPages = snapshot.pages.filter(page => snapshotNotebookIds.has(page.notebookId))
+    const snapshotPageIds = new Set(snapshotPages.map(page => page.id))
+
+    await upsertNotebooks(supabase, userId, userNotebooks)
+    await upsertPages(
+        supabase,
+        userId,
+        snapshotPages.map(page => {
+            const topics = snapshot.topics.filter(topic => topic.pageId === page.id)
+            const topicIds = new Set(topics.map(topic => topic.id))
+            const views = snapshot.views.filter(view => topicIds.has(view.topicId))
+
+            return {
+                page,
+                notebookId: page.notebookId,
+                topics,
+                views,
+                contentObjectKey: makePageObjectKey(page.notebookId, page.id),
+            }
+        }),
+    )
+
+    await Promise.allSettled(
+        snapshotPages.map(async page => {
+            if (typeof page.content !== "string") return
+
+            const objectKey = makePageObjectKey(page.notebookId, page.id)
+            const result = await savePageMarkdownIfConfigured({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, page.content, objectKey)
+            if (!result.saved) return
+        }),
+    )
+
+    await deletePagesNotIn(supabase, userId, snapshotPageIds, saveStartedAt)
+    await deleteNotebooksNotIn(supabase, userId, snapshotNotebookIds, saveStartedAt)
+    await upsertWorkspaceSnapshotsForUser(supabase, userId, snapshot.snapshots)
+}

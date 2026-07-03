@@ -1,41 +1,16 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useState } from "react"
 import { Button, Card, ExportWizard, Grid, NotebookEditorNavbar, NotebookHome, NotebookSettingsWorkspace, ScrollArea, Stack, Text, ToastShelf } from "@/components/ui"
 import { defaultNotebookEditorSettings } from "@/lib/visual-note/types"
-import { searchNotebook } from "@/lib/visual-note/search-api"
-import type { NotebookSearchResult } from "@/lib/visual-note/search"
 import type { VisualNoteAppProps } from "./types/visual-note-app.types"
 import { AuthPanel } from "./components/auth-panel"
 import { SectionSidebar } from "./components/section-sidebar"
 import { ViewWorkspace } from "./components/view-workspace"
 import { useVisualNoteAppController } from "./hooks/use-visual-note-app-controller"
-import { createNotebookSearchResults } from "./utils/notebook-search"
+import { useNotebookSearch } from "./hooks/use-notebook-search"
 import { STORAGE_CONTENT_WARNING } from "@/lib/visual-note/storage-messages"
 import styles from "../visual-note-app.module.css"
-
-type RemoteSearchState = {
-    key: string
-    results: NotebookSearchResult[]
-    hasMore: boolean
-}
-
-type SearchCacheEntry = {
-    key: string
-    results: NotebookSearchResult[]
-    hasMore: boolean
-    expiresAt: number
-}
-
-const SEARCH_CACHE_TTL_MS = 30_000
-const SEARCH_CACHE_MAX_ENTRIES = 64
-
-const pruneSearchCache = (cache: Map<string, SearchCacheEntry>) => {
-    for (const key of cache.keys()) {
-        if (cache.size <= SEARCH_CACHE_MAX_ENTRIES) break
-        cache.delete(key)
-    }
-}
 
 export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualNoteAppProps) {
     const { actions, authStatus, galleryItems, isLoading, notice, sections, selected, toastMessages, user, workspace, workspaceRecovery, workspaceRevision } =
@@ -43,15 +18,10 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     const [isSidebarOpen, setIsSidebarOpen] = useState(true)
     const [isExportOpen, setIsExportOpen] = useState(false)
     const [workspaceView, setWorkspaceView] = useState<"editor" | "settings">("editor")
-    const [searchQuery, setSearchQuery] = useState("")
-    const [remoteSearch, setRemoteSearch] = useState<RemoteSearchState | null>(null)
-    const searchCache = useRef(new Map<string, SearchCacheEntry>())
-    const [isSearching, setIsSearching] = useState(false)
-    const [searchError, setSearchError] = useState(false)
-    const searchQueryTrimmed = searchQuery.trim()
-    const searchKey = `${selected.currentSelection.notebookId}:${selected.currentSelection.pageId}:${searchQueryTrimmed}`
-    const searchResults = remoteSearch?.key === searchKey ? remoteSearch.results : []
-    const searchHasMore = remoteSearch?.key === searchKey ? remoteSearch.hasMore : false
+    const { isSearching, loadMoreSearchResults, searchError, searchHasMore, searchQuery, searchResults, setSearchQuery } = useNotebookSearch({
+        currentSelection: selected.currentSelection,
+        workspace,
+    })
     const editorSettings = selected.notebook?.editorSettings ?? defaultNotebookEditorSettings
     const appAuthReady = authStatus === "ready"
     const storageSetupMissing = workspaceRecovery.message.includes(STORAGE_CONTENT_WARNING)
@@ -71,138 +41,6 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     const openEditor = useCallback(() => setWorkspaceView("editor"), [])
     const recoveryAction = storageSetupMissing ? openSettings : actions.retryWorkspaceRecovery
 
-    const runSearch = useCallback(
-        async (append: boolean, signal: AbortSignal) => {
-            const query = searchQueryTrimmed
-            const notebookId = selected.currentSelection.notebookId
-            if (!query || !notebookId) return
-
-            const currentPageId = selected.currentSelection.pageId
-            const offset = append && remoteSearch?.key === searchKey ? remoteSearch.results.length : 0
-            const cacheKey = `remote:${searchKey}:${offset}`
-            const cacheEntry = searchCache.current.get(cacheKey)
-            const now = Date.now()
-            if (cacheEntry && cacheEntry.expiresAt > now) {
-                setRemoteSearch({ key: cacheEntry.key, results: cacheEntry.results, hasMore: cacheEntry.hasMore })
-                setSearchError(false)
-                setIsSearching(false)
-                return
-            }
-            setIsSearching(true)
-            setSearchError(false)
-
-            try {
-                const response = await searchNotebook(notebookId, {
-                    currentPageId,
-                    limit: 8,
-                    offset,
-                    query,
-                    signal,
-                })
-
-                if (signal.aborted) return
-
-                setRemoteSearch(previous => {
-                    if (!append || previous?.key !== searchKey) {
-                        const cached = {
-                            key: searchKey,
-                            results: response.results,
-                            hasMore: response.hasMore,
-                        }
-                        searchCache.current.set(cacheKey, {
-                            ...cached,
-                            expiresAt: Date.now() + SEARCH_CACHE_TTL_MS,
-                        })
-                        pruneSearchCache(searchCache.current)
-
-                        return {
-                            key: searchKey,
-                            results: response.results,
-                            hasMore: response.hasMore,
-                        }
-                    }
-
-                    const next: RemoteSearchState = {
-                        key: searchKey,
-                        results: [...previous.results, ...response.results],
-                        hasMore: response.hasMore,
-                    }
-                    searchCache.current.set(cacheKey, {
-                        key: searchKey,
-                        results: next.results,
-                        hasMore: next.hasMore,
-                        expiresAt: Date.now() + SEARCH_CACHE_TTL_MS,
-                    })
-                    pruneSearchCache(searchCache.current)
-
-                    return {
-                        key: next.key,
-                        results: next.results,
-                        hasMore: next.hasMore,
-                    }
-                })
-            } catch (error) {
-                if (error instanceof Error && error.name === "AbortError") return
-
-                const fallbackResults = workspace ? createNotebookSearchResults(workspace, selected.currentSelection, query) : []
-                if (!append && fallbackResults.length > 0) {
-                    setRemoteSearch({
-                        key: searchKey,
-                        results: fallbackResults,
-                        hasMore: false,
-                    })
-                    setSearchError(false)
-                    return
-                }
-
-                setSearchError(true)
-                if (append && remoteSearch?.key === searchKey)
-                    setRemoteSearch(previous => (previous?.key === searchKey ? { ...previous, hasMore: false } : (previous ?? { key: searchKey, results: [], hasMore: false })))
-                else setRemoteSearch({ key: searchKey, results: [], hasMore: false })
-            } finally {
-                if (!signal.aborted) setIsSearching(false)
-            }
-        },
-        [
-            searchKey,
-            searchQueryTrimmed,
-            remoteSearch?.key,
-            remoteSearch?.results.length,
-            selected.currentSelection,
-            workspace,
-        ],
-    )
-
-    useEffect(() => {
-        const notebookId = selected.currentSelection.notebookId
-        const controller = new AbortController()
-        const timeout = window.setTimeout(() => {
-            if (!searchQueryTrimmed || !notebookId) {
-                setRemoteSearch(null)
-                setSearchError(false)
-                return
-            }
-
-            if (remoteSearch?.key !== searchKey) {
-                setRemoteSearch(null)
-                setSearchError(false)
-            }
-
-            void runSearch(false, controller.signal)
-        }, searchQueryTrimmed && notebookId ? 180 : 0)
-
-        return () => {
-            window.clearTimeout(timeout)
-            controller.abort()
-        }
-    }, [runSearch, searchKey, searchQueryTrimmed, selected.currentSelection.notebookId, remoteSearch?.key])
-
-    const loadMoreSearchResults = useCallback(() => {
-        if (!searchHasMore || isSearching) return
-
-        const controller = new AbortController()
-        void runSearch(true, controller.signal)
-    }, [isSearching, runSearch, searchHasMore])
     const selectSection = useCallback(
         (sectionId: string) => {
             setWorkspaceView("editor")
