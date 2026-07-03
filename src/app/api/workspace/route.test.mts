@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { runWorkspaceAuthFailure, runWorkspaceLoad, runWorkspaceSave, type WorkspaceRouteDependencies } from "./route"
+import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 
 const workspace = {
     notebooks: [],
@@ -108,7 +109,7 @@ test("PUT returns warnings when workspace save reports non-fatal warnings", asyn
         {
             loadWorkspaceForUserWithRevision: async () => ({ workspace, revision: "v1" }),
             resolveWorkspaceRevision: async () => "v2",
-            saveWorkspaceForUser: async () => ({ workspace, warnings: ["Configure notebook storage before saving page content to MinIO."] }),
+            saveWorkspaceForUser: async () => ({ workspace, warnings: [STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT] }),
             logEvent: () => {},
             isWorkspaceConflictError: () => false,
             isWorkspaceIntegrityError: () => false,
@@ -118,7 +119,7 @@ test("PUT returns warnings when workspace save reports non-fatal warnings", asyn
     assert.equal(response.status, 200)
     const body = (await readResponseBody(response)) as { revision: string; warnings?: string[] }
     assert.equal(body.revision, "v2")
-    assert.deepEqual(body.warnings, ["Configure notebook storage before saving page content to MinIO."])
+    assert.deepEqual(body.warnings, [STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT])
 })
 
 test("PUT maps conflict errors to status 409", async () => {

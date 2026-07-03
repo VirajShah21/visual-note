@@ -1,6 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { runContentGet, runContentPut, type Authenticated, type PageContentRouteDependencies } from "./route"
+import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 
 const auth = {
     supabase: {} as never,
@@ -167,7 +168,7 @@ test("PUT returns warning when notebook storage is not configured for content sa
 
     assert.equal(response.status, 200)
     const body = await readResponseBody(response)
-    assert.deepEqual(body.warnings, ["Configure notebook storage before saving page content to MinIO."])
+    assert.deepEqual(body.warnings, [STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT])
     assert.equal(body.contentObjectKey, "notebooks/notebook-1/pages/page-1.md")
 })
 

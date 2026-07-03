@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { runNotebooksGet, runNotebooksPost, type NotebooksRouteDependencies } from "./route"
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
+import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 
 const authContext = {
     userId: "user-1",
@@ -247,7 +248,7 @@ test("POST returns warning when storage is not configured for homepage markdown"
     assert.equal(response.status, 200)
     const body = await readResponseBody(response)
     assert.equal(body.notebook.title, "Needs Storage")
-    assert.deepEqual(body.warnings, ["Configure notebook storage before saving page content to MinIO."])
+    assert.deepEqual(body.warnings, [STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT])
 })
 
 test("POST maps upsert failures to 500", async () => {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { runPageDelete, runPageGet, runPageSave, type PageRouteDependencies } from "./route"
 import type { PageUpdateParseResult } from "../route-contract"
+import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 
 const auth = {
     userId: "user-1",
@@ -202,7 +203,7 @@ test("PUT returns warnings when notebook storage is not configured for page cont
     assert.equal(response.status, 200)
     const body = await readResponseBody(response)
     assert.equal(body.page.id, "page-1")
-    assert.deepEqual(body.warnings, ["Configure notebook storage before saving page content to MinIO."])
+    assert.deepEqual(body.warnings, [STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT])
 })
 
 test("PUT creates missing page using existing notebook lookup", async () => {
