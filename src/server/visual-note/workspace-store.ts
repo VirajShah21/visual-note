@@ -193,6 +193,12 @@ export const saveWorkspaceForUser = async (
     throwWorkspaceIntegrityError(orphanedPageIds.map(pageId => `page:${pageId} references unauthorized or unknown notebook`))
 
     const pageIds = new Set<string>(normalizedWorkspace.pages.filter(page => notebookIds.has(page.notebookId)).map(page => page.id))
+    const orphanedTopicIds = normalizedWorkspace.topics.filter(topic => !pageIds.has(topic.pageId)).map(topic => topic.id)
+    throwWorkspaceIntegrityError(orphanedTopicIds.map(topicId => `topic:${topicId} references unauthorized or unknown page`))
+
+    const topicIds = new Set<string>(normalizedWorkspace.topics.filter(topic => pageIds.has(topic.pageId)).map(topic => topic.id))
+    const orphanedViewIds = normalizedWorkspace.views.filter(view => !topicIds.has(view.topicId)).map(view => view.id)
+    throwWorkspaceIntegrityError(orphanedViewIds.map(viewId => `view:${viewId} references unauthorized or unknown topic`))
 
     await assertNoForeignOwnedRecords(supabase, userId, [...notebookIds], "visual_note_notebooks")
     await assertNoForeignOwnedRecords(supabase, userId, [...pageIds], "visual_note_pages")
