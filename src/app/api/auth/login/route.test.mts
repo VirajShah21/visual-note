@@ -53,10 +53,7 @@ test("rejects cross-origin mutations using existing origin checks", async () => 
         rejectCrossOriginMutation: () => originError,
     })
 
-    const response = await runLogin(
-        requestWithBody({ email: "user@example.com", password: "secret" }, "https://attacker.test"),
-        dependencies as LoginRouteDependencies,
-    )
+    const response = await runLogin(requestWithBody({ email: "user@example.com", password: "secret" }, "https://attacker.test"), dependencies as LoginRouteDependencies)
 
     assert.equal(response.status, 403)
     assert.deepEqual(await readResponseBody(response), { error: "Cross-origin mutation requests are not allowed." })
@@ -101,8 +98,14 @@ test("tracks suspicious failures near lockout threshold", async () => {
     assert.equal(body.error, "Invalid login credentials.")
 
     const events = dependencies.events
-    assert.equal(events.some(event => event.event === "auth.login_suspicious"), true)
-    assert.equal(events.some(event => event.event === "auth.login_failed"), true)
+    assert.equal(
+        events.some(event => event.event === "auth.login_suspicious"),
+        true,
+    )
+    assert.equal(
+        events.some(event => event.event === "auth.login_failed"),
+        true,
+    )
 })
 
 test("logs lockout and returns 429 once failure cap reached", async () => {
@@ -117,7 +120,10 @@ test("logs lockout and returns 429 once failure cap reached", async () => {
     assert.equal(body.error, "Too many failed login attempts. Try again in 60 seconds.")
 
     const events = dependencies.events
-    assert.equal(events.some(event => event.event === "auth.login_lockout_started"), true)
+    assert.equal(
+        events.some(event => event.event === "auth.login_lockout_started"),
+        true,
+    )
 })
 
 test("logs success and returns session cookie on valid login", async () => {
@@ -134,5 +140,8 @@ test("logs success and returns session cookie on valid login", async () => {
     assert.equal(body.user.id, "user-1")
 
     const events = dependencies.events
-    assert.equal(events.some(event => event.event === "auth.login_succeeded"), true)
+    assert.equal(
+        events.some(event => event.event === "auth.login_succeeded"),
+        true,
+    )
 })

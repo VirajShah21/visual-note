@@ -30,21 +30,16 @@ const isIsoDateString = (value: string) => Number.isFinite(Date.parse(value))
 export const runAssetCleanup = async (request: Request, dependencies = defaultAssetCleanupDependencies) => {
     const expectedToken = dependencies.getMaintenanceToken()
     const token = request.headers.get("x-maintenance-token")
-    if (!expectedToken) {
-        return Response.json({ error: "Maintenance token is not configured." }, { status: 503 })
-    }
-    if (!token || token !== expectedToken) {
-        return Response.json({ error: "Unauthorized maintenance request." }, { status: 401 })
-    }
+    if (!expectedToken) return Response.json({ error: "Maintenance token is not configured." }, { status: 503 })
+
+    if (!token || token !== expectedToken) return Response.json({ error: "Unauthorized maintenance request." }, { status: 401 })
 
     const supabase = dependencies.getSupabaseServiceRoleClient()
-    if (!supabase) {
-        return Response.json({ error: "Application database access is required for asset cleanup." }, { status: 503 })
-    }
+    if (!supabase) return Response.json({ error: "Application database access is required for asset cleanup." }, { status: 503 })
 
     let body: CleanupRequestBody = {}
     const hasBody = (request.headers.get("content-length") ?? "0") !== "0"
-    if (hasBody) {
+    if (hasBody)
         try {
             const parsed = await request.json()
             if (typeof parsed === "object" && parsed !== null) body = parsed as CleanupRequestBody
@@ -52,20 +47,12 @@ export const runAssetCleanup = async (request: Request, dependencies = defaultAs
         } catch {
             return Response.json({ error: "Invalid cleanup payload." }, { status: 400 })
         }
-    }
 
-    if (body.deleteUpdatedBefore && !isIsoDateString(body.deleteUpdatedBefore)) {
-        return Response.json({ error: "deleteUpdatedBefore must be an ISO date string." }, { status: 400 })
-    }
+    if (body.deleteUpdatedBefore && !isIsoDateString(body.deleteUpdatedBefore)) return Response.json({ error: "deleteUpdatedBefore must be an ISO date string." }, { status: 400 })
 
     try {
         if (body.userId) {
-            const summary = await dependencies.cleanupWorkspaceAssetOrphans(
-                supabase,
-                body.userId,
-                undefined,
-                body.deleteUpdatedBefore,
-            )
+            const summary = await dependencies.cleanupWorkspaceAssetOrphans(supabase, body.userId, undefined, body.deleteUpdatedBefore)
             dependencies.recordVisualNoteEvent({
                 event: "assets.cleanup_executed",
                 severity: "info",

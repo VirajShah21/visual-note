@@ -27,37 +27,38 @@ const publishedNotebook = {
     published: true,
 }
 
-const makeDependencies = (overrides: Partial<PublishRouteDependencies> = {}): PublishRouteDependencies => ({
-    exportPublishBundle: () => ({
-        ok: true,
-        value: {
-            notebookId: "notebook-1",
-            notebookTitle: "Notebook",
-            markdown: "# Title",
-            web: "<html></html>",
-            json: JSON.stringify({ notebook: {} }),
-            diagnostics: { includeHtml: true, includeJson: true, manifestHash: "abc" },
-        },
-    }),
-    loadWorkspaceForUser: async () => ({ notebooks: [publishedNotebook], pages: [], topics: [], views: [] } as never),
-    parsePublishRequest: async () => ({ ok: true, input: { action: "preview", includeHtml: true } }),
-    publishNotebook: async () => ({
-        ok: true,
-        value: {
-            workspace: {
-                notebooks: [publishedNotebook],
-                pages: [],
-                topics: [],
-                views: [],
+const makeDependencies = (overrides: Partial<PublishRouteDependencies> = {}): PublishRouteDependencies =>
+    ({
+        exportPublishBundle: () => ({
+            ok: true,
+            value: {
+                notebookId: "notebook-1",
+                notebookTitle: "Notebook",
+                markdown: "# Title",
+                web: "<html></html>",
+                json: JSON.stringify({ notebook: {} }),
+                diagnostics: { includeHtml: true, includeJson: true, manifestHash: "abc" },
             },
-            notebook: publishedNotebook,
-        },
-    }),
-    resolveWorkspaceRevision: async () => "v1",
-    saveWorkspaceForUser: async () => ({} as never),
-    userOwnsNotebook: async () => true,
-    ...overrides,
-} as PublishRouteDependencies)
+        }),
+        loadWorkspaceForUser: async () => ({ notebooks: [publishedNotebook], pages: [], topics: [], views: [] }) as never,
+        parsePublishRequest: async () => ({ ok: true, input: { action: "preview", includeHtml: true } }),
+        publishNotebook: async () => ({
+            ok: true,
+            value: {
+                workspace: {
+                    notebooks: [publishedNotebook],
+                    pages: [],
+                    topics: [],
+                    views: [],
+                },
+                notebook: publishedNotebook,
+            },
+        }),
+        resolveWorkspaceRevision: async () => "v1",
+        saveWorkspaceForUser: async () => ({}) as never,
+        userOwnsNotebook: async () => true,
+        ...overrides,
+    }) as PublishRouteDependencies
 
 test("POST returns preview result", async () => {
     const response = await runPublishPost(authContext, makeRequest({ action: "preview", includeHtml: true }), "notebook-1", {

@@ -3,12 +3,9 @@ import test from "node:test"
 import { parseSearchRequest } from "./route-contract"
 
 const requestFor = (query: string, extra: Record<string, string> = {}) =>
-    new Request(
-        `http://visual-note.test/api/notebooks/notebook-1/search?${new URLSearchParams({ q: query, ...extra }).toString()}`,
-        {
-            method: "GET",
-        },
-    )
+    new Request(`http://visual-note.test/api/notebooks/notebook-1/search?${new URLSearchParams({ q: query, ...extra }).toString()}`, {
+        method: "GET",
+    })
 
 test("accepts default search input values", () => {
     const parsed = parseSearchRequest(requestFor("notes"))

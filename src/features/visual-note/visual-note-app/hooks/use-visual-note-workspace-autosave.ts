@@ -107,7 +107,7 @@ export const useVisualNoteWorkspaceAutosave = ({
                     if (response.warnings.length > 0) {
                         const message = response.warnings.find(item => item.includes(STORAGE_CONTENT_WARNING))
                             ? STORAGE_SETUP_HINT
-                            : response.warnings[0] ?? "Some workspace content was not saved due to configuration issues."
+                            : (response.warnings[0] ?? "Some workspace content was not saved due to configuration issues.")
 
                         hasActiveSaveErrorRef.current = true
                         setWorkspaceRecovery({ message, status: "warning" })

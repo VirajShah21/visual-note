@@ -17,11 +17,7 @@ const defaultMcpTokenByIdRouteDependencies: McpTokenByIdRouteDependencies = {
     revokeMcpToken,
 }
 
-export const runMcpTokenDelete = async (
-    request: Request,
-    context: RouteContext<"/api/mcp/tokens/[tokenId]">,
-    dependencies = defaultMcpTokenByIdRouteDependencies,
-) => {
+export const runMcpTokenDelete = async (request: Request, context: RouteContext<"/api/mcp/tokens/[tokenId]">, dependencies = defaultMcpTokenByIdRouteDependencies) => {
     const auth = await dependencies.authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 

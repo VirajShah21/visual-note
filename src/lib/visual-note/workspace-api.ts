@@ -67,9 +67,7 @@ export type SaveVisualNoteWorkspaceResult = {
 }
 
 export const saveVisualNoteWorkspace = async (workspace: VisualNoteWorkspace, options: SaveVisualNoteWorkspaceOptions = {}): Promise<SaveVisualNoteWorkspaceResult> => {
-    if (typeof options.revision !== "string" || !options.revision.trim()) {
-        throw new Error("Workspace revision is required before saving.")
-    }
+    if (typeof options.revision !== "string" || !options.revision.trim()) throw new Error("Workspace revision is required before saving.")
 
     const headers: HeadersInit = {
         "Content-Type": "application/json",
@@ -97,9 +95,7 @@ export const saveVisualNoteWorkspace = async (workspace: VisualNoteWorkspace, op
     const revision = typeof body.revision === "string" && body.revision.length > 0 ? body.revision : null
     if (!revision) throw new Error("Workspace save did not return a revision token.")
 
-    const warnings = Array.isArray((body as { warnings?: unknown }).warnings)
-        ? (body as { warnings?: string[] }).warnings ?? []
-        : []
+    const warnings = Array.isArray((body as { warnings?: unknown }).warnings) ? ((body as { warnings?: string[] }).warnings ?? []) : []
 
     return { revision, warnings }
 }

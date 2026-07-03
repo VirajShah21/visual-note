@@ -56,10 +56,12 @@ export const runNotebookGet = async (auth: Authenticated, notebookId: string, de
         if (!notebook) return Response.json({ error: "Notebook not found." }, { status: 404 })
 
         const pages = sortByPosition(
-            workspace.pages.filter(page => page.notebookId === notebookId).map(page => {
-                const topics = sortByPosition(workspace.topics.filter(topic => topic.pageId === page.id))
-                return { ...page, topics }
-            }),
+            workspace.pages
+                .filter(page => page.notebookId === notebookId)
+                .map(page => {
+                    const topics = sortByPosition(workspace.topics.filter(topic => topic.pageId === page.id))
+                    return { ...page, topics }
+                }),
         )
 
         return Response.json({ notebook, pages })

@@ -72,11 +72,7 @@ export const runNotebooksGet = async (auth: Authenticated, dependencies = defaul
     }
 }
 
-const serializePageMarkdown = async (
-    dependencies: NotebooksRouteDependencies,
-    workspace: VisualNoteWorkspace,
-    pageId: string,
-) => {
+const serializePageMarkdown = async (dependencies: NotebooksRouteDependencies, workspace: VisualNoteWorkspace, pageId: string) => {
     const page = workspace.pages.find(item => item.id === pageId)
     if (!page) return ""
 

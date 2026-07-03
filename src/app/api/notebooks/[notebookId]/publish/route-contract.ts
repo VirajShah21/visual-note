@@ -23,23 +23,14 @@ export const parsePublishRequest = async (request: Request): Promise<PublishPars
     if (!input || Array.isArray(input)) return { ok: false, error: "Invalid publish request body.", status: 400 }
 
     const action = input.action
-    if (action !== "preview" && action !== "publish" && action !== "unpublish") {
-        return { ok: false, error: "action must be preview, publish, or unpublish.", status: 400 }
-    }
+    if (action !== "preview" && action !== "publish" && action !== "unpublish") return { ok: false, error: "action must be preview, publish, or unpublish.", status: 400 }
 
-    if (action !== "preview") {
-        if (typeof input.revision !== "string" || !input.revision.trim()) {
-            return { ok: false, error: "revision is required for publish and unpublish actions.", status: 400 }
-        }
-    }
+    if (action !== "preview")
+        if (typeof input.revision !== "string" || !input.revision.trim()) return { ok: false, error: "revision is required for publish and unpublish actions.", status: 400 }
 
-    if (input.includeHtml !== undefined && typeof input.includeHtml !== "boolean") {
-        return { ok: false, error: "includeHtml must be a boolean.", status: 400 }
-    }
+    if (input.includeHtml !== undefined && typeof input.includeHtml !== "boolean") return { ok: false, error: "includeHtml must be a boolean.", status: 400 }
 
-    if (input.includeJson !== undefined && typeof input.includeJson !== "boolean") {
-        return { ok: false, error: "includeJson must be a boolean.", status: 400 }
-    }
+    if (input.includeJson !== undefined && typeof input.includeJson !== "boolean") return { ok: false, error: "includeJson must be a boolean.", status: 400 }
 
     return {
         ok: true,

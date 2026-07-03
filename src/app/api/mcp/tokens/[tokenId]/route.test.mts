@@ -4,16 +4,18 @@ import { runMcpTokenDelete, type McpTokenByIdRouteDependencies } from "./route"
 
 const readResponseBody = async (response: Response) => response.json()
 
-const makeDependencies = (overrides: Partial<McpTokenByIdRouteDependencies> = {}) => ({
-    authenticateSupabaseMutationRequest: async () => ({ supabase: {} as never, userId: "user-1" }),
-    getSupabaseServiceRoleClient: () => ({} as never),
-    revokeMcpToken: async () => true,
-    ...overrides,
-} as McpTokenByIdRouteDependencies)
+const makeDependencies = (overrides: Partial<McpTokenByIdRouteDependencies> = {}) =>
+    ({
+        authenticateSupabaseMutationRequest: async () => ({ supabase: {} as never, userId: "user-1" }),
+        getSupabaseServiceRoleClient: () => ({}) as never,
+        revokeMcpToken: async () => true,
+        ...overrides,
+    }) as McpTokenByIdRouteDependencies
 
-const context = (tokenId: string): RouteContext<"/api/mcp/tokens/[tokenId]"> => ({
-    params: Promise.resolve({ tokenId }) as never,
-} as RouteContext<"/api/mcp/tokens/[tokenId]">)
+const context = (tokenId: string): RouteContext<"/api/mcp/tokens/[tokenId]"> =>
+    ({
+        params: Promise.resolve({ tokenId }) as never,
+    }) as RouteContext<"/api/mcp/tokens/[tokenId]">
 
 test("rejects unauthorized token deletion requests", async () => {
     const response = await runMcpTokenDelete(new Request("https://app.test/api/mcp/tokens/token-1", { method: "DELETE" }), context("token-1"), {
@@ -46,11 +48,7 @@ test("returns not found when token is missing", async () => {
 })
 
 test("revokes token and returns success", async () => {
-    const response = await runMcpTokenDelete(
-        new Request("https://app.test/api/mcp/tokens/token-2", { method: "DELETE" }),
-        context("token-2"),
-        makeDependencies(),
-    )
+    const response = await runMcpTokenDelete(new Request("https://app.test/api/mcp/tokens/token-2", { method: "DELETE" }), context("token-2"), makeDependencies())
 
     assert.equal(response.status, 200)
     assert.deepEqual(await readResponseBody(response), { ok: true })

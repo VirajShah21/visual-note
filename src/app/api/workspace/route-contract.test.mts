@@ -82,7 +82,7 @@ test("rejects invalid If-Match revision headers", async () => {
         body: JSON.stringify({ workspace }),
         method: "PUT",
         headers: {
-            "if-match": "\"\"",
+            "if-match": '""',
         },
     })
     const parsed = await parseWorkspaceSaveRequest(request)
@@ -143,8 +143,8 @@ test("accepts revision from a valid If-Match header", async () => {
 test("parses unquoted revision from If-Match headers", () => {
     assert.equal(parseIfMatchRevision("revision-1"), "revision-1")
     assert.equal(parseIfMatchRevision('"revision-2"'), "revision-2")
-    assert.equal(parseIfMatchRevision("W/\"revision-3\""), "revision-3")
-    assert.equal(parseIfMatchRevision("   \"revision-4\"   "), "revision-4")
+    assert.equal(parseIfMatchRevision('W/"revision-3"'), "revision-3")
+    assert.equal(parseIfMatchRevision('   "revision-4"   '), "revision-4")
     assert.equal(parseIfMatchRevision(""), null)
     assert.equal(parseIfMatchRevision("   "), null)
 })

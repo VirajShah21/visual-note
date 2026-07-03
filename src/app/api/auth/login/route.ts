@@ -46,9 +46,8 @@ export const runLogin = async (request: Request, dependencies = defaultLoginRout
                 return Response.json({ error: `Too many failed login attempts. Try again in ${Math.max(1, Math.ceil(failure.retryAfterMs / 1000))} seconds.` }, { status: 429 })
             }
 
-            if (failure.attempts >= suspiciousFailureAttempts) {
+            if (failure.attempts >= suspiciousFailureAttempts)
                 dependencies.recordVisualNoteEvent({ event: "auth.login_suspicious", severity: "warn", metadata: { attempts: failure.attempts, email: input.email } })
-            }
 
             dependencies.recordVisualNoteEvent({ event: "auth.login_failed", severity: "warn", metadata: { attempts: failure.attempts, email: input.email } })
             return Response.json({ error: "Invalid login credentials." }, { status: 401 })

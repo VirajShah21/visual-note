@@ -20,17 +20,12 @@ const defaultObservabilityDependencies: ObservabilityDependencies = {
 export const runObservabilityMetricsGet = async (request: Request, dependencies = defaultObservabilityDependencies) => {
     const expectedToken = dependencies.getMaintenanceToken()
     const actualToken = request.headers.get("x-maintenance-token")
-    if (!expectedToken) {
-        return Response.json({ error: "Maintenance token is not configured." }, { status: 503 })
-    }
-    if (!actualToken || actualToken !== expectedToken) {
-        return Response.json({ error: "Unauthorized maintenance request." }, { status: 401 })
-    }
+    if (!expectedToken) return Response.json({ error: "Maintenance token is not configured." }, { status: 503 })
+
+    if (!actualToken || actualToken !== expectedToken) return Response.json({ error: "Unauthorized maintenance request." }, { status: 401 })
 
     const supabase = dependencies.getSupabaseServiceRoleClient()
-    if (!supabase) {
-        return Response.json({ error: "Application database access is required for observability metrics." }, { status: 503 })
-    }
+    if (!supabase) return Response.json({ error: "Application database access is required for observability metrics." }, { status: 503 })
 
     dependencies.recordVisualNoteEvent({ event: "observability.metrics_read", severity: "info" })
     return Response.json(dependencies.snapshotVisualNoteMetrics())

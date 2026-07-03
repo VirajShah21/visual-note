@@ -15,9 +15,9 @@ type WorkspaceSaveParseResult =
       }
     | {
           ok: false
-      error: string
-      status: 400
-  }
+          error: string
+          status: 400
+      }
 
 export const parseWorkspaceSaveRequest = async (request: Request): Promise<WorkspaceSaveParseResult> => {
     const body = (await request.json().catch(() => null)) as WorkspaceSaveBody | null
@@ -30,8 +30,7 @@ export const parseWorkspaceSaveRequest = async (request: Request): Promise<Works
     const revisionBody = body.revision == null ? null : body.revision.trim()
     if (!revisionBody && !ifMatch) return { ok: false, error: "Revision is required for workspace save.", status: 400 }
 
-    if (ifMatch && revisionBody && revisionBody !== ifMatch)
-        return { ok: false, error: "Revision in payload must match If-Match header.", status: 400 }
+    if (ifMatch && revisionBody && revisionBody !== ifMatch) return { ok: false, error: "Revision in payload must match If-Match header.", status: 400 }
 
     return {
         ok: true,

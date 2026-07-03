@@ -212,13 +212,7 @@ export const deleteAssetRecord = async (supabase: SupabaseClient, userId: string
     const resolved = await loadAssetStorage(supabase, userId, assetId)
     if (!resolved) return null
 
-    const { data, error: deleteError } = await supabase
-        .from("visual_note_assets")
-        .delete()
-        .eq("id", assetId)
-        .eq("user_id", userId)
-        .select("id")
-        .maybeSingle()
+    const { data, error: deleteError } = await supabase.from("visual_note_assets").delete().eq("id", assetId).eq("user_id", userId).select("id").maybeSingle()
     if (deleteError) throw deleteError
     if (!data) return null
 

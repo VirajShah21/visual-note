@@ -21,36 +21,37 @@ const makeUploadRequest = (body = "image") =>
         headers: { "content-length": String(body.length), "content-type": "multipart/form-data; boundary=boundary" },
     })
 
-const makeDependencies = (overrides: Partial<AssetUploadRouteDependencies> = {}, events: AssetEvent[] = []) => ({
-    createAssetObjectKey: () => "notebook-1/images/object-key",
-    createAssetRecord: async () => ({ id: "asset-1", objectKey: "object-key", contentType: "image/png", fileName: "image.png", byteSize: 3 }),
-    deleteS3Object: async () => {},
-    getSupabaseServiceRoleClient: () => ({}) as never,
-    parseAssetUploadRequest: async () => ({
-        ok: true,
-        file: makeFile(),
-    }),
-    recordVisualNoteEvent: entry => {
-        events.push(entry)
-    },
-    resolveNotebookStorage: async () => ({
-        notebookId: "notebook-1",
-        userId: "user-1",
-        connectionId: "connection-1",
-        bucketName: "bucket",
-        connection: {
-            endpointUrl: "",
-            region: "us-east-1",
-            forcePathStyle: false,
-            accessKeyId: "AKIA",
-            secretAccessKey: "SECRET",
+const makeDependencies = (overrides: Partial<AssetUploadRouteDependencies> = {}, events: AssetEvent[] = []) =>
+    ({
+        createAssetObjectKey: () => "notebook-1/images/object-key",
+        createAssetRecord: async () => ({ id: "asset-1", objectKey: "object-key", contentType: "image/png", fileName: "image.png", byteSize: 3 }),
+        deleteS3Object: async () => {},
+        getSupabaseServiceRoleClient: () => ({}) as never,
+        parseAssetUploadRequest: async () => ({
+            ok: true,
+            file: makeFile(),
+        }),
+        recordVisualNoteEvent: entry => {
+            events.push(entry)
         },
-    }),
-    userOwnsNotebook: async () => true,
-    uploadS3Object: async () => {},
-    validateImageUpload: () => null,
-    ...overrides,
-} as AssetUploadRouteDependencies)
+        resolveNotebookStorage: async () => ({
+            notebookId: "notebook-1",
+            userId: "user-1",
+            connectionId: "connection-1",
+            bucketName: "bucket",
+            connection: {
+                endpointUrl: "",
+                region: "us-east-1",
+                forcePathStyle: false,
+                accessKeyId: "AKIA",
+                secretAccessKey: "SECRET",
+            },
+        }),
+        userOwnsNotebook: async () => true,
+        uploadS3Object: async () => {},
+        validateImageUpload: () => null,
+        ...overrides,
+    }) as AssetUploadRouteDependencies
 
 test("POST stores image uploads and returns asset payload", async () => {
     const response = await runAssetsPost(authContext, makeUploadRequest(), "notebook-1", makeDependencies())
@@ -119,7 +120,10 @@ test("POST records validation rejection events", async () => {
     })
 
     assert.equal(response.status, 415)
-    assert.equal(events.some(item => item.event === "asset.upload_rejected"), true)
+    assert.equal(
+        events.some(item => item.event === "asset.upload_rejected"),
+        true,
+    )
 })
 
 test("POST maps upload errors to status 500", async () => {
@@ -144,7 +148,10 @@ test("POST records upload failures", async () => {
     })
 
     assert.equal(response.status, 500)
-    assert.equal(events.some(item => item.event === "asset.upload_failed"), true)
+    assert.equal(
+        events.some(item => item.event === "asset.upload_failed"),
+        true,
+    )
 })
 
 test("POST maps asset record failures to status 500", async () => {

@@ -23,8 +23,7 @@ const defaultWorkspaceRouteDependencies: WorkspaceRouteDependencies = {
     saveWorkspaceForUser,
     logEvent: recordVisualNoteEvent,
     isWorkspaceConflictError,
-    isWorkspaceIntegrityError: (error: unknown): error is Error & { code?: string } =>
-        error instanceof Error && (error as { code?: string }).code === "workspace_integrity",
+    isWorkspaceIntegrityError: (error: unknown): error is Error & { code?: string } => error instanceof Error && (error as { code?: string }).code === "workspace_integrity",
 }
 
 export const runWorkspaceLoad = async (auth: Authenticated, dependencies = defaultWorkspaceRouteDependencies) => {
@@ -58,9 +57,8 @@ export const runWorkspaceSave = async (auth: Authenticated, parsed: WorkspaceSav
         dependencies.logEvent({ event: "workspace.save_success", severity: "info", userId: auth.userId, metadata: { nextRevision } })
 
         const response: { revision: string; warnings?: string[] } = { revision: nextRevision }
-        if (saveResult.warnings.length > 0) {
-            response.warnings = saveResult.warnings
-        }
+        if (saveResult.warnings.length > 0) response.warnings = saveResult.warnings
+
         return Response.json(response)
     } catch (error) {
         if (dependencies.isWorkspaceIntegrityError(error)) {

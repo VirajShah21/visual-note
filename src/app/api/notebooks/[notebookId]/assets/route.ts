@@ -99,11 +99,13 @@ export const runAssetsPost = async (auth: Authenticated, request: Request, noteb
                 },
             })
         } catch (error) {
-            await dependencies.deleteS3Object({
-                connection: storage.connection,
-                bucketName: storage.bucketName,
-                objectKey,
-            }).catch(() => {})
+            await dependencies
+                .deleteS3Object({
+                    connection: storage.connection,
+                    bucketName: storage.bucketName,
+                    objectKey,
+                })
+                .catch(() => {})
             throw error
         }
     } catch (error) {

@@ -27,13 +27,10 @@ const makeDependencies = (overrides: Partial<RegisterRouteDependencies> = {}): R
 
 test("rejects cross-origin registration mutations", async () => {
     const originError = Response.json({ error: "Cross-origin mutation requests are not allowed." }, { status: 403 })
-    const response = await runRegister(
-        requestWithBody({ email: "user@example.com", name: "User", password: "secret" }, "https://attacker.test"),
-        {
-            ...makeDependencies(),
-            rejectCrossOriginMutation: () => originError,
-        },
-    )
+    const response = await runRegister(requestWithBody({ email: "user@example.com", name: "User", password: "secret" }, "https://attacker.test"), {
+        ...makeDependencies(),
+        rejectCrossOriginMutation: () => originError,
+    })
 
     assert.equal(response.status, 403)
     assert.deepEqual(await readResponseBody(response), { error: "Cross-origin mutation requests are not allowed." })

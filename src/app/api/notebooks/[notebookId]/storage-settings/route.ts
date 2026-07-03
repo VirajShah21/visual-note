@@ -36,12 +36,7 @@ export const runStorageSettingsGet = async (auth: Authenticated, notebookId: str
     }
 }
 
-export const runStorageSettingsPut = async (
-    auth: Authenticated,
-    request: Request,
-    notebookId: string,
-    dependencies = defaultStorageSettingsRouteDependencies,
-) => {
+export const runStorageSettingsPut = async (auth: Authenticated, request: Request, notebookId: string, dependencies = defaultStorageSettingsRouteDependencies) => {
     if (!(await dependencies.userOwnsNotebook(auth, notebookId))) return Response.json({ error: "Notebook not found." }, { status: 404 })
     const storageSupabase = dependencies.getSupabaseServiceRoleClient()
     if (!storageSupabase) return Response.json({ error: "Server database access is not configured for storage routes." }, { status: 503 })

@@ -36,7 +36,11 @@ const makeDependencies = (overrides: Partial<AssetSignRouteDependencies> = {}): 
 })
 
 test("GET signs a private asset URL", async () => {
-    const response = await runAssetSignGet(new Request("https://visual-note.test/api/assets/asset-1/sign?ttlSeconds=180"), { params: Promise.resolve({ assetId: "asset-1" }) } as any, makeDependencies())
+    const response = await runAssetSignGet(
+        new Request("https://visual-note.test/api/assets/asset-1/sign?ttlSeconds=180"),
+        { params: Promise.resolve({ assetId: "asset-1" }) } as any,
+        makeDependencies(),
+    )
 
     assert.equal(response.status, 200)
     const body = await readResponseBody(response)
