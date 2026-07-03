@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
-import { isWorkspaceConflictError, parseWorkspaceSaveRequest } from "./route-contract"
+import { isWorkspaceConflictError, parseIfMatchRevision, parseWorkspaceSaveRequest } from "./route-contract"
 
 const workspace: VisualNoteWorkspace = {
     notebooks: [
@@ -53,6 +53,60 @@ test("normalizes accepted workspace save revisions", async () => {
     assert.deepEqual(parsed.baseWorkspace, workspace)
     assert.deepEqual(parsed.workspace, workspace)
     assert.equal(parsed.revision, "revision-1")
+})
+
+test("rejects invalid If-Match revision headers", async () => {
+    const request = new Request("http://visual-note.test/api/workspace", {
+        body: JSON.stringify({ workspace }),
+        method: "PUT",
+        headers: {
+            "if-match": "\"\"",
+        },
+    })
+    const parsed = await parseWorkspaceSaveRequest(request)
+
+    assert.deepEqual(parsed, { ok: false, error: "Invalid If-Match revision header.", status: 400 })
+})
+
+test("rejects mismatched revision and If-Match header", async () => {
+    const request = new Request("http://visual-note.test/api/workspace", {
+        body: JSON.stringify({ workspace, revision: "revision-body", baseWorkspace: workspace }),
+        method: "PUT",
+        headers: {
+            "if-match": '"revision-header"',
+        },
+    })
+    const parsed = await parseWorkspaceSaveRequest(request)
+
+    assert.deepEqual(parsed, {
+        ok: false,
+        error: "Revision in payload must match If-Match header.",
+        status: 400,
+    })
+})
+
+test("accepts revision from a valid If-Match header", async () => {
+    const request = new Request("http://visual-note.test/api/workspace", {
+        body: JSON.stringify({ workspace }),
+        method: "PUT",
+        headers: {
+            "if-match": '"revision-header"',
+        },
+    })
+    const parsed = await parseWorkspaceSaveRequest(request)
+
+    assert.equal(parsed.ok, true)
+    if (!parsed.ok) return
+    assert.equal(parsed.revision, "revision-header")
+})
+
+test("parses unquoted revision from If-Match headers", () => {
+    assert.equal(parseIfMatchRevision("revision-1"), "revision-1")
+    assert.equal(parseIfMatchRevision('"revision-2"'), "revision-2")
+    assert.equal(parseIfMatchRevision("W/\"revision-3\""), "revision-3")
+    assert.equal(parseIfMatchRevision("   \"revision-4\"   "), "revision-4")
+    assert.equal(parseIfMatchRevision(""), null)
+    assert.equal(parseIfMatchRevision("   "), null)
 })
 
 test("classifies workspace conflict errors for route status mapping", () => {

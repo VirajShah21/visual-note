@@ -11,7 +11,7 @@ export async function GET(request: Request) {
 
     try {
         const { workspace, revision } = await loadWorkspaceForUserWithRevision(auth.supabase, auth.userId)
-        return Response.json({ workspace, revision })
+        return Response.json({ workspace, revision }, { headers: { ETag: `"${revision}"` } })
     } catch (error) {
         recordVisualNoteEvent({ event: "workspace.load_failed", severity: "error", userId: auth.userId, error })
         return Response.json({ error: error instanceof Error ? error.message : "Unable to load workspace." }, { status: 500 })
