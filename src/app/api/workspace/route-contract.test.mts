@@ -63,11 +63,18 @@ test("requires revision with baseWorkspace", async () => {
         }),
     )
 
-    assert.deepEqual(parsed, {
-        ok: false,
-        error: "Revision is required when baseWorkspace is provided.",
-        status: 400,
-    })
+    assert.deepEqual(parsed, { ok: false, error: "Revision is required for workspace save.", status: 400 })
+})
+
+test("requires revision for all workspace saves", async () => {
+    const parsed = await parseWorkspaceSaveRequest(
+        workspaceRequest({
+            workspace,
+            revision: null,
+        }),
+    )
+
+    assert.deepEqual(parsed, { ok: false, error: "Revision is required for workspace save.", status: 400 })
 })
 
 test("rejects invalid If-Match revision headers", async () => {

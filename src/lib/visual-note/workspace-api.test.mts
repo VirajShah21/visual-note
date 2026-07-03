@@ -15,7 +15,7 @@ const createMockResponse = (status: number, body: unknown) =>
         headers: { "content-type": "application/json" },
     })
 
-const captureFetchRequest = async (revision: string | null, status = 200, body: unknown = { revision: "revision-after-save", ok: true }) => {
+const captureFetchRequest = async (revision: string, status = 200, body: unknown = { revision: "revision-after-save", ok: true }) => {
     const requests: Request[] = []
     const mock = async (input: string | URL | Request, init?: RequestInit) => {
         const request = new Request(input, init)
@@ -44,17 +44,23 @@ test("includes If-Match header when revision is provided", async () => {
     assert.equal(requests[0]?.headers.get("if-match"), '"revision-123"')
 })
 
-test("does not include If-Match header when revision is absent", async () => {
-    const { requests } = await captureFetchRequest(null)
-
-    assert.equal(requests.length, 1)
-    assert.equal(requests[0]?.headers.get("if-match"), null)
-})
-
 test("trims whitespace from revision before sending If-Match", async () => {
     const { requests } = await captureFetchRequest("  revision-456  ")
 
     assert.equal(requests[0]?.headers.get("if-match"), '"revision-456"')
+})
+
+test("requires revision before saving", async () => {
+    await assert.rejects(
+        () =>
+            saveVisualNoteWorkspace(workspace as never, {
+                revision: null,
+            } as never),
+        error => {
+            assert.equal((error as Error).message, "Workspace revision is required before saving.")
+            return true
+        },
+    )
 })
 
 test("throws a typed status error when saving workspace fails", async () => {

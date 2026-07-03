@@ -69,7 +69,7 @@ test("PUT maps workspace integrity errors to status 400", async () => {
         {
             ok: true,
             workspace,
-            revision: undefined,
+            revision: "v1",
             baseWorkspace: undefined,
         },
         {
@@ -127,7 +127,7 @@ test("PUT maps storage configuration errors to status 400", async () => {
         {
             ok: true,
             workspace,
-            revision: undefined,
+            revision: "v1",
             baseWorkspace: undefined,
         },
         {
@@ -154,7 +154,7 @@ test("PUT maps unknown save failures to status 500", async () => {
         {
             ok: true,
             workspace,
-            revision: undefined,
+            revision: "v1",
             baseWorkspace: undefined,
         },
         {
