@@ -3,6 +3,7 @@ import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js"
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { registerVisualNoteMcpTools } from "@/server/mcp/visual-note-server"
 import { verifyMcpToken } from "@/server/mcp/token-store"
+import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
 
 export const runtime = "nodejs"
 
@@ -47,6 +48,32 @@ const verifyVisualNoteMcpToken = async (_request: Request, bearerToken?: string)
     }
 }
 
+type McpRouteDependencies = {
+    logEvent: (event: Parameters<typeof recordVisualNoteEvent>[0]) => void
+    now: () => string
+}
+
+const defaultMcpRouteDependencies: McpRouteDependencies = {
+    logEvent: recordVisualNoteEvent,
+    now: () => new Date().toISOString(),
+}
+
+const logMcpRequestFailure = async (request: Request, response: Response, dependencies = defaultMcpRouteDependencies) => {
+    dependencies.logEvent({
+        event: response.status === 401 ? "mcp.auth_failed" : "mcp.request_blocked",
+        severity: "warn",
+        metadata: {
+            method: request.method,
+            path: new URL(request.url).pathname,
+            status: response.status,
+            reason: response.status === 401 ? "auth_required" : "mcp_request_blocked",
+            timestamp: dependencies.now(),
+        },
+    })
+
+    return response
+}
+
 const mcpHandler = createMcpHandler(
     server => {
         registerVisualNoteMcpTools(server)
@@ -66,19 +93,23 @@ const mcpHandler = createMcpHandler(
 
 const authenticatedHandler = withMcpAuth(async request => mcpHandler(request), verifyVisualNoteMcpToken, { required: true })
 
-const handler = (request: Request) => {
+const handler = async (request: Request, dependencies = defaultMcpRouteDependencies) => {
     const originError = rejectInvalidOrigin(request)
-    if (originError) return originError
+    if (originError) return logMcpRequestFailure(request, originError, dependencies)
 
-    return authenticatedHandler(request)
+    const response = await authenticatedHandler(request)
+    if (response instanceof Response && response.status >= 400) return logMcpRequestFailure(request, response, dependencies)
+
+    return response
 }
 
-export const POST = handler
-export const GET = handler
+export const POST = (request: Request) => handler(request)
+export const GET = (request: Request) => handler(request)
+export const runMcpHandler = handler
 
-export const OPTIONS = (request: Request) => {
+export const OPTIONS = (request: Request, dependencies = defaultMcpRouteDependencies) => {
     const originError = rejectInvalidOrigin(request)
-    if (originError) return originError
+    if (originError) return logMcpRequestFailure(request, originError, dependencies)
 
     return new Response(null, {
         status: 204,
