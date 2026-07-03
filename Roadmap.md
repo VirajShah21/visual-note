@@ -100,6 +100,20 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
     - `src/server/visual-note/page-content-store.ts`
     - `src/server/visual-note/workspace-store.ts`
     - `src/lib/visual-note/storage-messages.ts`
+20. Added unified repo QA entrypoints for format/lint/type-check/test/build release automation.
+    - `package.json`
+21. Added contract-level route tests for uncovered auth and MCP token endpoints.
+    - `src/app/api/auth/logout/route.ts`
+    - `src/app/api/auth/logout/route.test.mts`
+    - `src/app/api/auth/register/route.ts`
+    - `src/app/api/auth/register/route.test.mts`
+    - `src/app/api/auth/session/route.ts`
+    - `src/app/api/auth/session/route.test.mts`
+    - `src/app/api/mcp/tokens/[tokenId]/route.ts`
+    - `src/app/api/mcp/tokens/[tokenId]/route.test.mts`
+22. Added explicit data-model contract tests for ownership transitions and orphan repair.
+    - `src/server/visual-note/workspace-store.test.mts`
+    - `src/server/visual-note/workspace-operations.test.mts`
 
 ## Current risks (should be addressed first)
 
@@ -110,19 +124,7 @@ No risks currently listed in this section.
 No critical feature gaps remain in this list after the latest fixes.
 ## Developer and quality gaps
 
-1. Tooling and release automation missing
-    - Build/lint/test gating is manual and inconsistent across environments.
-    - Files: `package.json`, repo root.
-
-2. No test coverage for API contract and schema validation boundaries
-    - Unit tests cover parser/export/workspace operations and MCP smoke logic.
-    - Route-level tests (auth, S3/storage paths, error branches, race cases) are effectively absent.
-    - Files: `package.json`, `src/**/*.test.mts`.
-
-3. No explicit contract tests for data model transitions
-    - No tests for slug uniqueness, notebook transfer between user IDs, orphan repair, or cross-route ACL consistency.
-    - Complex operations happen on whole-workspace objects without integration guardrails.
-    - Files: operations and route layers above.
+No remaining developer and quality risks remain in this section after these fixes.
 
 ## Roadmap by quarter
 
