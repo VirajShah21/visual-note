@@ -72,6 +72,18 @@ create unique index if not exists visual_note_pages_notebook_position_idx
 create unique index if not exists visual_note_pages_content_object_key_idx
   on public.visual_note_pages(content_object_key);
 
+create table if not exists public.visual_note_workspace_snapshots (
+  id text primary key,
+  user_id uuid not null references public.visual_note_users(id) on delete cascade,
+  name text not null,
+  note text,
+  workspace jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists visual_note_workspace_snapshots_user_created_idx
+  on public.visual_note_workspace_snapshots(user_id, created_at);
+
 create table if not exists public.visual_note_mcp_tokens (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.visual_note_users(id) on delete cascade,
@@ -171,6 +183,7 @@ alter table public.visual_note_notebook_storage enable row level security;
 alter table public.visual_note_assets enable row level security;
 alter table public.visual_note_notebooks enable row level security;
 alter table public.visual_note_pages enable row level security;
+alter table public.visual_note_workspace_snapshots enable row level security;
 alter table public.visual_note_mcp_audit_events enable row level security;
 
 revoke all on public.visual_note_users from anon;
@@ -187,6 +200,8 @@ revoke all on public.visual_note_assets from anon;
 revoke all on public.visual_note_assets from authenticated;
 revoke all on public.visual_note_mcp_audit_events from anon;
 revoke all on public.visual_note_mcp_audit_events from authenticated;
+revoke all on public.visual_note_workspace_snapshots from anon;
+revoke all on public.visual_note_workspace_snapshots from authenticated;
 
 grant select, insert, update, delete on public.visual_note_users to service_role;
 grant select, insert, update, delete on public.visual_note_sessions to service_role;
@@ -196,6 +211,7 @@ grant select, insert, update, delete on public.visual_note_notebook_storage to s
 grant select, insert, update, delete on public.visual_note_assets to service_role;
 grant select, insert, update, delete on public.visual_note_notebooks to service_role;
 grant select, insert, update, delete on public.visual_note_pages to service_role;
+grant select, insert, update, delete on public.visual_note_workspace_snapshots to service_role;
 grant select, insert on public.visual_note_mcp_audit_events to service_role;
 
 drop policy if exists read_s3_connections on public.visual_note_s3_connections;
@@ -218,6 +234,10 @@ drop policy if exists read_pages on public.visual_note_pages;
 drop policy if exists insert_pages on public.visual_note_pages;
 drop policy if exists update_pages on public.visual_note_pages;
 drop policy if exists delete_pages on public.visual_note_pages;
+drop policy if exists read_workspace_snapshots on public.visual_note_workspace_snapshots;
+drop policy if exists insert_workspace_snapshots on public.visual_note_workspace_snapshots;
+drop policy if exists update_workspace_snapshots on public.visual_note_workspace_snapshots;
+drop policy if exists delete_workspace_snapshots on public.visual_note_workspace_snapshots;
 drop policy if exists read_mcp_audit_events on public.visual_note_mcp_audit_events;
 drop policy if exists insert_mcp_audit_events on public.visual_note_mcp_audit_events;
 drop policy if exists update_mcp_audit_events on public.visual_note_mcp_audit_events;

@@ -13,6 +13,11 @@ const schemaChecks = [
         label: "visual_note_pages",
         table: "visual_note_pages",
     },
+    {
+        columns: "id,user_id,name,note,created_at,workspace",
+        label: "visual_note_workspace_snapshots",
+        table: "visual_note_workspace_snapshots",
+    },
 ] as const
 
 const schemaIssueMessage = (label: string, error: unknown) => {

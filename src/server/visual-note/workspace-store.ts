@@ -8,6 +8,7 @@ import { deleteNotebooksNotIn, listNotebooksForUser, upsertNotebooks } from "@/s
 import { deletePagesNotIn, hydrateWorkspaceFromPageRows, listPagesForUser, listPagesForUserByNotebooks, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
 import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
 import { assertWorkspaceStoreReady } from "@/server/visual-note/workspace-readiness"
+import { listWorkspaceSnapshotsForUser, upsertWorkspaceSnapshotsForUser } from "@/server/visual-note/workspace-snapshot-store"
 import { deleteAssetsNotInNotebooks, deleteAssetsNotReferencedByWorkspace } from "@/server/storage/notebook-asset-cleanup"
 import { deleteS3Object } from "@/server/storage/s3"
 
@@ -132,6 +133,7 @@ export const loadWorkspaceForUser = async (supabase: SupabaseClient, userId: str
         pages: pagesWithContent,
         topics,
         views,
+        snapshots: await listWorkspaceSnapshotsForUser(supabase, userId),
     }
 }
 
@@ -203,6 +205,7 @@ export const saveWorkspaceForUser = async (supabase: SupabaseClient, userId: str
     const deletedAssets = await deleteAssetsNotInNotebooks(supabase, userId, notebookIds, saveStartedAt)
     await deleteAssetObjects(deletedAssets)
     await deleteNotebooksNotIn(supabase, userId, notebookIds, saveStartedAt)
+    await upsertWorkspaceSnapshotsForUser(supabase, userId, normalizedWorkspace.snapshots)
 
     return normalizedWorkspace
 }
