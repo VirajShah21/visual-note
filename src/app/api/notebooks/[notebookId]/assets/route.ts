@@ -1,6 +1,6 @@
 import { authenticateSupabaseMutationRequest, getSupabaseServiceRoleClient, userOwnsNotebook } from "@/lib/supabase/server"
 import { createAssetObjectKey, createAssetRecord, resolveNotebookStorage } from "@/server/storage/notebook-storage"
-import { uploadS3Object } from "@/server/storage/s3"
+import { deleteS3Object, uploadS3Object } from "@/server/storage/s3"
 import { validateImageUpload } from "@/server/storage/upload-validation"
 import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
 import { parseAssetUploadRequest } from "./route-contract"
@@ -13,6 +13,7 @@ export type AssetUploadRouteDependencies = {
     createAssetObjectKey: typeof createAssetObjectKey
     createAssetRecord: typeof createAssetRecord
     getSupabaseServiceRoleClient: typeof getSupabaseServiceRoleClient
+    deleteS3Object: typeof deleteS3Object
     parseAssetUploadRequest: typeof parseAssetUploadRequest
     recordVisualNoteEvent: typeof recordVisualNoteEvent
     resolveNotebookStorage: typeof resolveNotebookStorage
@@ -25,6 +26,7 @@ const defaultAssetUploadRouteDependencies: AssetUploadRouteDependencies = {
     createAssetObjectKey,
     createAssetRecord,
     getSupabaseServiceRoleClient,
+    deleteS3Object,
     parseAssetUploadRequest,
     recordVisualNoteEvent,
     resolveNotebookStorage,
@@ -79,22 +81,31 @@ export const runAssetsPost = async (auth: Authenticated, request: Request, noteb
             },
         })
 
-        const asset = await dependencies.createAssetRecord(storageSupabase, storage, {
-            name: file.name,
-            contentType: file.type,
-            byteSize: body.byteLength,
-            objectKey,
-        })
+        try {
+            const asset = await dependencies.createAssetRecord(storageSupabase, storage, {
+                name: file.name,
+                contentType: file.type,
+                byteSize: body.byteLength,
+                objectKey,
+            })
 
-        return Response.json({
-            asset: {
-                id: asset.id,
-                url: `/api/assets/${asset.id}`,
-                fileName: asset.fileName,
-                contentType: asset.contentType,
-                byteSize: asset.byteSize,
-            },
-        })
+            return Response.json({
+                asset: {
+                    id: asset.id,
+                    url: `/api/assets/${asset.id}`,
+                    fileName: asset.fileName,
+                    contentType: asset.contentType,
+                    byteSize: asset.byteSize,
+                },
+            })
+        } catch (error) {
+            await dependencies.deleteS3Object({
+                connection: storage.connection,
+                bucketName: storage.bucketName,
+                objectKey,
+            }).catch(() => {})
+            throw error
+        }
     } catch (error) {
         dependencies.recordVisualNoteEvent({ event: "asset.upload_failed", severity: "error", userId: auth.userId, metadata: { notebookId }, error })
         return Response.json({ error: error instanceof Error ? error.message : "Unable to upload image." }, { status: 500 })

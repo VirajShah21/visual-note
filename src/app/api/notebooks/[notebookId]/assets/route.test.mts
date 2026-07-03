@@ -24,6 +24,7 @@ const makeUploadRequest = (body = "image") =>
 const makeDependencies = (overrides: Partial<AssetUploadRouteDependencies> = {}, events: AssetEvent[] = []) => ({
     createAssetObjectKey: () => "notebook-1/images/object-key",
     createAssetRecord: async () => ({ id: "asset-1", objectKey: "object-key", contentType: "image/png", fileName: "image.png", byteSize: 3 }),
+    deleteS3Object: async () => {},
     getSupabaseServiceRoleClient: () => ({}) as never,
     parseAssetUploadRequest: async () => ({
         ok: true,
@@ -156,4 +157,21 @@ test("POST maps asset record failures to status 500", async () => {
 
     assert.equal(response.status, 500)
     assert.equal((await readResponseBody(response)).error, "db down")
+})
+
+test("POST cleans up S3 object when DB record creation fails", async () => {
+    let objectDeleted = false
+    const response = await runAssetsPost(authContext, makeUploadRequest(), "notebook-1", {
+        ...makeDependencies(),
+        createAssetRecord: async () => {
+            throw new Error("db down")
+        },
+        deleteS3Object: async () => {
+            objectDeleted = true
+        },
+    })
+
+    assert.equal(response.status, 500)
+    assert.equal((await readResponseBody(response)).error, "db down")
+    assert.equal(objectDeleted, true)
 })
