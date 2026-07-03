@@ -95,18 +95,32 @@ export const runWorkspaceSave = async (auth: Authenticated, parsed: WorkspaceSav
     }
 }
 
+export const runWorkspaceAuthFailure = (request: Request, response: Response, operation: "load" | "save", dependencies = defaultWorkspaceRouteDependencies) => {
+    dependencies.logEvent({
+        event: "workspace.auth_failed",
+        severity: "warn",
+        metadata: {
+            operation,
+            status: response.status,
+            path: new URL(request.url).pathname,
+        },
+    })
+
+    return response
+}
+
 export const runtime = "nodejs"
 
 export async function GET(request: Request) {
     const auth = await authenticateSupabaseRequest(request)
-    if (auth instanceof Response) return auth
+    if (auth instanceof Response) return runWorkspaceAuthFailure(request, auth, "load")
 
     return runWorkspaceLoad(auth)
 }
 
 export async function PUT(request: Request) {
     const auth = await authenticateSupabaseMutationRequest(request)
-    if (auth instanceof Response) return auth
+    if (auth instanceof Response) return runWorkspaceAuthFailure(request, auth, "save")
 
     const parsed = await parseWorkspaceSaveRequest(request)
     return runWorkspaceSave(auth, parsed)
