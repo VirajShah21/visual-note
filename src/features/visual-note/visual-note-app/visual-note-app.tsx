@@ -255,7 +255,11 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                             <NotebookSettingsWorkspace
                                 notebookId={selected.currentSelection.notebookId}
                                 notebookTitle={selected.notebook?.title ?? "Notebook"}
+                                notebookPublished={selected.notebook?.published === true}
+                                notebookPublishedAt={selected.notebook?.publishedAt}
+                                notebookRevision={workspaceRevision}
                                 storageEnabled={appAuthReady}
+                                onPublish={actions.publishNotebook}
                                 onDone={openEditor}
                             />
                         ) : (

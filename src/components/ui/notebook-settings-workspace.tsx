@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, type ChangeEvent } from "react"
 import { Button } from "./button"
 import { Card, Grid, Heading, Stack, Text } from "./primitives"
 import { CheckboxField, TextField } from "./form-controls"
+import type { PublishAction, PublishResponse, PublishPreviewPayload } from "@/lib/visual-note/storage-api"
 import { emptyNotebookStorageSettings, type NotebookStorageSettingsInput } from "@/lib/visual-note/storage-settings"
 import { repairWorkspaceConsistency, runWorkspaceHealthCheck, type WorkspaceHealthCheckPayload } from "@/lib/visual-note/workspace-health-api"
 import { loadNotebookStorageSettings, saveNotebookStorageSettings } from "@/lib/visual-note/storage-api"
@@ -13,17 +14,37 @@ import styles from "./notebook-settings-workspace.module.css"
 export type NotebookSettingsWorkspaceProps = {
     notebookId: string
     notebookTitle: string
+    notebookPublished: boolean
+    notebookPublishedAt?: string
+    notebookRevision: string | null
     storageEnabled: boolean
+    onPublish: (request: { action: PublishAction; includeHtml?: boolean; includeJson?: boolean }) => Promise<PublishResponse>
     onDone: () => void
 }
 
-export function NotebookSettingsWorkspace({ notebookId, notebookTitle, storageEnabled, onDone }: NotebookSettingsWorkspaceProps) {
+const hasJsonPreview = (preview?: PublishPreviewPayload | null) => Boolean(preview?.json)
+const hasHtmlPreview = (preview?: PublishPreviewPayload | null) => Boolean(preview?.web)
+
+export function NotebookSettingsWorkspace({
+    notebookId,
+    notebookTitle,
+    notebookPublished,
+    notebookPublishedAt,
+    notebookRevision,
+    storageEnabled,
+    onPublish,
+    onDone,
+}: NotebookSettingsWorkspaceProps) {
     const [settingsState, setSettingsState] = useState<{ notebookId: string; settings: NotebookStorageSettingsInput }>({
         notebookId: "",
         settings: emptyNotebookStorageSettings,
     })
+    const [includeHtmlPreview, setIncludeHtmlPreview] = useState(false)
+    const [includeJsonPreview, setIncludeJsonPreview] = useState(true)
+    const [previewPayload, setPreviewPayload] = useState<PublishPreviewPayload | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
+    const [isPublishing, setIsPublishing] = useState(false)
     const [healthCheck, setHealthCheck] = useState<WorkspaceHealthCheckPayload | null>(null)
     const [isHealthLoading, setIsHealthLoading] = useState(false)
     const [isRepairing, setIsRepairing] = useState(false)
@@ -31,7 +52,10 @@ export function NotebookSettingsWorkspace({ notebookId, notebookTitle, storageEn
     const [healthError, setHealthError] = useState("")
     const [message, setMessage] = useState("")
     const [error, setError] = useState("")
+    const [publishMessage, setPublishMessage] = useState("")
+    const [publishError, setPublishError] = useState("")
     const settings = storageEnabled && settingsState.notebookId === notebookId ? settingsState.settings : emptyNotebookStorageSettings
+    const publishStatus = notebookPublished ? `Published${notebookPublishedAt ? ` on ${notebookPublishedAt}` : ""}` : "Draft"
 
     const refreshHealthCheck = useCallback(
         async (clearMessages = false) => {
@@ -174,6 +198,50 @@ export function NotebookSettingsWorkspace({ notebookId, notebookTitle, storageEn
         }
     }, [notebookId, settings])
 
+    const runPublishAction = useCallback(
+        async (action: PublishAction, includeHtml = false, includeJson = false) => {
+            if (isPublishing) return
+            if (action !== "preview" && !notebookRevision) {
+                setPublishError("Revision is required to save publish changes. Reload the workspace and try again.")
+                return
+            }
+            setIsPublishing(true)
+            setPublishMessage("")
+            setPublishError("")
+
+            try {
+                const response = await onPublish({
+                    action,
+                    revision: action === "preview" ? undefined : notebookRevision ?? undefined,
+                    includeHtml,
+                    includeJson,
+                })
+                if ("preview" in response) {
+                    setPreviewPayload(response.preview)
+                    setPublishMessage("Publish preview ready for review.")
+                    return
+                }
+
+                setPreviewPayload(null)
+                setPublishMessage(response.notebook.published ? "Publish state updated to public." : "Publish state updated to private.")
+            } catch (nextError) {
+                setPublishError(nextError instanceof Error ? nextError.message : "Unable to update publish state.")
+            } finally {
+                setIsPublishing(false)
+            }
+        },
+        [isPublishing, notebookRevision, onPublish],
+    )
+
+    const publishActionLabel = notebookPublished ? "Unpublish notebook" : "Publish notebook"
+    const publishAction = notebookPublished ? "unpublish" : "publish"
+
+    const previewNotebook = useCallback(() => void runPublishAction("preview", includeHtmlPreview, includeJsonPreview), [includeHtmlPreview, includeJsonPreview, runPublishAction])
+    const applyPublishAction = useCallback(() => {
+        if (isPublishing) return
+        return void runPublishAction(publishAction)
+    }, [isPublishing, publishAction, runPublishAction])
+
     return (
         <Stack className={styles.workspace} gap="lg">
             <Stack className={styles.header} direction="horizontal" gap="md">
@@ -237,6 +305,59 @@ export function NotebookSettingsWorkspace({ notebookId, notebookTitle, storageEn
                             </Text>
                         ) : null}
                     </Stack>
+                </Stack>
+            </Card>
+            <Card className={styles.panel}>
+                <Stack gap="md">
+                    <Stack className={styles.sectionTitle} direction="horizontal" gap="sm">
+                        <Server size={17} />
+                        <Heading as="h3" size="sm">
+                            Publish workflow
+                        </Heading>
+                    </Stack>
+                    <Text size="small">Current state: {publishStatus}</Text>
+                    <Stack gap="xs">
+                        <CheckboxField
+                            label="Include rendered HTML in preview"
+                            checked={includeHtmlPreview}
+                            onCheckedChange={setIncludeHtmlPreview}
+                            disabled={isPublishing}
+                        />
+                        <CheckboxField
+                            label="Include JSON in preview"
+                            checked={includeJsonPreview}
+                            onCheckedChange={setIncludeJsonPreview}
+                            disabled={isPublishing}
+                        />
+                    </Stack>
+                    <Stack className={styles.actions} direction="horizontal" gap="sm">
+                        <Button variant="secondary" disabled={isPublishing} onClick={previewNotebook}>
+                            {isPublishing ? "Preparing preview" : "Preview publish bundle"}
+                        </Button>
+                        <Button variant="primary" disabled={isPublishing || !notebookRevision} onClick={applyPublishAction}>
+                            {isPublishing ? "Saving publish state" : publishActionLabel}
+                        </Button>
+                    </Stack>
+                    {publishMessage ? (
+                        <Text as="span" size="small" tone="strong">
+                            {publishMessage}
+                        </Text>
+                    ) : null}
+                    {publishError ? (
+                        <Text as="span" size="small" className={styles.error}>
+                            {publishError}
+                        </Text>
+                    ) : null}
+                    {previewPayload ? (
+                        <Stack gap="xs">
+                            <Text size="small" tone="strong">
+                                Preview diagnostics
+                            </Text>
+                            <Text size="small">{`Markdown length: ${previewPayload.markdown.length}`}</Text>
+                            <Text size="small">{`Include HTML: ${hasHtmlPreview(previewPayload) ? "yes" : "no"}`}</Text>
+                            <Text size="small">{`Include JSON: ${hasJsonPreview(previewPayload) ? "yes" : "no"}`}</Text>
+                        </Stack>
+                    ) : null}
                 </Stack>
             </Card>
             <Card className={styles.panel}>
