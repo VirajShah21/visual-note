@@ -14,6 +14,8 @@ type UseVisualNoteWorkspaceAutosaveOptions = {
     workspaceRevision: string | null
     syncedWorkspaceRef: MutableRefObject<string>
     setWorkspaceRecovery: (state: WorkspaceRecoveryState) => void
+    workspaceRecovery: WorkspaceRecoveryState
+    retryWorkspaceRecovery: () => void
     saveDelayMs?: number
 }
 
@@ -52,6 +54,8 @@ export const useVisualNoteWorkspaceAutosave = ({
     workspaceRevision,
     syncedWorkspaceRef,
     setWorkspaceRecovery,
+    workspaceRecovery,
+    retryWorkspaceRecovery,
     saveDelayMs = 500,
 }: UseVisualNoteWorkspaceAutosaveOptions) => {
     const saveRequestIdRef = useRef(0)
@@ -110,4 +114,16 @@ export const useVisualNoteWorkspaceAutosave = ({
             if (saveAbortRef.current) saveAbortRef.current.abort()
         }
     }, [hasActiveSaveErrorRef, pushToast, saveDelayMs, setNotice, setWorkspaceRecovery, setWorkspaceRevision, syncedWorkspaceRef, user, workspace, workspaceRevision])
+
+    useEffect(() => {
+        if (typeof window === "undefined") return
+        if (workspaceRecovery.status !== "offline" && workspaceRecovery.status !== "error") return
+
+        const onOnline = () => {
+            void retryWorkspaceRecovery()
+        }
+
+        window.addEventListener("online", onOnline)
+        return () => window.removeEventListener("online", onOnline)
+    }, [retryWorkspaceRecovery, workspaceRecovery.status])
 }

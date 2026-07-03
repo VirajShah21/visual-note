@@ -74,17 +74,6 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         }
         void restore()
     }, [initialNotebookId])
-    useVisualNoteWorkspaceAutosave({
-        user,
-        workspace,
-        setNotice,
-        pushToast,
-        hasActiveSaveErrorRef,
-        workspaceRevision,
-        setWorkspaceRecovery,
-        setWorkspaceRevision,
-        syncedWorkspaceRef,
-    })
     const selected = useMemo(() => {
         const currentSelection = deriveSelection(workspace, selection)
         const notebook = workspace?.notebooks.find(item => item.id === currentSelection.notebookId) ?? null
@@ -126,6 +115,19 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
             workspaceRecovery,
             workspaceRevision,
         })
+    useVisualNoteWorkspaceAutosave({
+        user,
+        workspace,
+        setNotice,
+        pushToast,
+        hasActiveSaveErrorRef,
+        workspaceRevision,
+        setWorkspaceRecovery,
+        setWorkspaceRevision,
+        syncedWorkspaceRef,
+        workspaceRecovery,
+        retryWorkspaceRecovery,
+    })
     const updateWorkspace = (updater: (current: VisualNoteWorkspace) => VisualNoteWorkspace) => setWorkspace(current => (current ? updater(current) : current))
     const notebooks = workspace && user ? workspace.notebooks.filter(item => item.userId === user.id) : []
     const sections = workspace ? workspace.pages.filter(item => item.notebookId === selected.currentSelection.notebookId).sort((a, b) => a.position - b.position) : []
