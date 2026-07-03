@@ -24,6 +24,9 @@ export type NotebookEditorRecentNotebook = {
 export type NotebookEditorNavbarProps = {
     searchQuery: string
     searchResults: NotebookSearchResult[]
+    searchHasMore: boolean
+    searchLoading: boolean
+    searchError: boolean
     sidebarOpen: boolean
     editorSettings: NotebookEditorSettings
     currentNotebookId?: string
@@ -31,6 +34,7 @@ export type NotebookEditorNavbarProps = {
     onExport: () => void
     onHomeSelect: () => void
     onNotebookSelect: (notebookId: string) => void
+    onSearchLoadMore: () => void
     onSearchChange: (query: string) => void
     onSearchResultSelect: (result: NotebookSearchResult) => void
     onMoreSettings: () => void
@@ -42,6 +46,9 @@ export type NotebookEditorNavbarProps = {
 export function NotebookEditorNavbar({
     searchQuery,
     searchResults,
+    searchHasMore,
+    searchLoading,
+    searchError,
     sidebarOpen,
     editorSettings,
     currentNotebookId = "",
@@ -50,6 +57,7 @@ export function NotebookEditorNavbar({
     onHomeSelect,
     onNotebookSelect,
     onSearchChange,
+    onSearchLoadMore,
     onSearchResultSelect,
     onMoreSettings,
     onSettingsChange,
@@ -173,9 +181,27 @@ export function NotebookEditorNavbar({
                     <div className={styles.searchResults} role="listbox" aria-label="Notebook search results">
                         {searchResults.length ? (
                             searchResults.map(result => <SearchResultItem key={result.id} result={result} onSearchResultSelect={onSearchResultSelect} />)
+                        ) : searchLoading ? (
+                            <span className={styles.emptyResults}>Searching...</span>
+                        ) : searchError ? (
+                            <span className={styles.emptyResults}>Unable to search right now.</span>
                         ) : (
                             <span className={styles.emptyResults}>No matches in this notebook</span>
                         )}
+
+                        {searchHasMore ? (
+                            <Button
+                                className={styles.searchLoadMore}
+                                disabled={searchLoading}
+                                onClick={event => {
+                                    event.preventDefault()
+                                    onSearchLoadMore()
+                                }}
+                                variant="secondary"
+                            >
+                                Load more results
+                            </Button>
+                        ) : null}
                     </div>
                 ) : null}
             </div>

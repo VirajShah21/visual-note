@@ -309,6 +309,12 @@
     padding: 12px;
 }
 
+.searchLoadMore {
+    border-radius: 999px;
+    justify-self: start;
+    margin: 4px 6px;
+}
+
 @media (max-width: 860px) {
     .navbar {
         grid-template-columns: 1fr auto;
