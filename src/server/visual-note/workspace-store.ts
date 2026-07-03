@@ -75,10 +75,9 @@ const throwWorkspaceIntegrityError = (issues: string[]): void => {
     throw error
 }
 
-const throwWorkspaceStorageError = (): never => {
-    const error = new Error("Configure notebook storage before saving page content to MinIO.") as Error & { code: string }
-    error.code = "workspace_storage_not_configured"
-    throw error
+export type WorkspaceSaveResult = {
+    workspace: VisualNoteWorkspace
+    warnings: string[]
 }
 
 const restorePreviousWorkspace = async (
@@ -291,7 +290,7 @@ export const saveWorkspaceForUser = async (
     workspace: VisualNoteWorkspace,
     expectedRevision?: string,
     baseWorkspace?: VisualNoteWorkspace,
-) => {
+): Promise<WorkspaceSaveResult> => {
     await assertWorkspaceStoreReady(supabase)
 
     const saveStartedAt = new Date().toISOString()
@@ -334,6 +333,7 @@ export const saveWorkspaceForUser = async (
     await assertNoForeignOwnedRecords(supabase, userId, [...pageIds], "visual_note_pages")
 
     const relevantPages = normalizedWorkspace.pages.filter((entry: NotebookPage) => notebookIds.has(entry.notebookId))
+    const storageWarningPages = new Set<string>()
     const preparedPages: Array<{
         page: NotebookPage
         notebookId: string
@@ -357,7 +357,7 @@ export const saveWorkspaceForUser = async (
 
         try {
             savedContent = (await savePageMarkdownIfConfigured({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, markdown, contentObjectKey)).saved
-            if (!savedContent) throwWorkspaceStorageError()
+            if (!savedContent) storageWarningPages.add(page.id)
         } catch (error) {
             if (savedContent) {
                 if (previousContent === null) await deletePageMarkdown({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, contentObjectKey).catch(() => {})
@@ -445,7 +445,14 @@ export const saveWorkspaceForUser = async (
         throw error
     }
 
-    return normalizedWorkspace
+    const warnings = storageWarningPages.size > 0
+        ? [
+              `${storageWarningPages.size} page${storageWarningPages.size === 1 ? "" : "s"} did not persist markdown content because notebook storage is not configured.`,
+              "Configure notebook storage before saving page content to MinIO.",
+          ]
+        : []
+
+    return { workspace: normalizedWorkspace, warnings }
 }
 
 export const loadPageMarkdownForUser = async (supabase: SupabaseClient, userId: string, pageId: string): Promise<string | null> => {

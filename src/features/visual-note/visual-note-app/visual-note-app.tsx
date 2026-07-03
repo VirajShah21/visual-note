@@ -30,7 +30,8 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
     const editorSettings = selected.notebook?.editorSettings ?? defaultNotebookEditorSettings
     const appAuthReady = authStatus === "ready"
     const storageSetupMissing = workspaceRecovery.message.includes("Configure notebook storage before saving page content to MinIO.")
-    const showRecoveryBanner = workspaceRecovery.status === "offline" || workspaceRecovery.status === "conflict" || workspaceRecovery.status === "error"
+    const showRecoveryBanner =
+        workspaceRecovery.status === "offline" || workspaceRecovery.status === "conflict" || workspaceRecovery.status === "error" || workspaceRecovery.status === "warning"
     const recoveryActionLabel = workspaceRecovery.status === "conflict"
         ? "Reload remote workspace"
         : workspaceRecovery.status === "offline"
@@ -174,7 +175,9 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                             <Card className={styles.recoveryBanner} padding="compact" role="status">
                                 <Stack direction="horizontal" gap="md" className={styles.recoveryBannerContent}>
                                     <Stack gap="xs">
-                                        <Text tone="strong">{workspaceRecovery.status === "conflict" ? "Workspace conflict detected" : "Workspace changes are not synced"}</Text>
+                                        <Text tone="strong">
+                                            {workspaceRecovery.status === "conflict" ? "Workspace conflict detected" : "Workspace changes are not synced"}
+                                        </Text>
                                         <Text size="small">{workspaceRecovery.message}</Text>
                                     </Stack>
                                     <Button variant="secondary" onClick={recoveryAction}>

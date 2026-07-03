@@ -21,7 +21,7 @@ type UseVisualNoteWorkspaceAutosaveOptions = {
 
 export type WorkspaceRecoveryState = {
     message: string
-    status: "synced" | "saving" | "offline" | "conflict" | "error"
+    status: "synced" | "saving" | "offline" | "conflict" | "error" | "warning"
 }
 
 export const workspaceRecoveryStateForError = (error: unknown): WorkspaceRecoveryState => {
@@ -103,6 +103,18 @@ export const useVisualNoteWorkspaceAutosave = ({
                     if (saveRequestIdRef.current !== requestId) return
                     syncedWorkspaceRef.current = serializedWorkspace
                     setWorkspaceRevision(response.revision)
+                    if (response.warnings.length > 0) {
+                        const message = response.warnings.find(item => item.includes("Configure notebook storage before saving page content to MinIO."))
+                            ?? response.warnings[0]
+                            ?? "Some workspace content was not saved due to configuration issues."
+
+                        hasActiveSaveErrorRef.current = true
+                        setWorkspaceRecovery({ message, status: "warning" })
+                        setNotice(message)
+                        pushToast("Workspace save warning", message, "error")
+                        return
+                    }
+
                     setWorkspaceRecovery({ message: "", status: "synced" })
                     if (!hasActiveSaveErrorRef.current) return
 

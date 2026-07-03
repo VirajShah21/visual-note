@@ -61,8 +61,9 @@ export type SaveVisualNoteWorkspaceError = Error & {
     status?: number
 }
 
-type SaveVisualNoteWorkspaceResult = {
+export type SaveVisualNoteWorkspaceResult = {
     revision: string
+    warnings: string[]
 }
 
 export const saveVisualNoteWorkspace = async (workspace: VisualNoteWorkspace, options: SaveVisualNoteWorkspaceOptions = {}): Promise<SaveVisualNoteWorkspaceResult> => {
@@ -96,5 +97,9 @@ export const saveVisualNoteWorkspace = async (workspace: VisualNoteWorkspace, op
     const revision = typeof body.revision === "string" && body.revision.length > 0 ? body.revision : null
     if (!revision) throw new Error("Workspace save did not return a revision token.")
 
-    return { revision }
+    const warnings = Array.isArray((body as { warnings?: unknown }).warnings)
+        ? (body as { warnings?: string[] }).warnings ?? []
+        : []
+
+    return { revision, warnings }
 }
