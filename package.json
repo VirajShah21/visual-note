@@ -11,7 +11,7 @@
         "format:check": "prettier --check .",
         "test:chart": "tsx --test src/features/visual-note/visual-note-app/utils/chart-data.test.mts",
         "test:export": "tsx --test src/lib/visual-note/export/export.test.mts",
-        "test:auth": "tsx --test src/server/auth/login-rate-limit.test.mts",
+        "test:auth": "tsx --test src/server/auth/login-rate-limit.test.mts src/server/auth/app-auth-store.test.mts",
         "test:supabase": "tsx --test src/lib/supabase/server.test.mts",
         "test:storage": "tsx --test src/server/storage/upload-validation.test.mts src/server/storage/notebook-storage.test.mts",
         "test:observability": "tsx --test src/server/observability/visual-note-events.test.mts",

@@ -3,6 +3,7 @@ import { randomBytes } from "crypto"
 export const appSessionCookieName = "visual_note_session"
 
 const sessionMaxAgeSeconds = 60 * 60 * 24 * 30
+const sessionRotationWindowSeconds = 60 * 60 * 24 * 7
 
 export const createSessionToken = () => `vn_session_${randomBytes(32).toString("base64url")}`
 
@@ -31,3 +32,5 @@ export const readSessionCookie = (request: Request) => {
 }
 
 export const sessionExpiresAt = () => new Date(Date.now() + sessionMaxAgeSeconds * 1000).toISOString()
+
+export const sessionNeedsRotation = (expiresAt: string, now = Date.now()) => new Date(expiresAt).getTime() - now <= sessionRotationWindowSeconds * 1000
