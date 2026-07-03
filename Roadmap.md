@@ -67,17 +67,18 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
     - `src/app/api/pages/[pageId]/route.ts`
     - `src/app/api/auth/login/route.ts`
     - `src/app/api/mcp/route.ts`
+13. Added maintenance endpoints for periodic orphan cleanup and operational metrics readback.
+    - `src/app/api/maintenance/assets/route.ts`
+    - `src/app/api/observability/metrics/route.ts`
+14. Added route coverage for workspace health diagnostics and hardened asset delivery checks.
+    - `src/app/api/workspace/health/route.ts`
+    - `src/app/api/workspace/health/route.test.mts`
+    - `src/app/api/assets/[assetId]/route.ts`
+    - `src/app/api/assets/[assetId]/route.test.mts`
 
 ## Current risks (should be addressed first)
 
-1. No explicit background orphan-asset lifecycle
-    - Cleanup currently runs during workspace/page mutation flows, but there is no scheduled reconciliation for stale orphaned records and objects.
-    - Files: `src/server/visual-note/workspace-store.ts`, `src/app/api/pages/[pageId]/route.ts`, `src/server/storage/notebook-asset-cleanup.ts`.
-
-2. Limited observability and operational insight
-    - No centralized metrics collection/alerting for request classes, retry rates, and long-tail failure patterns.
-    - Incident recovery and debugging should move from local logs to aggregated dashboards and trend views.
-    - Files: `src/server/observability/visual-note-events.ts` and all API routes that emit high-cardinality operational events.
+No risks currently listed in this section.
 
 ## Critical feature gaps
 
@@ -92,7 +93,7 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
     - Files: `src/lib/visual-note/export/*`, `src/server/visual-note/workspace-operations/exports.ts`.
 
 3. No workspace recovery UI for health checks
-    - Health/repair logic exists (`workspaceHealthCheck`, `repairWorkspaceConsistency`) but is not surfaced as actionable UI/API tool.
+    - Health/repair logic has API access (`workspaceHealthCheck`, `repairWorkspaceConsistency`) but is not surfaced as visible UI action.
     - Inconsistencies can continue to accumulate silently.
     - Files: `src/server/visual-note/workspace-operations/health.ts`.
 
