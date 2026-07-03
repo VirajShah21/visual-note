@@ -169,29 +169,27 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
             remoteSearch?.key,
             remoteSearch?.results.length,
             selected.currentSelection,
-            selected.currentSelection.notebookId,
-            selected.currentSelection.pageId,
             workspace,
         ],
     )
 
     useEffect(() => {
         const notebookId = selected.currentSelection.notebookId
-        if (!searchQueryTrimmed || !notebookId) {
-            setRemoteSearch(null)
-            setSearchError(false)
-            return
-        }
-
-        if (remoteSearch?.key !== searchKey) {
-            setRemoteSearch(null)
-            setSearchError(false)
-        }
-
         const controller = new AbortController()
         const timeout = window.setTimeout(() => {
+            if (!searchQueryTrimmed || !notebookId) {
+                setRemoteSearch(null)
+                setSearchError(false)
+                return
+            }
+
+            if (remoteSearch?.key !== searchKey) {
+                setRemoteSearch(null)
+                setSearchError(false)
+            }
+
             void runSearch(false, controller.signal)
-        }, 180)
+        }, searchQueryTrimmed && notebookId ? 180 : 0)
 
         return () => {
             window.clearTimeout(timeout)

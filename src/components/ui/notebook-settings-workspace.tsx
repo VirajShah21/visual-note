@@ -147,7 +147,9 @@ export function NotebookSettingsWorkspace({
     }, [notebookId, storageEnabled])
 
     useEffect(() => {
-        void refreshHealthCheck(true)
+        const timeout = window.setTimeout(() => void refreshHealthCheck(true), 0)
+
+        return () => window.clearTimeout(timeout)
     }, [refreshHealthCheck])
 
     const updateText = useCallback(
@@ -236,6 +238,7 @@ export function NotebookSettingsWorkspace({
     const publishAction = notebookPublished ? "unpublish" : "publish"
 
     const previewNotebook = useCallback(() => void runPublishAction("preview", includeHtmlPreview, includeJsonPreview), [includeHtmlPreview, includeJsonPreview, runPublishAction])
+    const refreshHealth = useCallback(() => void refreshHealthCheck(), [refreshHealthCheck])
     const applyPublishAction = useCallback(() => {
         if (isPublishing) return
         return void runPublishAction(publishAction)
@@ -285,7 +288,7 @@ export function NotebookSettingsWorkspace({
                             </>
                         ) : null}
                         <Stack className={styles.actions} direction="horizontal" gap="sm">
-                            <Button variant="secondary" disabled={isHealthLoading || isSaving || isRepairing} onClick={() => void refreshHealthCheck()}>
+                            <Button variant="secondary" disabled={isHealthLoading || isSaving || isRepairing} onClick={refreshHealth}>
                                 {isHealthLoading ? "Checking" : "Refresh check"}
                             </Button>
                             {healthCheck?.issues?.length ? (

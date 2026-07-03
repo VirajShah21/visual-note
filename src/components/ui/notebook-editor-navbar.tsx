@@ -4,7 +4,7 @@ import { Button as BaseButton } from "@base-ui/react/button"
 import { Input } from "@base-ui/react/input"
 import { Popover } from "@base-ui/react/popover"
 import { BookOpen, BookOpenText, Braces, Download, Eye, FileCode2, Home, Info, ListTree, PanelLeftClose, PanelLeftOpen, PencilLine, Search, Settings } from "lucide-react"
-import { useCallback, useMemo, useState, type ChangeEventHandler } from "react"
+import { useCallback, useMemo, useState, type ChangeEventHandler, type MouseEventHandler } from "react"
 import type { ArticleBlockInfoMode, ArticleContentsMode, ArticleEditorMode, NotebookEditorSettings } from "@/lib/visual-note/types"
 import type { NotebookSearchResult } from "@/lib/visual-note/search"
 import { Button } from "./button"
@@ -66,6 +66,13 @@ export function NotebookEditorNavbar({
 }: NotebookEditorNavbarProps) {
     const [isNotebookSwitcherOpen, setIsNotebookSwitcherOpen] = useState(false)
     const handleSearchChange: ChangeEventHandler<HTMLInputElement> = useCallback(event => onSearchChange(event.target.value), [onSearchChange])
+    const handleSearchLoadMore: MouseEventHandler<HTMLButtonElement> = useCallback(
+        event => {
+            event.preventDefault()
+            onSearchLoadMore()
+        },
+        [onSearchLoadMore],
+    )
     const hasQuery = searchQuery.trim().length > 0
     const switcherNotebooks = useMemo(
         () =>
@@ -193,10 +200,7 @@ export function NotebookEditorNavbar({
                             <Button
                                 className={styles.searchLoadMore}
                                 disabled={searchLoading}
-                                onClick={event => {
-                                    event.preventDefault()
-                                    onSearchLoadMore()
-                                }}
+                                onClick={handleSearchLoadMore}
                                 variant="secondary"
                             >
                                 Load more results
