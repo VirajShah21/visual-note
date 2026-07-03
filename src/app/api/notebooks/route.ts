@@ -16,6 +16,7 @@ const notebookInputSchema = z.object({
     color: z.string().optional(),
     createHomePage: z.boolean().optional(),
 })
+const storageConfigurationError = "Configure notebook storage before saving page content to MinIO."
 
 const pageSelection = (notebookId: string, pageId: string) => ({
     notebookId,
@@ -102,7 +103,13 @@ export async function POST(request: Request) {
                 page.id,
             )
 
-            await savePageMarkdownIfConfigured({ supabase: auth.supabase, userId: auth.userId }, { notebookId: createdNotebook.id, id: page.id }, markdown, objectKey)
+            const uploadResult = await savePageMarkdownIfConfigured(
+                { supabase: auth.supabase, userId: auth.userId },
+                { notebookId: createdNotebook.id, id: page.id },
+                markdown,
+                objectKey,
+            )
+            if (!uploadResult.saved) return Response.json({ error: storageConfigurationError }, { status: 400 })
         }
 
         const detail = await loadWorkspaceForUser(auth.supabase, auth.userId)
