@@ -10,6 +10,7 @@ export type McpTokenByIdRouteDependencies = {
 }
 
 type Authenticated = { supabase: Parameters<typeof revokeMcpToken>[0]; userId: string }
+type McpTokenByIdRouteContext = { params: Promise<{ tokenId: string }> }
 
 const defaultMcpTokenByIdRouteDependencies: McpTokenByIdRouteDependencies = {
     authenticateSupabaseMutationRequest,
@@ -17,7 +18,7 @@ const defaultMcpTokenByIdRouteDependencies: McpTokenByIdRouteDependencies = {
     revokeMcpToken,
 }
 
-export const runMcpTokenDelete = async (request: Request, context: RouteContext<"/api/mcp/tokens/[tokenId]">, dependencies = defaultMcpTokenByIdRouteDependencies) => {
+export const runMcpTokenDelete = async (request: Request, context: McpTokenByIdRouteContext, dependencies = defaultMcpTokenByIdRouteDependencies) => {
     const auth = await dependencies.authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 
@@ -36,6 +37,6 @@ export const runMcpTokenDelete = async (request: Request, context: RouteContext<
     }
 }
 
-export async function DELETE(request: Request, context: RouteContext<"/api/mcp/tokens/[tokenId]">) {
+export async function DELETE(request: Request, context: McpTokenByIdRouteContext) {
     return runMcpTokenDelete(request, context)
 }

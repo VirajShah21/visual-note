@@ -13,6 +13,7 @@ import { parsePageUpdateRequest, type PageUpdateParseResult } from "@app/api/pag
 export const runtime = "nodejs"
 
 type Authenticated = { supabase: Parameters<typeof loadPageById>[0]; userId: string }
+type PageRouteContext = { params: Promise<{ pageId: string }> }
 
 export type PageRouteDependencies = {
     loadPageById: typeof loadPageById
@@ -195,7 +196,7 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
     }
 }
 
-export async function GET(request: Request, context: RouteContext<"/api/pages/[pageId]">) {
+export async function GET(request: Request, context: PageRouteContext) {
     const auth = await authenticateSupabaseRequest(request)
     if (auth instanceof Response) return auth
 
@@ -203,7 +204,7 @@ export async function GET(request: Request, context: RouteContext<"/api/pages/[p
     return runPageGet(auth, pageId)
 }
 
-export async function DELETE(request: Request, context: RouteContext<"/api/pages/[pageId]">) {
+export async function DELETE(request: Request, context: PageRouteContext) {
     const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 
@@ -211,7 +212,7 @@ export async function DELETE(request: Request, context: RouteContext<"/api/pages
     return runPageDelete(auth, pageId)
 }
 
-export async function PUT(request: Request, context: RouteContext<"/api/pages/[pageId]">) {
+export async function PUT(request: Request, context: PageRouteContext) {
     const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 

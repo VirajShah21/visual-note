@@ -3,6 +3,7 @@ import test from "node:test"
 import { runMcpTokenDelete, type McpTokenByIdRouteDependencies } from "./route"
 
 const readResponseBody = async (response: Response) => response.json()
+type McpTokenByIdRouteContext = Parameters<typeof runMcpTokenDelete>[1]
 
 const makeDependencies = (overrides: Partial<McpTokenByIdRouteDependencies> = {}) =>
     ({
@@ -12,10 +13,10 @@ const makeDependencies = (overrides: Partial<McpTokenByIdRouteDependencies> = {}
         ...overrides,
     }) as McpTokenByIdRouteDependencies
 
-const context = (tokenId: string): RouteContext<"/api/mcp/tokens/[tokenId]"> =>
+const context = (tokenId: string): McpTokenByIdRouteContext =>
     ({
-        params: Promise.resolve({ tokenId }) as never,
-    }) as RouteContext<"/api/mcp/tokens/[tokenId]">
+        params: Promise.resolve({ tokenId }),
+    }) as McpTokenByIdRouteContext
 
 test("rejects unauthorized token deletion requests", async () => {
     const response = await runMcpTokenDelete(new Request("https://app.test/api/mcp/tokens/token-1", { method: "DELETE" }), context("token-1"), {

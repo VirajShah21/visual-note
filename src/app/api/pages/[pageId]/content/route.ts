@@ -5,6 +5,7 @@ import { cleanupWorkspaceAssetOrphans } from "@/server/visual-note/workspace-sto
 import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 
 export type Authenticated = { supabase: Parameters<typeof readPageMarkdown>[0]["supabase"]; userId: string }
+type PageContentRouteContext = { params: Promise<{ pageId: string }> }
 
 const storageConfigurationError = STORAGE_CONTENT_WARNING
 
@@ -81,7 +82,7 @@ export const runContentPut = async (auth: Authenticated, request: Request, pageI
     }
 }
 
-export async function GET(request: Request, context: RouteContext<"/api/pages/[pageId]/content">) {
+export async function GET(request: Request, context: PageContentRouteContext) {
     const auth = await authenticateSupabaseRequest(request)
     if (auth instanceof Response) return auth
 
@@ -89,7 +90,7 @@ export async function GET(request: Request, context: RouteContext<"/api/pages/[p
     return runContentGet(auth, pageId)
 }
 
-export async function PUT(request: Request, context: RouteContext<"/api/pages/[pageId]/content">) {
+export async function PUT(request: Request, context: PageContentRouteContext) {
     const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 

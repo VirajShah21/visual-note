@@ -24,6 +24,7 @@ const notebookUpdateSchema = z.object({
 export const runtime = "nodejs"
 
 type Authenticated = { supabase: Parameters<typeof loadWorkspaceForUser>[0]; userId: string }
+type NotebookRouteContext = { params: Promise<{ notebookId: string }> }
 
 export type NotebookRouteDependencies = {
     authenticateSupabaseMutationRequest: typeof authenticateSupabaseMutationRequest
@@ -112,7 +113,7 @@ export const runNotebookPut = async (auth: Authenticated, request: Request, note
     }
 }
 
-export async function GET(request: Request, context: RouteContext<"/api/notebooks/[notebookId]">) {
+export async function GET(request: Request, context: NotebookRouteContext) {
     const auth = await authenticateSupabaseRequest(request)
     if (auth instanceof Response) return auth
 
@@ -120,7 +121,7 @@ export async function GET(request: Request, context: RouteContext<"/api/notebook
     return runNotebookGet(auth, notebookId)
 }
 
-export async function PUT(request: Request, context: RouteContext<"/api/notebooks/[notebookId]">) {
+export async function PUT(request: Request, context: NotebookRouteContext) {
     const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 

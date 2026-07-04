@@ -6,6 +6,7 @@ import { parseStorageSettingsRequest } from "./route-contract"
 export const runtime = "nodejs"
 
 type Authenticated = { supabase: Parameters<typeof loadNotebookStorageSettings>[0]; userId: string }
+type StorageSettingsRouteContext = { params: Promise<{ notebookId: string }> }
 
 export type StorageSettingsRouteDependencies = {
     getSupabaseServiceRoleClient: typeof getSupabaseServiceRoleClient
@@ -56,7 +57,7 @@ export const runStorageSettingsPut = async (auth: Authenticated, request: Reques
     }
 }
 
-export async function GET(request: Request, context: RouteContext<"/api/notebooks/[notebookId]/storage-settings">) {
+export async function GET(request: Request, context: StorageSettingsRouteContext) {
     const auth = await authenticateSupabaseRequest(request)
     if (auth instanceof Response) return auth
 
@@ -64,7 +65,7 @@ export async function GET(request: Request, context: RouteContext<"/api/notebook
     return runStorageSettingsGet(auth, notebookId)
 }
 
-export async function PUT(request: Request, context: RouteContext<"/api/notebooks/[notebookId]/storage-settings">) {
+export async function PUT(request: Request, context: StorageSettingsRouteContext) {
     const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 

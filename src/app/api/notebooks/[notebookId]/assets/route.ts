@@ -8,6 +8,7 @@ import { parseAssetUploadRequest } from "./route-contract"
 export const runtime = "nodejs"
 
 type Authenticated = { supabase: Parameters<typeof resolveNotebookStorage>[0]; userId: string }
+type AssetUploadRouteContext = { params: Promise<{ notebookId: string }> }
 
 export type AssetUploadRouteDependencies = {
     createAssetObjectKey: typeof createAssetObjectKey
@@ -114,7 +115,7 @@ export const runAssetsPost = async (auth: Authenticated, request: Request, noteb
     }
 }
 
-export async function POST(request: Request, context: RouteContext<"/api/notebooks/[notebookId]/assets">) {
+export async function POST(request: Request, context: AssetUploadRouteContext) {
     const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 

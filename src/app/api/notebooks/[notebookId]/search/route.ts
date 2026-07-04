@@ -5,6 +5,7 @@ import { parseSearchRequest } from "./route-contract"
 export const runtime = "nodejs"
 
 type Authenticated = { supabase: Parameters<typeof searchNotebookForUser>[0]; userId: string }
+type NotebookSearchRouteContext = { params: Promise<{ notebookId: string }> }
 
 export type NotebookSearchRouteDependencies = {
     authenticateSupabaseRequest: typeof authenticateSupabaseRequest
@@ -40,7 +41,7 @@ export const runSearchGet = async (auth: Authenticated, request: Request, notebo
     }
 }
 
-export async function GET(request: Request, context: RouteContext<"/api/notebooks/[notebookId]/search">) {
+export async function GET(request: Request, context: NotebookSearchRouteContext) {
     const auth = await authenticateSupabaseRequest(request)
     if (auth instanceof Response) return auth
 
