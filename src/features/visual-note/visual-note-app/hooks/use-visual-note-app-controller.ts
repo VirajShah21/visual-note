@@ -3,16 +3,12 @@
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ToastMessage, ToastTone } from "@/components/ui"
-import { logoutVisualNoteUser } from "@/lib/visual-note/auth-api"
-import { uploadNotebookImage } from "@/lib/visual-note/storage-api"
-import { createEmptyWorkspace, createNotebook, createPage, createTopic, createView, normalizeWorkspace } from "@/lib/visual-note/factories"
-import { loadVisualNoteWorkspace } from "@/lib/visual-note/workspace-api"
+import { createNotebook, createPage, createTopic, createView } from "@/lib/visual-note/factories"
 import type { DisplayInstance, NotebookEditorSettings, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
-import type { NotebookEditorSearchResult } from "@/components/ui"
+import type { NotebookSearchResult } from "@/lib/visual-note/search"
 import { updateWorkspaceNotebookEditorSettings } from "@features/visual-note/visual-note-app/utils/notebook-editor-settings"
 import {
     blankSelection,
-    coerceSingleArticleViewPerTopic,
     createNotebookGalleryItems,
     deleteSectionFromWorkspace,
     deleteTopicFromWorkspace,
@@ -21,7 +17,11 @@ import {
 } from "@features/visual-note/visual-note-app/utils/visual-note-app.utils"
 import { restoreVisualNoteSession } from "./restore-visual-note-session"
 import { registerVisualNoteAccount, signInVisualNoteUser } from "./visual-note-auth-actions"
-import { useVisualNoteWorkspaceAutosave } from "./use-visual-note-workspace-autosave"
+import { uploadImageForNotebook } from "./workspace-image-actions"
+import { retryWorkspaceRecovery as retryWorkspaceRecoveryAction } from "./workspace-recovery-actions"
+import { openWorkspaceForUser as openWorkspaceForUserAction, signOutOfWorkspace } from "./workspace-session-actions"
+import { useVisualNoteWorkspaceAutosave, type WorkspaceRecoveryState } from "./use-visual-note-workspace-autosave"
+import { useVisualNotePublish } from "./use-visual-note-publish"
 export const useVisualNoteAppController = (initialNotebookId: string) => {
     const router = useRouter()
     const [user, setUser] = useState<VisualUser | null>(null)
@@ -29,6 +29,8 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const [selection, setSelection] = useState<SelectionState>(blankSelection)
     const [isLoading, setIsLoading] = useState(true)
     const [notice, setNotice] = useState("")
+    const [workspaceRevision, setWorkspaceRevision] = useState<string | null>(null)
+    const [workspaceRecovery, setWorkspaceRecovery] = useState<WorkspaceRecoveryState>({ message: "", status: "synced" })
     const [toastMessages, setToastMessages] = useState<ToastMessage[]>([])
     const [authStatus, setAuthStatus] = useState<"ready" | "unconfigured">("ready")
     const syncedWorkspaceRef = useRef("")
@@ -40,31 +42,39 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const dismissToast = useCallback((id: string) => setToastMessages(current => current.filter(message => message.id !== id)), [])
     useEffect(() => {
         const restore = async () => {
-            const restored = await restoreVisualNoteSession(initialNotebookId)
-            if (!restored.user || !restored.workspace || !restored.selection) {
+            try {
+                const restored = await restoreVisualNoteSession(initialNotebookId)
+                if (!restored.user || !restored.workspace || !restored.selection) {
+                    setAuthStatus(restored.authStatus)
+                    setNotice(restored.authStatus === "unconfigured" ? "Visual Note server database authentication is not configured." : "")
+                    setWorkspaceRevision(null)
+                    setWorkspaceRecovery({ message: "", status: "synced" })
+                    setIsLoading(false)
+                    return
+                }
+                setUser(restored.user)
+                syncedWorkspaceRef.current = JSON.stringify(restored.workspace)
+                setWorkspace(restored.workspace)
+                setSelection(restored.selection)
+                setWorkspaceRevision(restored.workspaceRevision ?? null)
+                setWorkspaceRecovery({ message: "", status: "synced" })
                 setAuthStatus(restored.authStatus)
-                setNotice(restored.authStatus === "unconfigured" ? "Visual Note server database authentication is not configured." : "")
+                setNotice("")
                 setIsLoading(false)
                 return
+            } catch (error) {
+                setAuthStatus("ready")
+                setWorkspaceRevision(null)
+                setUser(null)
+                setWorkspace(null)
+                setSelection(blankSelection)
+                setWorkspaceRecovery({ message: error instanceof Error ? error.message : "Unable to restore the workspace session.", status: "error" })
+                setNotice(error instanceof Error ? error.message : "Unable to restore the workspace session.")
+                setIsLoading(false)
             }
-            setUser(restored.user)
-            syncedWorkspaceRef.current = JSON.stringify(restored.workspace)
-            setWorkspace(restored.workspace)
-            setSelection(restored.selection)
-            setAuthStatus(restored.authStatus)
-            setNotice("")
-            setIsLoading(false)
         }
         void restore()
     }, [initialNotebookId])
-    useVisualNoteWorkspaceAutosave({
-        user,
-        workspace,
-        setNotice,
-        pushToast,
-        hasActiveSaveErrorRef,
-        syncedWorkspaceRef,
-    })
     const selected = useMemo(() => {
         const currentSelection = deriveSelection(workspace, selection)
         const notebook = workspace?.notebooks.find(item => item.id === currentSelection.notebookId) ?? null
@@ -73,30 +83,52 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         const view = workspace?.views.find(item => item.id === currentSelection.viewId) ?? null
         return { currentSelection, notebook, page, topic, view }
     }, [selection, workspace])
-    const openWorkspaceForUser = async (nextUser: VisualUser) => {
-        setAuthStatus("ready")
-        setUser(nextUser)
-        const remoteWorkspace = await loadVisualNoteWorkspace()
-        const nextWorkspace = coerceSingleArticleViewPerTopic(normalizeWorkspace(remoteWorkspace ?? createEmptyWorkspace()))
-        const resolved = ensureSelectionHasArticleView(nextWorkspace, { ...blankSelection, notebookId: initialNotebookId })
-        syncedWorkspaceRef.current = JSON.stringify(resolved.workspace)
-        setWorkspace(resolved.workspace)
-        setSelection(resolved.selection)
-        hasActiveSaveErrorRef.current = false
-        setNotice("Workspace changes are saved to the Visual Note workspace store.")
-        pushToast("Workspace opened", "Changes will save to the workspace database.", "info")
-    }
+    const openWorkspaceForUser = (nextUser: VisualUser) =>
+        openWorkspaceForUserAction({
+            hasActiveSaveErrorRef,
+            initialNotebookId,
+            pushToast,
+            setAuthStatus,
+            setNotice,
+            setSelection,
+            setUser,
+            setWorkspace,
+            setWorkspaceRecovery,
+            setWorkspaceRevision,
+            syncedWorkspaceRef,
+            user: nextUser,
+        })
     const authContext = { openWorkspaceForUser, pushToast, setNotice }
     const signIn = (email: string, password: string) => signInVisualNoteUser(authContext, email, password)
     const register = (email: string, password: string, name: string) => registerVisualNoteAccount(authContext, email, password, name)
-    const signOut = async () => {
-        await logoutVisualNoteUser()
-        setUser(null)
-        setWorkspace(null)
-        setSelection(blankSelection)
-        setAuthStatus("ready")
-        setNotice("")
-    }
+    const signOut = () => signOutOfWorkspace({ setAuthStatus, setNotice, setSelection, setUser, setWorkspace, setWorkspaceRecovery })
+    const retryWorkspaceRecovery = () =>
+        retryWorkspaceRecoveryAction({
+            hasActiveSaveErrorRef,
+            openWorkspaceForUser,
+            pushToast,
+            setNotice,
+            setWorkspaceRecovery,
+            setWorkspaceRevision,
+            syncedWorkspaceRef,
+            user,
+            workspace,
+            workspaceRecovery,
+            workspaceRevision,
+        })
+    useVisualNoteWorkspaceAutosave({
+        user,
+        workspace,
+        setNotice,
+        pushToast,
+        hasActiveSaveErrorRef,
+        workspaceRevision,
+        setWorkspaceRecovery,
+        setWorkspaceRevision,
+        syncedWorkspaceRef,
+        workspaceRecovery,
+        retryWorkspaceRecovery,
+    })
     const updateWorkspace = (updater: (current: VisualNoteWorkspace) => VisualNoteWorkspace) => setWorkspace(current => (current ? updater(current) : current))
     const notebooks = workspace && user ? workspace.notebooks.filter(item => item.userId === user.id) : []
     const sections = workspace ? workspace.pages.filter(item => item.notebookId === selected.currentSelection.notebookId).sort((a, b) => a.position - b.position) : []
@@ -193,7 +225,7 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         const topic = workspace?.topics.find(item => item.id === topicId)
         if (topic) applySelection({ ...selected.currentSelection, pageId: topic.pageId, topicId, viewId: "" }, "An article view was added for this item.")
     }
-    const selectSearchResult = (result: NotebookEditorSearchResult) => {
+    const selectSearchResult = (result: NotebookSearchResult) => {
         applySelection({ ...selected.currentSelection, pageId: result.pageId, topicId: result.topicId, viewId: result.viewId }, "An article view was added for this search result.")
     }
     const selectNotebook = (notebookId: string) => {
@@ -237,13 +269,8 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         if (!selected.view) return
         updateView({ ...selected.view, displays: selected.view.displays.map(item => (item.id === display.id ? display : item)) })
     }
-    const uploadImage = async (file: File) => {
-        const notebookId = selected.currentSelection.notebookId
-        if (!notebookId) throw new Error("Choose a notebook before uploading images.")
-        const asset = await uploadNotebookImage(notebookId, file)
-        pushToast("Image uploaded", asset.fileName)
-        return { url: asset.url, alt: asset.fileName }
-    }
+    const uploadImage = (file: File) => uploadImageForNotebook(selected.currentSelection.notebookId, file, pushToast)
+    const publishNotebook = useVisualNotePublish({ selected, setWorkspace, setWorkspaceRevision, workspace, workspaceRevision })
     const actions = {
         addSection,
         addTopic,
@@ -254,6 +281,7 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         register,
         renameSection,
         renameTopic,
+        retryWorkspaceRecovery,
         openHome,
         selectSection,
         selectSearchResult,
@@ -261,11 +289,12 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
         selectTopic,
         signIn,
         signOut,
+        publishNotebook,
         updateDisplay,
         updateNotebookEditorSettings,
         updateView,
         uploadImage,
     }
 
-    return { galleryItems, isLoading, notice, sections, selected, authStatus, toastMessages, user, workspace, actions }
+    return { galleryItems, isLoading, notice, sections, selected, authStatus, toastMessages, user, workspace, workspaceRecovery, workspaceRevision, actions }
 }

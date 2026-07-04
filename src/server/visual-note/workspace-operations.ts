@@ -1,5 +1,6 @@
 export { listNotebooks, readNotebookTree } from "./workspace-operations/read-model"
 export { createArticle, createNotebook } from "./workspace-operations/notebooks"
 export { readArticle, replaceArticleContent } from "./workspace-operations/articles"
-export { removeVisualBlock, upsertVisualBlock } from "./workspace-operations/health"
+export { exportPublishBundle, repairWorkspaceConsistency, removeVisualBlock, upsertVisualBlock, workspaceHealthCheck } from "./workspace-operations/health"
+export { listWorkspaceSnapshots, publishNotebook, restoreWorkspaceSnapshot, snapshotWorkspace, unpublishNotebook } from "./workspace-operations/exports"
 export type { WorkspaceOperationResult } from "./workspace-operations/types"

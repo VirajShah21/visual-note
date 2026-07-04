@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { canEncryptStorageSecrets, decryptStorageSecret, encryptStorageSecret } from "./encryption"
 import type { S3ConnectionConfig } from "./s3"
 import type { NotebookStorageSettings, NotebookStorageSettingsInput } from "@/lib/visual-note/storage-settings"
+import { deleteS3Object } from "@/server/storage/s3"
 
 type S3ConnectionRow = {
     id: string
@@ -195,7 +196,36 @@ export const loadAssetStorage = async (supabase: SupabaseClient, userId: string,
     const { data, error } = await supabase.from("visual_note_assets").select("*,visual_note_s3_connections(*)").eq("user_id", userId).eq("id", assetId).maybeSingle()
     if (error) throw error
 
-    const asset = data as AssetRow | null
+    return mapAssetStorage(data as AssetRow | null)
+}
+
+export const loadSignedAssetStorage = async (supabase: SupabaseClient, assetId: string) => {
+    if (!canEncryptStorageSecrets()) throw new Error("VISUAL_NOTE_S3_ENCRYPTION_KEY is required before reading S3 assets.")
+
+    const { data, error } = await supabase.from("visual_note_assets").select("*,visual_note_s3_connections(*)").eq("id", assetId).maybeSingle()
+    if (error) throw error
+
+    return mapAssetStorage(data as AssetRow | null)
+}
+
+export const deleteAssetRecord = async (supabase: SupabaseClient, userId: string, assetId: string) => {
+    const resolved = await loadAssetStorage(supabase, userId, assetId)
+    if (!resolved) return null
+
+    const { data, error: deleteError } = await supabase.from("visual_note_assets").delete().eq("id", assetId).eq("user_id", userId).select("id").maybeSingle()
+    if (deleteError) throw deleteError
+    if (!data) return null
+
+    await deleteS3Object({
+        bucketName: resolved.asset.bucketName,
+        connection: resolved.connection,
+        objectKey: resolved.asset.objectKey,
+    }).catch(() => {})
+
+    return { id: resolved.asset.id }
+}
+
+const mapAssetStorage = (asset: AssetRow | null) => {
     const connection = asset?.visual_note_s3_connections
     if (!asset || !connection) return null
 

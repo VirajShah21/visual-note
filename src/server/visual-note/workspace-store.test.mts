@@ -48,6 +48,9 @@ const query = (result: QueryResult) => ({
     order() {
         return Promise.resolve(result)
     },
+    limit() {
+        return Promise.resolve(result)
+    },
     maybeSingle() {
         return Promise.resolve(result)
     },
@@ -78,6 +81,9 @@ const supabaseWithOwnershipConflict = () => {
                     },
                     eq() {
                         return this
+                    },
+                    limit() {
+                        return Promise.resolve({ data: null, error: null })
                     },
                     order() {
                         return Promise.resolve({ data: null, error: null })
@@ -143,7 +149,7 @@ test("returns null when a user has no normalized notebooks", async () => {
     assert.equal(loaded, null)
 })
 
-test("does not hide normalized workspace load schema errors", async () => {
+test("reports normalized workspace readiness errors on load", async () => {
     const supabase = supabaseWithResults({
         visual_note_notebooks: {
             error: {
@@ -156,25 +162,25 @@ test("does not hide normalized workspace load schema errors", async () => {
     await assert.rejects(
         () => loadWorkspaceForUser(supabase, "user-1"),
         (error: unknown) => {
-            assert.equal((error as { code?: string }).code, "PGRST205")
+            assert.equal((error as { code?: string }).code, "workspace_schema_not_ready")
+            assert.match((error as Error).message, /Visual Note normalized workspace storage is not ready/)
             return true
         },
     )
 })
 
-test("surfaces normalized workspace save schema errors", async () => {
+test("reports normalized workspace readiness errors before save writes", async () => {
     const { supabase, upserts } = failingSaveSupabase()
 
     await assert.rejects(
         () => saveWorkspaceForUser(supabase, "user-1", workspace),
         (error: unknown) => {
-            assert.equal((error as { code?: string }).code, "PGRST205")
+            assert.equal((error as { code?: string }).code, "workspace_schema_not_ready")
             return true
         },
     )
 
-    assert.equal(upserts.length, 1)
-    assert.equal(upserts[0]?.table, "visual_note_notebooks")
+    assert.equal(upserts.length, 0)
 })
 
 test("rejects ownership-conflicting records on save", async () => {
@@ -189,4 +195,130 @@ test("rejects ownership-conflicting records on save", async () => {
     )
 
     assert.equal(upserts.length, 0)
+})
+
+test("rejects page entries for unknown notebooks", async () => {
+    const invalidPageWorkspace = {
+        ...workspace,
+        pages: [{ id: "page-2", notebookId: "missing-notebook", title: "Missing", position: 0 }],
+        topics: [],
+        views: [],
+    }
+
+    await assert.rejects(
+        () =>
+            saveWorkspaceForUser(
+                supabaseWithResults({
+                    visual_note_notebooks: { data: [], error: null },
+                    visual_note_pages: { data: [], error: null },
+                }),
+                "user-1",
+                invalidPageWorkspace,
+            ),
+        (error: unknown) => {
+            assert.equal((error as { code?: string }).code, "workspace_integrity")
+            assert.match((error as Error).message, /page:page-2/)
+            return true
+        },
+    )
+})
+
+test("rejects topics referencing unknown pages", async () => {
+    const invalidTopicWorkspace = {
+        ...workspace,
+        topics: [{ id: "topic-2", pageId: "missing-page", title: "Missing", summary: "", position: 0 }],
+        views: [],
+    }
+
+    await assert.rejects(
+        () =>
+            saveWorkspaceForUser(
+                supabaseWithResults({
+                    visual_note_notebooks: { data: [], error: null },
+                    visual_note_pages: { data: [], error: null },
+                }),
+                "user-1",
+                invalidTopicWorkspace,
+            ),
+        (error: unknown) => {
+            assert.equal((error as { code?: string }).code, "workspace_integrity")
+            assert.match((error as Error).message, /topic:topic-2/)
+            return true
+        },
+    )
+})
+
+test("rejects notebook ownership mismatch introduced by prior transfers", async () => {
+    const transferAttempt = { ...workspace }
+
+    await assert.rejects(
+        () =>
+            saveWorkspaceForUser(
+                supabaseWithResults({
+                    visual_note_notebooks: {
+                        data: [{ id: "notebook-1", user_id: "user-2" }],
+                        error: null,
+                    },
+                }),
+                "user-1",
+                transferAttempt,
+            ),
+        (error: unknown) => {
+            assert.equal((error as { code?: string }).code, "ownership_conflict")
+            return true
+        },
+    )
+})
+
+test("rejects page transfer away from the owning user", async () => {
+    const transferAttempt = {
+        ...workspace,
+        pages: workspace.pages.map(page => ({ ...page, notebookId: "notebook-2" })),
+    }
+
+    await assert.rejects(
+        () =>
+            saveWorkspaceForUser(
+                supabaseWithResults({
+                    visual_note_notebooks: {
+                        data: [
+                            { id: "notebook-1", user_id: "user-1" },
+                            { id: "notebook-2", user_id: "user-2" },
+                        ],
+                        error: null,
+                    },
+                    visual_note_pages: { data: [], error: null },
+                }),
+                "user-1",
+                transferAttempt,
+            ),
+        (error: unknown) => {
+            assert.equal((error as { code?: string }).code, "workspace_integrity")
+            return true
+        },
+    )
+})
+
+test("rejects views referencing unknown topics", async () => {
+    const invalidViewWorkspace = {
+        ...workspace,
+        views: [{ id: "view-2", topicId: "missing-topic", title: "Missing", mode: "article" as const, content: "# Missing", displays: [] }],
+    }
+
+    await assert.rejects(
+        () =>
+            saveWorkspaceForUser(
+                supabaseWithResults({
+                    visual_note_notebooks: { data: [], error: null },
+                    visual_note_pages: { data: [] as Array<{ id: string; user_id: string }>, error: null },
+                }),
+                "user-1",
+                invalidViewWorkspace,
+            ),
+        (error: unknown) => {
+            assert.equal((error as { code?: string }).code, "workspace_integrity")
+            assert.match((error as Error).message, /view:view-2/)
+            return true
+        },
+    )
 })

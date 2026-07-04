@@ -8,6 +8,11 @@ export type AppUser = {
     name: string
 }
 
+export type AppSession = {
+    expiresAt: string
+    user: AppUser
+}
+
 type UserRow = AppUser & {
     password_hash: string
 }
@@ -40,6 +45,8 @@ export const verifyAppUserCredentials = async (supabase: SupabaseClient, email: 
 }
 
 export const createAppSession = async (supabase: SupabaseClient, userId: string) => {
+    await deleteExpiredAppSessions(supabase)
+
     const token = createSessionToken()
     const { error } = await supabase.from(sessionsTable).insert({
         expires_at: sessionExpiresAt(),
@@ -51,20 +58,40 @@ export const createAppSession = async (supabase: SupabaseClient, userId: string)
     return token
 }
 
-export const findUserBySessionToken = async (supabase: SupabaseClient, token: string) => {
+export const findAppSessionByToken = async (supabase: SupabaseClient, token: string): Promise<AppSession | null> => {
     if (!token) return null
 
     const { data, error } = await supabase.from(sessionsTable).select("id,expires_at,visual_note_users(id,email,name)").eq("session_hash", hashToken(token)).maybeSingle()
     if (error) throw error
 
     const session = data as { expires_at: string; visual_note_users: AppUser | AppUser[] | null } | null
-    if (!session || new Date(session.expires_at).getTime() <= Date.now()) return null
+    if (!session) return null
+    if (new Date(session.expires_at).getTime() <= Date.now()) {
+        await revokeAppSession(supabase, token)
+        return null
+    }
 
-    return Array.isArray(session.visual_note_users) ? (session.visual_note_users[0] ?? null) : session.visual_note_users
+    const user = Array.isArray(session.visual_note_users) ? (session.visual_note_users[0] ?? null) : session.visual_note_users
+    return user ? { expiresAt: session.expires_at, user } : null
+}
+
+export const findUserBySessionToken = async (supabase: SupabaseClient, token: string) => {
+    return (await findAppSessionByToken(supabase, token))?.user ?? null
 }
 
 export const revokeAppSession = async (supabase: SupabaseClient, token: string) => {
     if (!token) return
 
     await supabase.from(sessionsTable).delete().eq("session_hash", hashToken(token))
+}
+
+export const deleteExpiredAppSessions = async (supabase: SupabaseClient, now = new Date().toISOString()) => {
+    const { error } = await supabase.from(sessionsTable).delete().lte("expires_at", now)
+    if (error) throw error
+}
+
+export const rotateAppSession = async (supabase: SupabaseClient, currentToken: string, userId: string) => {
+    const nextToken = await createAppSession(supabase, userId)
+    await revokeAppSession(supabase, currentToken)
+    return nextToken
 }

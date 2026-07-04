@@ -1,109 +1,59 @@
-import { z } from "zod"
-import { authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
+import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
 import { normalizeNotebookEditorSettings } from "@/lib/visual-note/factories"
-import { savePageMarkdown } from "@/server/visual-note/page-content-store"
+import type { Notebook } from "@/lib/visual-note/types"
+import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
+import { deleteAssetRecord } from "@/server/storage/notebook-storage"
+import { collectPrivateAssetIdsFromValue } from "@/server/storage/notebook-asset-cleanup"
 import { listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
-import { loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
-import type { ComponentKind, Notebook } from "@/lib/visual-note/types"
-
-const topicSchema = z.object({
-    id: z.string(),
-    pageId: z.string(),
-    title: z.string(),
-    summary: z.string(),
-    position: z.number().int().nonnegative(),
-})
-
-const displaySchema = z.object({
-    id: z.string().optional(),
-    name: z.string().optional(),
-    kind: z.string().optional(),
-    data: z.record(z.string(), z.unknown()).optional(),
-})
-
-const viewModeSchema = z.enum(["article", "structured", "dashboard"])
-
-const editorSettingsSchema = z
-    .object({
-        blockInfo: z.enum(["show", "type-only", "metadata-only"]).optional(),
-        contents: z.enum(["show", "hide-title", "hide"]).optional(),
-        mode: z.enum(["editing", "source", "reader"]).optional(),
-    })
-    .partial()
-    .optional()
-
-const viewSchema = z.object({
-    id: z.string(),
-    topicId: z.string(),
-    title: z.string(),
-    mode: viewModeSchema,
-    content: z.string(),
-    displays: z.array(displaySchema),
-})
-
-type ParsedPageUpdate = z.infer<typeof pageUpdateSchema>
-
-const isComponentKind = (value: string | undefined): value is ComponentKind =>
-    value === "data-card" ||
-    value === "checklist" ||
-    value === "timeline" ||
-    value === "dashboard" ||
-    value === "work-logs" ||
-    value === "bugs-list" ||
-    value === "shopping-list" ||
-    value === "pull-request" ||
-    value === "url" ||
-    value === "code-block"
-
-const normalizeDisplay = (display: z.infer<typeof displaySchema>) => ({
-    id: display.id ?? `display-${crypto.randomUUID()}`,
-    name: display.name?.trim() || "Display",
-    kind: isComponentKind(display.kind) ? display.kind : "data-card",
-    data: display.data ?? {},
-})
-
-const parseDisplayInputs = (views: ParsedPageUpdate["views"]) =>
-    views.map(view => ({
-        ...view,
-        displays: view.displays.map(display => normalizeDisplay(display)),
-    }))
-
-const notebookSchema = z.object({
-    id: z.string(),
-    userId: z.string(),
-    title: z.string(),
-    slug: z.string(),
-    summary: z.string(),
-    color: z.string(),
-    createdAt: z.string(),
-    editorSettings: editorSettingsSchema,
-})
-
-const pageSchema = z.object({
-    id: z.string(),
-    notebookId: z.string(),
-    title: z.string(),
-    position: z.number().int().nonnegative(),
-})
-
-const pageUpdateSchema = z.object({
-    notebook: notebookSchema.optional(),
-    page: pageSchema,
-    topics: z.array(topicSchema),
-    views: z.array(viewSchema),
-    markdown: z.string().optional(),
-})
+import { deletePage, loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
+import { cleanupWorkspaceAssetOrphans, loadWorkspaceForUser } from "@/server/visual-note/workspace-store"
+import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
+import { parsePageUpdateRequest, type PageUpdateParseResult } from "@app/api/pages/route-contract"
 
 export const runtime = "nodejs"
 
-export async function GET(request: Request, context: RouteContext<"/api/pages/[pageId]">) {
-    const auth = await authenticateSupabaseRequest(request)
-    if (auth instanceof Response) return auth
+type Authenticated = { supabase: Parameters<typeof loadPageById>[0]; userId: string }
 
-    const { pageId } = await context.params
-    const page = await loadPageById(auth.supabase, auth.userId, pageId)
+export type PageRouteDependencies = {
+    loadPageById: typeof loadPageById
+    userOwnsNotebook: typeof userOwnsNotebook
+    listNotebooksForUser: typeof listNotebooksForUser
+    upsertNotebooks: typeof upsertNotebooks
+    normalizeNotebookEditorSettings: typeof normalizeNotebookEditorSettings
+    makePageObjectKey: typeof makePageObjectKey
+    readPageMarkdown: typeof readPageMarkdown
+    savePageMarkdownIfConfigured: typeof savePageMarkdownIfConfigured
+    upsertPages: typeof upsertPages
+    savePageMarkdown: typeof savePageMarkdown
+    deletePageMarkdown: typeof deletePageMarkdown
+    deletePage: typeof deletePage
+    loadWorkspaceForUser?: typeof loadWorkspaceForUser
+    deleteAssetRecord?: typeof deleteAssetRecord
+    cleanupWorkspaceAssetOrphans: typeof cleanupWorkspaceAssetOrphans
+}
+
+const defaultPageRouteDependencies: PageRouteDependencies = {
+    loadPageById,
+    userOwnsNotebook,
+    listNotebooksForUser,
+    upsertNotebooks,
+    normalizeNotebookEditorSettings,
+    makePageObjectKey,
+    readPageMarkdown,
+    savePageMarkdownIfConfigured,
+    upsertPages,
+    savePageMarkdown,
+    deletePageMarkdown,
+    deletePage,
+    loadWorkspaceForUser,
+    deleteAssetRecord,
+    cleanupWorkspaceAssetOrphans,
+}
+
+export const runPageGet = async (auth: Authenticated, pageId: string, dependencies = defaultPageRouteDependencies) => {
+    const page = await dependencies.loadPageById(auth.supabase, auth.userId, pageId)
     if (!page) return Response.json({ error: "Page not found." }, { status: 404 })
-    if (!(await userOwnsNotebook(auth, page.notebook_id))) return Response.json({ error: "Page not found." }, { status: 404 })
+    if (!(await dependencies.userOwnsNotebook(auth, page.notebook_id))) return Response.json({ error: "Page not found." }, { status: 404 })
 
     return Response.json({
         page: {
@@ -118,72 +68,154 @@ export async function GET(request: Request, context: RouteContext<"/api/pages/[p
     })
 }
 
-export async function PUT(request: Request, context: RouteContext<"/api/pages/[pageId]">) {
+export const runPageDelete = async (auth: Authenticated, pageId: string, dependencies = defaultPageRouteDependencies) => {
+    const page = await dependencies.loadPageById(auth.supabase, auth.userId, pageId)
+    if (!page) return Response.json({ error: "Page not found." }, { status: 404 })
+    if (!(await dependencies.userOwnsNotebook(auth, page.notebook_id))) return Response.json({ error: "Page not found." }, { status: 404 })
+
+    try {
+        const candidateAssetIds = collectPrivateAssetIdsFromValue(page)
+        const previousMarkdown = await dependencies.readPageMarkdown({ supabase: auth.supabase, userId: auth.userId }, page.id)
+        if (previousMarkdown) collectPrivateAssetIdsFromValue(previousMarkdown).forEach(id => candidateAssetIds.add(id))
+
+        const cleanupUpdatedBefore = new Date().toISOString()
+        await dependencies.deletePage(auth.supabase, auth.userId, page.id, page.notebook_id)
+        await dependencies
+            .deletePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebook_id, id: page.id }, page.content_object_key)
+            .catch(() => {})
+        await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore)
+
+        const workspace = await (dependencies.loadWorkspaceForUser ?? loadWorkspaceForUser)(auth.supabase, auth.userId)
+        const currentAssetIds = workspace ? collectPrivateAssetIdsFromValue(workspace) : new Set<string>()
+        for (const assetId of candidateAssetIds) {
+            if (currentAssetIds.has(assetId)) continue
+            await (dependencies.deleteAssetRecord ?? deleteAssetRecord)(auth.supabase, auth.userId, assetId).catch(() => {})
+        }
+    } catch (error) {
+        return Response.json({ error: error instanceof Error ? error.message : "Unable to delete page." }, { status: 500 })
+    }
+
+    return Response.json({ ok: true, pageId })
+}
+
+export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseResult, dependencies = defaultPageRouteDependencies) => {
+    if (!parsed.ok) return Response.json({ error: parsed.error }, { status: parsed.status })
+
+    const { notebook, page, topics, views, markdown } = parsed
+
+    try {
+        const existing = await dependencies.loadPageById(auth.supabase, auth.userId, page.id)
+        const isCreate = !existing
+
+        let notebookPayload: Notebook | null = notebook
+            ? {
+                  ...notebook,
+                  editorSettings: notebook.editorSettings ? dependencies.normalizeNotebookEditorSettings(notebook.editorSettings) : undefined,
+              }
+            : null
+
+        if (isCreate) {
+            if (notebookPayload) {
+                if (notebookPayload.id !== page.notebookId) return Response.json({ error: "Notebook mismatch." }, { status: 400 })
+                if (notebookPayload.userId !== auth.userId) return Response.json({ error: "Notebook mismatch." }, { status: 400 })
+            } else {
+                const notebooks = await dependencies.listNotebooksForUser(auth.supabase, auth.userId)
+                notebookPayload = notebooks.find(item => item.id === page.notebookId) ?? null
+                if (!notebookPayload) return Response.json({ error: "Page not found." }, { status: 404 })
+            }
+
+            await dependencies.upsertNotebooks(auth.supabase, auth.userId, [
+                {
+                    ...notebookPayload,
+                    createdAt: notebookPayload.createdAt,
+                },
+            ])
+        } else {
+            if (existing.notebook_id !== page.notebookId) return Response.json({ error: "Notebook mismatch." }, { status: 400 })
+            if (notebookPayload) {
+                if (notebookPayload.id !== existing.notebook_id) return Response.json({ error: "Notebook mismatch." }, { status: 400 })
+                if (notebookPayload.userId !== auth.userId) return Response.json({ error: "Notebook mismatch." }, { status: 400 })
+            }
+            if (!(await dependencies.userOwnsNotebook(auth, existing.notebook_id))) return Response.json({ error: "Page not found." }, { status: 404 })
+        }
+
+        const objectKey = dependencies.makePageObjectKey(page.notebookId, page.id)
+        const cleanupUpdatedBefore = new Date().toISOString()
+        const previousContent = typeof markdown === "string" ? await dependencies.readPageMarkdown({ supabase: auth.supabase, userId: auth.userId }, page.id) : null
+        let savedContent = false
+
+        try {
+            if (typeof markdown === "string") {
+                const uploadResult = await dependencies.savePageMarkdownIfConfigured(
+                    { supabase: auth.supabase, userId: auth.userId },
+                    { notebookId: page.notebookId, id: page.id },
+                    markdown,
+                    objectKey,
+                )
+                savedContent = uploadResult.saved
+            }
+
+            await dependencies.upsertPages(auth.supabase, auth.userId, [
+                {
+                    page,
+                    notebookId: page.notebookId,
+                    topics,
+                    views,
+                    contentObjectKey: objectKey,
+                },
+            ])
+        } catch (error) {
+            if (savedContent)
+                if (previousContent === null)
+                    await dependencies.deletePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebookId, id: page.id }, objectKey).catch(() => {})
+                else
+                    await dependencies
+                        .savePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebookId, id: page.id }, previousContent, objectKey)
+                        .catch(() => {})
+
+            return Response.json({ error: error instanceof Error ? error.message : "Unable to save page." }, { status: 500 })
+        }
+        await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore)
+
+        const response: { page: { id: string; notebookId: string; title: string; position: number; contentObjectKey: string }; warnings?: string[] } = {
+            page: {
+                id: page.id,
+                notebookId: page.notebookId,
+                title: page.title,
+                position: page.position,
+                contentObjectKey: objectKey,
+            },
+        }
+
+        if (typeof markdown === "string" && !savedContent) response.warnings = [STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT]
+
+        return Response.json(response)
+    } catch (error) {
+        return Response.json({ error: error instanceof Error ? error.message : "Unable to save page." }, { status: 500 })
+    }
+}
+
+export async function GET(request: Request, context: RouteContext<"/api/pages/[pageId]">) {
     const auth = await authenticateSupabaseRequest(request)
     if (auth instanceof Response) return auth
 
     const { pageId } = await context.params
-    const parsed = pageUpdateSchema.safeParse(await request.json())
-    if (!parsed.success) return Response.json({ error: "Invalid page update payload." }, { status: 400 })
+    return runPageGet(auth, pageId)
+}
 
-    const { notebook, page, topics, views, markdown } = parsed.data
-    if (page.id !== pageId) return Response.json({ error: "Page identifier mismatch." }, { status: 400 })
+export async function DELETE(request: Request, context: RouteContext<"/api/pages/[pageId]">) {
+    const auth = await authenticateSupabaseMutationRequest(request)
+    if (auth instanceof Response) return auth
 
-    const existing = await loadPageById(auth.supabase, auth.userId, pageId)
-    const isCreate = !existing
+    const { pageId } = await context.params
+    return runPageDelete(auth, pageId)
+}
 
-    let notebookPayload: Notebook | null = notebook
-        ? {
-              ...notebook,
-              editorSettings: notebook.editorSettings ? normalizeNotebookEditorSettings(notebook.editorSettings) : undefined,
-          }
-        : null
+export async function PUT(request: Request, context: RouteContext<"/api/pages/[pageId]">) {
+    const auth = await authenticateSupabaseMutationRequest(request)
+    if (auth instanceof Response) return auth
 
-    if (isCreate) {
-        if (notebookPayload) {
-            if (notebookPayload.id !== page.notebookId) return Response.json({ error: "Notebook mismatch." }, { status: 400 })
-            if (notebookPayload.userId !== auth.userId) return Response.json({ error: "Notebook mismatch." }, { status: 400 })
-        } else {
-            const notebooks = await listNotebooksForUser(auth.supabase, auth.userId)
-            notebookPayload = notebooks.find(item => item.id === page.notebookId) ?? null
-            if (!notebookPayload) return Response.json({ error: "Page not found." }, { status: 404 })
-        }
-
-        await upsertNotebooks(auth.supabase, auth.userId, [
-            {
-                ...notebookPayload,
-                createdAt: notebookPayload.createdAt,
-            },
-        ])
-    } else {
-        if (existing.notebook_id !== page.notebookId) return Response.json({ error: "Notebook mismatch." }, { status: 400 })
-        if (notebookPayload) {
-            if (notebookPayload.id !== existing.notebook_id) return Response.json({ error: "Notebook mismatch." }, { status: 400 })
-            if (notebookPayload.userId !== auth.userId) return Response.json({ error: "Notebook mismatch." }, { status: 400 })
-        }
-        if (!(await userOwnsNotebook(auth, existing.notebook_id))) return Response.json({ error: "Page not found." }, { status: 404 })
-    }
-
-    const objectKey = makePageObjectKey(page.notebookId, page.id)
-    await upsertPages(auth.supabase, auth.userId, [
-        {
-            page,
-            notebookId: page.notebookId,
-            topics,
-            views: parseDisplayInputs(views),
-            contentObjectKey: objectKey,
-        },
-    ])
-
-    if (typeof markdown === "string") await savePageMarkdown({ supabase: auth.supabase, userId: auth.userId }, { notebookId: page.notebookId, id: page.id }, markdown, objectKey)
-
-    return Response.json({
-        page: {
-            id: page.id,
-            notebookId: page.notebookId,
-            title: page.title,
-            position: page.position,
-            contentObjectKey: objectKey,
-        },
-    })
+    const { pageId } = await context.params
+    const parsed = await parsePageUpdateRequest(request, pageId)
+    return runPageSave(auth, parsed)
 }

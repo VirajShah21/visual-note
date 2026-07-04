@@ -70,6 +70,15 @@ const validateRequestedScopes = (input: string[] | undefined): McpTokenScope[] =
     return [...normalized]
 }
 
+const parseStoredMcpScopes = (scopes: unknown): McpTokenScope[] | null => {
+    if (!Array.isArray(scopes)) return null
+
+    const normalized = normalizeMcpScopes(scopes.map(value => String(value)))
+    if (normalized.length === 0) return null
+
+    return [...normalized]
+}
+
 export const normalizeScopeSet = (scopes: unknown, fallback: readonly McpTokenScope[] = allMcpScopes): McpTokenScope[] => {
     if (!Array.isArray(scopes)) return [...fallback]
     return normalizeMcpScopes(scopes.map(value => String(value)))
@@ -114,7 +123,7 @@ const tokenHashesMatch = (candidateHash: string, storedHash: string) => {
 }
 
 const mapTokenRow = (row: McpTokenRow): McpTokenRecord => {
-    const normalizedScopes = normalizeScopeSet(row.scopes)
+    const normalizedScopes = parseStoredMcpScopes(row.scopes) ?? []
 
     return {
         id: row.id,
@@ -238,12 +247,15 @@ export const verifyMcpToken = async (supabase: SupabaseClient, token: string): P
     if (row.revoked_at) return null
     if (row.expires_at && new Date(row.expires_at).getTime() <= Date.now()) return null
 
+    const scopes = parseStoredMcpScopes(row.scopes)
+    if (!scopes) return null
+
     await supabase.from(tableName).update({ last_used_at: new Date().toISOString() }).eq("id", row.id)
 
     return {
         tokenId: row.id,
         userId: row.user_id,
-        scopes: normalizeScopeSet(row.scopes),
+        scopes,
     }
 }
 

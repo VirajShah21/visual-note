@@ -1,31 +1,101 @@
 "use client"
 
-import { ArrowLeft, Save, Server } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { useCallback, useEffect, useState, type ChangeEvent } from "react"
 import { Button } from "./button"
-import { Card, Grid, Heading, Stack, Text } from "./primitives"
-import { CheckboxField, TextField } from "./form-controls"
+import { Heading, Stack, Text } from "./primitives"
+import type { PublishAction, PublishResponse, PublishPreviewPayload } from "@/lib/visual-note/storage-api"
 import { emptyNotebookStorageSettings, type NotebookStorageSettingsInput } from "@/lib/visual-note/storage-settings"
+import { repairWorkspaceConsistency, runWorkspaceHealthCheck, type WorkspaceHealthCheckPayload } from "@/lib/visual-note/workspace-health-api"
 import { loadNotebookStorageSettings, saveNotebookStorageSettings } from "@/lib/visual-note/storage-api"
+import { PublishWorkflowSection, StorageSettingsSection, WorkspaceHealthSection } from "./notebook-settings-workspace-sections"
 import styles from "./notebook-settings-workspace.module.css"
 
 export type NotebookSettingsWorkspaceProps = {
     notebookId: string
     notebookTitle: string
+    notebookPublished: boolean
+    notebookPublishedAt?: string
+    notebookRevision: string | null
     storageEnabled: boolean
+    onPublish: (request: { action: PublishAction; revision?: string; includeHtml?: boolean; includeJson?: boolean }) => Promise<PublishResponse>
     onDone: () => void
 }
 
-export function NotebookSettingsWorkspace({ notebookId, notebookTitle, storageEnabled, onDone }: NotebookSettingsWorkspaceProps) {
+export function NotebookSettingsWorkspace({
+    notebookId,
+    notebookTitle,
+    notebookPublished,
+    notebookPublishedAt,
+    notebookRevision,
+    storageEnabled,
+    onPublish,
+    onDone,
+}: NotebookSettingsWorkspaceProps) {
     const [settingsState, setSettingsState] = useState<{ notebookId: string; settings: NotebookStorageSettingsInput }>({
         notebookId: "",
         settings: emptyNotebookStorageSettings,
     })
+    const [includeHtmlPreview, setIncludeHtmlPreview] = useState(false)
+    const [includeJsonPreview, setIncludeJsonPreview] = useState(true)
+    const [previewPayload, setPreviewPayload] = useState<PublishPreviewPayload | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
+    const [isPublishing, setIsPublishing] = useState(false)
+    const [healthCheck, setHealthCheck] = useState<WorkspaceHealthCheckPayload | null>(null)
+    const [isHealthLoading, setIsHealthLoading] = useState(false)
+    const [isRepairing, setIsRepairing] = useState(false)
+    const [healthMessage, setHealthMessage] = useState("")
+    const [healthError, setHealthError] = useState("")
     const [message, setMessage] = useState("")
     const [error, setError] = useState("")
+    const [publishMessage, setPublishMessage] = useState("")
+    const [publishError, setPublishError] = useState("")
     const settings = storageEnabled && settingsState.notebookId === notebookId ? settingsState.settings : emptyNotebookStorageSettings
+    const publishStatus = notebookPublished ? `Published${notebookPublishedAt ? ` on ${notebookPublishedAt}` : ""}` : "Draft"
+
+    const refreshHealthCheck = useCallback(
+        async (clearMessages = false) => {
+            if (!storageEnabled || !notebookId) return
+            setIsHealthLoading(true)
+            if (clearMessages) {
+                setHealthMessage("")
+                setHealthError("")
+            }
+
+            try {
+                const nextHealthCheck = await runWorkspaceHealthCheck()
+                setHealthCheck(nextHealthCheck)
+            } catch (nextError) {
+                setHealthCheck(null)
+                setHealthError(nextError instanceof Error ? nextError.message : "Unable to run workspace health check.")
+            } finally {
+                setIsHealthLoading(false)
+            }
+        },
+        [notebookId, storageEnabled],
+    )
+
+    const runRepair = useCallback(async () => {
+        if (!storageEnabled || !notebookId || isRepairing) return
+        setIsRepairing(true)
+        setHealthMessage("")
+        setHealthError("")
+
+        try {
+            const result = await repairWorkspaceConsistency()
+            if (result.repaired) {
+                const repairedItems = result.orphanPages.length + result.orphanTopics.length + result.orphanViews.length
+                setHealthMessage(`Repaired ${repairedItems} orphaned relation ${repairedItems === 1 ? "item" : "items"}.`)
+            } else setHealthMessage("No repair actions were required.")
+
+            await refreshHealthCheck()
+        } catch (nextError) {
+            setHealthError(nextError instanceof Error ? nextError.message : "Unable to repair workspace consistency.")
+        } finally {
+            setIsRepairing(false)
+        }
+    }, [isRepairing, refreshHealthCheck, storageEnabled, notebookId])
 
     useEffect(() => {
         if (!storageEnabled || !notebookId) return
@@ -72,6 +142,12 @@ export function NotebookSettingsWorkspace({ notebookId, notebookTitle, storageEn
             isMounted = false
         }
     }, [notebookId, storageEnabled])
+
+    useEffect(() => {
+        const timeout = window.setTimeout(() => void refreshHealthCheck(true), 0)
+
+        return () => window.clearTimeout(timeout)
+    }, [refreshHealthCheck])
 
     const updateText = useCallback(
         (field: keyof NotebookStorageSettingsInput) => (event: ChangeEvent<HTMLInputElement>) => {
@@ -120,6 +196,51 @@ export function NotebookSettingsWorkspace({ notebookId, notebookTitle, storageEn
         }
     }, [notebookId, settings])
 
+    const runPublishAction = useCallback(
+        async (action: PublishAction, includeHtml = false, includeJson = false) => {
+            if (isPublishing) return
+            if (action !== "preview" && !notebookRevision) {
+                setPublishError("Revision is required to save publish changes. Reload the workspace and try again.")
+                return
+            }
+            setIsPublishing(true)
+            setPublishMessage("")
+            setPublishError("")
+
+            try {
+                const response = await onPublish({
+                    action,
+                    revision: action === "preview" ? undefined : (notebookRevision ?? undefined),
+                    includeHtml,
+                    includeJson,
+                })
+                if ("preview" in response) {
+                    setPreviewPayload(response.preview)
+                    setPublishMessage("Publish preview ready for review.")
+                    return
+                }
+
+                setPreviewPayload(null)
+                setPublishMessage(response.notebook.published ? "Publish state updated to public." : "Publish state updated to private.")
+            } catch (nextError) {
+                setPublishError(nextError instanceof Error ? nextError.message : "Unable to update publish state.")
+            } finally {
+                setIsPublishing(false)
+            }
+        },
+        [isPublishing, notebookRevision, onPublish],
+    )
+
+    const publishActionLabel = notebookPublished ? "Unpublish notebook" : "Publish notebook"
+    const publishAction = notebookPublished ? "unpublish" : "publish"
+
+    const previewNotebook = useCallback(() => void runPublishAction("preview", includeHtmlPreview, includeJsonPreview), [includeHtmlPreview, includeJsonPreview, runPublishAction])
+    const refreshHealth = useCallback(() => void refreshHealthCheck(), [refreshHealthCheck])
+    const applyPublishAction = useCallback(() => {
+        if (isPublishing) return
+        return void runPublishAction(publishAction)
+    }, [isPublishing, publishAction, runPublishAction])
+
     return (
         <Stack className={styles.workspace} gap="lg">
             <Stack className={styles.header} direction="horizontal" gap="md">
@@ -131,53 +252,42 @@ export function NotebookSettingsWorkspace({ notebookId, notebookTitle, storageEn
                     <Text size="small">{notebookTitle}</Text>
                 </Stack>
             </Stack>
-            <Card className={styles.panel}>
-                <Stack gap="md">
-                    <Stack className={styles.sectionTitle} direction="horizontal" gap="sm">
-                        <Server size={17} />
-                        <Heading as="h3" size="sm">
-                            S3 Image Storage
-                        </Heading>
-                    </Stack>
-                    {!storageEnabled ? (
-                        <Text>S3 storage requires Visual Note app authentication and server encryption configuration.</Text>
-                    ) : (
-                        <>
-                            <Grid columns="two" gap="sm">
-                                <TextField label="Connection name" value={settings.connectionName} onChange={updateText("connectionName")} disabled={isLoading || isSaving} />
-                                <TextField label="Bucket name" value={settings.bucketName} onChange={updateText("bucketName")} disabled={isLoading || isSaving} />
-                                <TextField label="Endpoint URL" value={settings.endpointUrl} onChange={updateText("endpointUrl")} disabled={isLoading || isSaving} />
-                                <TextField label="Region" value={settings.region} onChange={updateText("region")} disabled={isLoading || isSaving} />
-                                <TextField label="Access key ID" value={settings.accessKeyId} onChange={updateText("accessKeyId")} disabled={isLoading || isSaving} />
-                                <TextField
-                                    label="Secret access key"
-                                    value={settings.secretAccessKey ?? ""}
-                                    type="password"
-                                    placeholder={settings.connectionId ? "Leave blank to keep existing secret" : ""}
-                                    onChange={updateText("secretAccessKey")}
-                                    disabled={isLoading || isSaving}
-                                />
-                                <CheckboxField label="Force path style" checked={settings.forcePathStyle} onCheckedChange={updateForcePathStyle} disabled={isLoading || isSaving} />
-                            </Grid>
-                            <Stack className={styles.actions} direction="horizontal" gap="sm">
-                                <Button icon={<Save size={15} />} variant="primary" disabled={isLoading || isSaving} onClick={saveSettings}>
-                                    {isSaving ? "Saving" : "Save"}
-                                </Button>
-                                {message ? (
-                                    <Text as="span" size="small" tone="strong">
-                                        {message}
-                                    </Text>
-                                ) : null}
-                                {error ? (
-                                    <Text as="span" size="small" className={styles.error}>
-                                        {error}
-                                    </Text>
-                                ) : null}
-                            </Stack>
-                        </>
-                    )}
-                </Stack>
-            </Card>
+            <WorkspaceHealthSection
+                healthCheck={healthCheck}
+                healthError={healthError}
+                healthMessage={healthMessage}
+                isHealthLoading={isHealthLoading}
+                isRepairing={isRepairing}
+                isSaving={isSaving}
+                onRefreshHealth={refreshHealth}
+                onRepair={runRepair}
+            />
+            <PublishWorkflowSection
+                includeHtmlPreview={includeHtmlPreview}
+                includeJsonPreview={includeJsonPreview}
+                isPublishing={isPublishing}
+                notebookRevision={notebookRevision}
+                previewPayload={previewPayload}
+                publishActionLabel={publishActionLabel}
+                publishError={publishError}
+                publishMessage={publishMessage}
+                publishStatus={publishStatus}
+                onApplyPublishAction={applyPublishAction}
+                onIncludeHtmlPreviewChange={setIncludeHtmlPreview}
+                onIncludeJsonPreviewChange={setIncludeJsonPreview}
+                onPreviewNotebook={previewNotebook}
+            />
+            <StorageSettingsSection
+                error={error}
+                isLoading={isLoading}
+                isSaving={isSaving}
+                message={message}
+                settings={settings}
+                storageEnabled={storageEnabled}
+                onForcePathStyleChange={updateForcePathStyle}
+                onSaveSettings={saveSettings}
+                onTextChange={updateText}
+            />
         </Stack>
     )
 }

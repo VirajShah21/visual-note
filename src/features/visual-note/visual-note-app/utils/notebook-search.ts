@@ -1,4 +1,4 @@
-import type { NotebookEditorSearchResult } from "@/components/ui"
+import type { NotebookSearchResult } from "@/lib/visual-note/search"
 import type { SelectionState, VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { stringFrom } from "./visual-note-app.utils"
 
@@ -18,7 +18,7 @@ const createContext = (content: string, query: string) => {
     return `${prefix}${normalizedContent.slice(start, end)}${suffix}`
 }
 
-export const createNotebookSearchResults = (workspace: VisualNoteWorkspace, selection: SelectionState, query: string): NotebookEditorSearchResult[] => {
+export const createNotebookSearchResults = (workspace: VisualNoteWorkspace, selection: SelectionState, query: string): NotebookSearchResult[] => {
     const normalizedQuery = normalize(query)
     if (!normalizedQuery) return []
 

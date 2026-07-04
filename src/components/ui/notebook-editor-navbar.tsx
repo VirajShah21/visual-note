@@ -4,23 +4,13 @@ import { Button as BaseButton } from "@base-ui/react/button"
 import { Input } from "@base-ui/react/input"
 import { Popover } from "@base-ui/react/popover"
 import { BookOpen, BookOpenText, Braces, Download, Eye, FileCode2, Home, Info, ListTree, PanelLeftClose, PanelLeftOpen, PencilLine, Search, Settings } from "lucide-react"
-import { useCallback, useMemo, useState, type ChangeEventHandler } from "react"
+import { useCallback, useMemo, useState, type ChangeEventHandler, type MouseEventHandler } from "react"
 import type { ArticleBlockInfoMode, ArticleContentsMode, ArticleEditorMode, NotebookEditorSettings } from "@/lib/visual-note/types"
+import type { NotebookSearchResult } from "@/lib/visual-note/search"
 import { Button } from "./button"
 import { cx } from "./class-name"
 import styles from "./notebook-editor-navbar.module.css"
 import { ToolbarMenu, type ToolbarMenuGroup } from "./toolbar-menu"
-
-export type NotebookEditorSearchResult = {
-    id: string
-    pageId: string
-    topicId: string
-    viewId: string
-    title: string
-    context: string
-    location: string
-    isCurrentPage: boolean
-}
 
 export type NotebookEditorRecentNotebook = {
     id: string
@@ -33,7 +23,10 @@ export type NotebookEditorRecentNotebook = {
 
 export type NotebookEditorNavbarProps = {
     searchQuery: string
-    searchResults: NotebookEditorSearchResult[]
+    searchResults: NotebookSearchResult[]
+    searchHasMore: boolean
+    searchLoading: boolean
+    searchError: boolean
     sidebarOpen: boolean
     editorSettings: NotebookEditorSettings
     currentNotebookId?: string
@@ -41,8 +34,9 @@ export type NotebookEditorNavbarProps = {
     onExport: () => void
     onHomeSelect: () => void
     onNotebookSelect: (notebookId: string) => void
+    onSearchLoadMore: () => void
     onSearchChange: (query: string) => void
-    onSearchResultSelect: (result: NotebookEditorSearchResult) => void
+    onSearchResultSelect: (result: NotebookSearchResult) => void
     onMoreSettings: () => void
     onSettingsChange: (settings: Partial<NotebookEditorSettings>) => void
     onToggleSidebar: () => void
@@ -52,6 +46,9 @@ export type NotebookEditorNavbarProps = {
 export function NotebookEditorNavbar({
     searchQuery,
     searchResults,
+    searchHasMore,
+    searchLoading,
+    searchError,
     sidebarOpen,
     editorSettings,
     currentNotebookId = "",
@@ -60,6 +57,7 @@ export function NotebookEditorNavbar({
     onHomeSelect,
     onNotebookSelect,
     onSearchChange,
+    onSearchLoadMore,
     onSearchResultSelect,
     onMoreSettings,
     onSettingsChange,
@@ -68,6 +66,13 @@ export function NotebookEditorNavbar({
 }: NotebookEditorNavbarProps) {
     const [isNotebookSwitcherOpen, setIsNotebookSwitcherOpen] = useState(false)
     const handleSearchChange: ChangeEventHandler<HTMLInputElement> = useCallback(event => onSearchChange(event.target.value), [onSearchChange])
+    const handleSearchLoadMore: MouseEventHandler<HTMLButtonElement> = useCallback(
+        event => {
+            event.preventDefault()
+            onSearchLoadMore()
+        },
+        [onSearchLoadMore],
+    )
     const hasQuery = searchQuery.trim().length > 0
     const switcherNotebooks = useMemo(
         () =>
@@ -183,9 +188,19 @@ export function NotebookEditorNavbar({
                     <div className={styles.searchResults} role="listbox" aria-label="Notebook search results">
                         {searchResults.length ? (
                             searchResults.map(result => <SearchResultItem key={result.id} result={result} onSearchResultSelect={onSearchResultSelect} />)
+                        ) : searchLoading ? (
+                            <span className={styles.emptyResults}>Searching...</span>
+                        ) : searchError ? (
+                            <span className={styles.emptyResults}>Unable to search right now.</span>
                         ) : (
                             <span className={styles.emptyResults}>No matches in this notebook</span>
                         )}
+
+                        {searchHasMore ? (
+                            <Button className={styles.searchLoadMore} disabled={searchLoading} onClick={handleSearchLoadMore} variant="secondary">
+                                Load more results
+                            </Button>
+                        ) : null}
                     </div>
                 ) : null}
             </div>
@@ -213,7 +228,7 @@ function NotebookSwitcherItem({ notebook, onSelectNotebook }: { notebook: Notebo
     )
 }
 
-function SearchResultItem({ result, onSearchResultSelect }: { result: NotebookEditorSearchResult; onSearchResultSelect: (result: NotebookEditorSearchResult) => void }) {
+function SearchResultItem({ result, onSearchResultSelect }: { result: NotebookSearchResult; onSearchResultSelect: (result: NotebookSearchResult) => void }) {
     const handleSelect = useCallback(() => onSearchResultSelect(result), [onSearchResultSelect, result])
 
     return (

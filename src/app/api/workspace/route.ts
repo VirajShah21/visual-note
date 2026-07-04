@@ -1,32 +1,117 @@
-import { authenticateSupabaseRequest } from "@/lib/supabase/server"
-import { loadWorkspaceForUser, saveWorkspaceForUser } from "@/server/visual-note/workspace-store"
-import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
+import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest } from "@/lib/supabase/server"
+import { resolveWorkspaceRevision } from "@/server/visual-note/workspace-revision-store"
+import { loadWorkspaceForUserWithRevision, saveWorkspaceForUser } from "@/server/visual-note/workspace-store"
+import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
+import { isWorkspaceConflictError, parseWorkspaceSaveRequest } from "./route-contract"
+
+type Authenticated = { supabase: Parameters<typeof loadWorkspaceForUserWithRevision>[0]; userId: string }
+
+export type WorkspaceRouteDependencies = {
+    loadWorkspaceForUserWithRevision: typeof loadWorkspaceForUserWithRevision
+    resolveWorkspaceRevision: typeof resolveWorkspaceRevision
+    saveWorkspaceForUser: typeof saveWorkspaceForUser
+    logEvent: (event: Parameters<typeof recordVisualNoteEvent>[0]) => void
+    isWorkspaceConflictError: (error: unknown) => boolean
+    isWorkspaceIntegrityError: (error: unknown) => error is Error & { code?: string }
+    isWorkspaceStorageError?: (error: unknown) => error is Error & { code?: string }
+}
+
+type WorkspaceSaveResult = Awaited<ReturnType<typeof parseWorkspaceSaveRequest>>
+
+const defaultWorkspaceRouteDependencies: WorkspaceRouteDependencies = {
+    loadWorkspaceForUserWithRevision,
+    resolveWorkspaceRevision,
+    saveWorkspaceForUser,
+    logEvent: recordVisualNoteEvent,
+    isWorkspaceConflictError,
+    isWorkspaceIntegrityError: (error: unknown): error is Error & { code?: string } => error instanceof Error && (error as { code?: string }).code === "workspace_integrity",
+}
+
+export const runWorkspaceLoad = async (auth: Authenticated, dependencies = defaultWorkspaceRouteDependencies) => {
+    try {
+        const { workspace, revision } = await dependencies.loadWorkspaceForUserWithRevision(auth.supabase, auth.userId)
+        dependencies.logEvent({ event: "workspace.load_success", severity: "info", userId: auth.userId })
+        return Response.json({ workspace, revision }, { headers: { ETag: `"${revision}"` } })
+    } catch (error) {
+        dependencies.logEvent({ event: "workspace.load_failed", severity: "error", userId: auth.userId, error })
+        return Response.json({ error: error instanceof Error ? error.message : "Unable to load workspace." }, { status: 500 })
+    }
+}
+
+export const runWorkspaceSave = async (auth: Authenticated, parsed: WorkspaceSaveResult, dependencies = defaultWorkspaceRouteDependencies) => {
+    if (!parsed.ok) {
+        dependencies.logEvent({
+            event: "workspace.save_request_invalid",
+            severity: "warn",
+            userId: auth.userId,
+            metadata: {
+                reason: parsed.error,
+                status: parsed.status,
+            },
+        })
+        return Response.json({ error: parsed.error }, { status: parsed.status })
+    }
+
+    try {
+        const saveResult = await dependencies.saveWorkspaceForUser(auth.supabase, auth.userId, parsed.workspace, parsed.revision, parsed.baseWorkspace)
+        const nextRevision = await dependencies.resolveWorkspaceRevision(auth.supabase, auth.userId)
+        dependencies.logEvent({ event: "workspace.save_success", severity: "info", userId: auth.userId, metadata: { nextRevision } })
+
+        const response: { revision: string; warnings?: string[] } = { revision: nextRevision }
+        if (saveResult.warnings.length > 0) response.warnings = saveResult.warnings
+
+        return Response.json(response)
+    } catch (error) {
+        if (dependencies.isWorkspaceIntegrityError(error)) {
+            dependencies.logEvent({
+                event: "workspace.save_payload_invalid",
+                severity: "warn",
+                userId: auth.userId,
+                metadata: {
+                    reason: error.message,
+                    issues: (error as { issues?: string[] }).issues,
+                },
+            })
+            return Response.json({ error: error.message }, { status: 400 })
+        }
+
+        if (dependencies.isWorkspaceConflictError(error)) {
+            dependencies.logEvent({ event: "workspace.save_conflict", severity: "warn", userId: auth.userId, error })
+            return Response.json({ error: error instanceof Error ? error.message : "Unable to save workspace." }, { status: 409 })
+        }
+
+        dependencies.logEvent({ event: "workspace.save_failed", severity: "error", userId: auth.userId, error })
+        return Response.json({ error: error instanceof Error ? error.message : "Unable to save workspace." }, { status: 500 })
+    }
+}
+
+export const runWorkspaceAuthFailure = (request: Request, response: Response, operation: "load" | "save", dependencies = defaultWorkspaceRouteDependencies) => {
+    dependencies.logEvent({
+        event: "workspace.auth_failed",
+        severity: "warn",
+        metadata: {
+            operation,
+            status: response.status,
+            path: new URL(request.url).pathname,
+        },
+    })
+
+    return response
+}
 
 export const runtime = "nodejs"
 
 export async function GET(request: Request) {
     const auth = await authenticateSupabaseRequest(request)
-    if (auth instanceof Response) return auth
+    if (auth instanceof Response) return runWorkspaceAuthFailure(request, auth, "load")
 
-    try {
-        const workspace = await loadWorkspaceForUser(auth.supabase, auth.userId)
-        return Response.json({ workspace })
-    } catch (error) {
-        return Response.json({ error: error instanceof Error ? error.message : "Unable to load workspace." }, { status: 500 })
-    }
+    return runWorkspaceLoad(auth)
 }
 
 export async function PUT(request: Request) {
-    const auth = await authenticateSupabaseRequest(request)
-    if (auth instanceof Response) return auth
+    const auth = await authenticateSupabaseMutationRequest(request)
+    if (auth instanceof Response) return runWorkspaceAuthFailure(request, auth, "save")
 
-    try {
-        const body = (await request.json()) as { workspace?: VisualNoteWorkspace }
-        if (!body.workspace) return Response.json({ error: "Workspace is required." }, { status: 400 })
-
-        await saveWorkspaceForUser(auth.supabase, auth.userId, body.workspace)
-        return Response.json({ ok: true })
-    } catch (error) {
-        return Response.json({ error: error instanceof Error ? error.message : "Unable to save workspace." }, { status: 500 })
-    }
+    const parsed = await parseWorkspaceSaveRequest(request)
+    return runWorkspaceSave(auth, parsed)
 }

@@ -6,17 +6,26 @@ import type { VisualNoteWorkspace } from "@lib/visual-note/types"
 import * as workspaceOperations from "./workspace-operations"
 import { visualNoteCoreToolNames, visualNoteToolDefinitions } from "@server/mcp/visual-note-tools"
 
-const { createArticle, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, upsertVisualBlock } = workspaceOperations
+const { createArticle, createNotebook, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, repairWorkspaceConsistency, upsertVisualBlock } =
+    workspaceOperations
 
 const expectedCoreToolNames = [
     "list_notebooks",
     "read_notebook",
     "create_article",
     "create_notebook",
+    "create_workspace_snapshot",
+    "export_publish_bundle",
     "read_article",
     "replace_article_content",
     "upsert_visual_block",
     "remove_visual_block",
+    "workspace_health_check",
+    "repair_workspace_consistency",
+    "publish_notebook",
+    "unpublish_notebook",
+    "list_workspace_snapshots",
+    "restore_workspace_snapshot",
 ].sort()
 
 const baseWorkspace = (): VisualNoteWorkspace => ({
@@ -109,6 +118,19 @@ test("creates or reuses notebook page-topic paths and updates article content", 
     assert.match(result.value.view.content, /## Reused/)
 })
 
+test("createNotebook keeps slug unique across notebooks owned by the same user", () => {
+    const result = createNotebook(baseWorkspace(), "user-1", { title: "Book" })
+
+    assert.equal(result.ok, true)
+    if (!result.ok) return
+    assert.equal(result.value.notebook.slug, "book-2")
+    assert.equal(result.value.workspace.notebooks.length, 3)
+    assert.equal(
+        result.value.workspace.notebooks.some(notebook => notebook.slug === "book-2"),
+        true,
+    )
+})
+
 test("replaces article content through structured parse and serialization", () => {
     const visualBody = serializeVisualBlockBody({ title: "Project", events: [{ label: "Start", date: "2026-06-21", time: "09:00" }] })
     const content = ["# Heading", "- one\n- two", ":::note", "remember this", ":::", "```ts", "const value = 1", "```", "```visual:timeline", visualBody, "```"].join("\n\n")
@@ -147,6 +169,65 @@ test("inserts, updates, and removes visual blocks", () => {
     assert.equal(removed.ok, true)
     if (!removed.ok) return
     assert.doesNotMatch(removed.value.view.content, /```visual:/)
+})
+
+test("repairs orphaned pages and views while preserving foreign-owned data", () => {
+    const result = repairWorkspaceConsistency(
+        {
+            ...baseWorkspace(),
+            pages: [
+                ...baseWorkspace().pages,
+                {
+                    id: "orphan-page",
+                    notebookId: "missing-notebook",
+                    title: "Orphan",
+                    position: 99,
+                },
+            ],
+            views: [
+                ...baseWorkspace().views,
+                {
+                    id: "orphan-view",
+                    topicId: "missing-topic",
+                    title: "Orphan view",
+                    mode: "article",
+                    content: "# Orphan",
+                    displays: [],
+                },
+            ],
+        },
+        "user-1",
+    )
+
+    assert.equal(result.ok, true)
+    if (!result.ok) return
+
+    assert.deepEqual(result.value.orphanPages, ["orphan-page"])
+    assert.deepEqual(result.value.orphanViews, ["orphan-view"])
+    assert.equal(result.value.orphanTopics, [])
+    assert.equal(result.value.repaired, true)
+    const repaired = result.value.repairedWorkspace
+    assert.ok(repaired)
+    assert.equal(
+        repaired.pages.some(page => page.id === "orphan-page"),
+        false,
+    )
+    assert.equal(
+        repaired.views.some(view => view.id === "orphan-view"),
+        false,
+    )
+    assert.equal(
+        repaired.notebooks.some(notebook => notebook.id === "notebook-2"),
+        true,
+    )
+    assert.equal(
+        repaired.pages.some(page => page.id === "page-3"),
+        true,
+    )
+    assert.equal(
+        repaired.views.some(view => view.id === "view-3"),
+        true,
+    )
 })
 
 test("does not expose or mutate notebooks owned by another user", () => {

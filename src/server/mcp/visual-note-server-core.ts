@@ -1,14 +1,30 @@
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js"
 import type { RequestHandlerExtra } from "@modelcontextprotocol/sdk/shared/protocol.js"
 import type { ServerNotification, ServerRequest } from "@modelcontextprotocol/sdk/types.js"
-import { z } from "zod"
 import { getSupabaseServiceRoleClient } from "@/lib/supabase/server"
 import { normalizeWorkspace } from "@/lib/visual-note/factories"
-import { visualBlockKinds } from "@/lib/visual-note/visual-blocks"
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
+import { recordVisualNoteEvent } from "@/server/observability/visual-note-events"
 import { loadWorkspaceForUser, saveWorkspaceForUser } from "@/server/visual-note/workspace-store"
 import { logMcpToolAudit, type McpTokenScope, normalizeScopeSet } from "./token-store"
 import type { WorkspaceOperationResult } from "@/server/visual-note/workspace-operations"
+export {
+    blockInfoSchema,
+    componentKindSchema,
+    contentModeSchema,
+    editorModeSchema,
+    policyCheckSchema,
+    requireAtLeastOne,
+    resolveNotebookInput,
+    resolvePageInput,
+    resolveTopicInput,
+    resolveViewInput,
+    riskLevelSchema,
+    viewKindSchema,
+    viewModeSchema,
+    visualBlockKindSchema,
+    z,
+} from "./visual-note-server-schemas"
 
 export type ToolExtra = RequestHandlerExtra<ServerRequest, ServerNotification>
 
@@ -34,27 +50,6 @@ export const emptyWorkspace: VisualNoteWorkspace = {
     topics: [],
     views: [],
 }
-
-export const visualBlockKindSchema = z.enum(visualBlockKinds)
-export const componentKindSchema = z.enum([
-    "data-card",
-    "checklist",
-    "timeline",
-    "dashboard",
-    "work-logs",
-    "bugs-list",
-    "shopping-list",
-    "pull-request",
-    "url",
-    "code-block",
-] as const)
-export const viewModeSchema = z.enum(["article", "structured", "dashboard"])
-export const viewKindSchema = z.enum(["notebook", "page", "topic", "view", "display"])
-export const blockInfoSchema = z.enum(["show", "type-only", "metadata-only"])
-export const contentModeSchema = z.enum(["show", "hide-title", "hide"])
-export const editorModeSchema = z.enum(["editing", "source", "reader"])
-export const policyCheckSchema = z.enum(["notebook_summary", "non_empty_titles", "display_or_content", "layout_density"])
-export const riskLevelSchema = z.enum(["low", "medium", "high"])
 
 export const jsonResult = (payload: unknown) => ({
     content: [
@@ -98,6 +93,28 @@ const evaluateScope = (context: RequestContext, required: readonly McpTokenScope
     }
 }
 
+const recordMcpToolEvent = (
+    event: string,
+    context: RequestContext,
+    toolScope: ToolScopeRequirement,
+    severity: "info" | "warn" | "error" = "warn",
+    reason?: string,
+    missingScopes: readonly McpTokenScope[] = [],
+) => {
+    recordVisualNoteEvent({
+        event,
+        severity,
+        userId: context.userId,
+        metadata: {
+            toolName: toolScope.toolName,
+            requiredScopes: [...toolScope.requiredScopes],
+            scopeSatisfied: [...context.scopes],
+            missingScopes: [...missingScopes],
+            reason,
+        },
+    })
+}
+
 const maybeRecordAudit = async (
     supabase: Awaited<ReturnType<typeof getSupabaseServiceRoleClient>>,
     context: RequestContext,
@@ -129,10 +146,14 @@ export const loadWorkspace = async (context: RequestContext) => {
 
 export const withWorkspace = async <T>(extra: ToolExtra, action: (workspace: VisualNoteWorkspace, context: RequestContext) => Promise<T> | T, toolScope: ToolScopeRequirement) => {
     const context = requestContextFrom(extra.authInfo)
-    if (!context) return jsonResult({ ok: false, error: "auth_required", message: "Authentication required." })
+    if (!context) {
+        recordVisualNoteEvent({ event: "mcp.auth_required", severity: "warn", metadata: { toolName: toolScope.toolName } })
+        return jsonResult({ ok: false, error: "auth_required", message: "Authentication required." })
+    }
 
     const scopeEval = evaluateScope(context, toolScope.requiredScopes)
     if (!scopeEval.allowed) {
+        recordMcpToolEvent("mcp.scope_denied", context, toolScope, "warn", `missing_scope:${scopeEval.missingScopes.join(",")}`, scopeEval.missingScopes)
         await maybeRecordAudit(getSupabaseServiceRoleClient(), context, toolScope, false, `missing_scope:${scopeEval.missingScopes.join(",")}`)
         return scopeDeniedPayload(toolScope.toolName, toolScope.requiredScopes, scopeEval.missingScopes, context.scopes)
     }
@@ -145,6 +166,7 @@ export const withWorkspace = async <T>(extra: ToolExtra, action: (workspace: Vis
     } catch (error) {
         const supabase = getSupabaseServiceRoleClient()
         await maybeRecordAudit(supabase, context, toolScope, false, error instanceof Error ? error.message : "unexpected_tool_error")
+        recordMcpToolEvent("mcp.tool_error", context, toolScope, "error", error instanceof Error ? error.message : "unexpected_tool_error")
         return jsonResult({
             ok: false,
             error: "tool_error",
@@ -164,10 +186,14 @@ export const withWorkspaceMutation = async (
 ) =>
     (async () => {
         const context = requestContextFrom(extra.authInfo)
-        if (!context) return jsonResult({ ok: false, error: "auth_required", message: "Authentication required." })
+        if (!context) {
+            recordVisualNoteEvent({ event: "mcp.auth_required", severity: "warn", metadata: { toolName: toolScope.toolName } })
+            return jsonResult({ ok: false, error: "auth_required", message: "Authentication required." })
+        }
 
         const scopeEval = evaluateScope(context, toolScope.requiredScopes)
         if (!scopeEval.allowed) {
+            recordMcpToolEvent("mcp.scope_denied", context, toolScope, "warn", `missing_scope:${scopeEval.missingScopes.join(",")}`, scopeEval.missingScopes)
             await maybeRecordAudit(getSupabaseServiceRoleClient(), context, toolScope, false, `missing_scope:${scopeEval.missingScopes.join(",")}`)
             return scopeDeniedPayload(toolScope.toolName, toolScope.requiredScopes, scopeEval.missingScopes, context.scopes)
         }
@@ -176,12 +202,14 @@ export const withWorkspaceMutation = async (
             const loaded = await loadWorkspace(context)
             const result = await action(loaded.workspace, context)
             if (!result.ok) {
+                recordMcpToolEvent("mcp.workspace_error", context, toolScope, "warn", `workspace_error:${result.error}`)
                 await maybeRecordAudit(loaded.supabase, context, toolScope, false, `workspace_error:${result.error}`)
                 return jsonResult(result)
             }
 
             const value = result.value
             if (!value.workspace) {
+                recordMcpToolEvent("mcp.workspace_error", context, toolScope, "warn", "workspace_missing")
                 await maybeRecordAudit(loaded.supabase, context, toolScope, false, "workspace_missing")
                 return jsonResult({ ok: false, error: "invalid_input", message: "Mutation did not return a workspace." })
             }
@@ -194,6 +222,7 @@ export const withWorkspaceMutation = async (
         } catch (error) {
             const supabase = getSupabaseServiceRoleClient()
             await maybeRecordAudit(supabase, context, toolScope, false, error instanceof Error ? error.message : "unexpected_tool_error")
+            recordMcpToolEvent("mcp.tool_error", context, toolScope, "error", error instanceof Error ? error.message : "unexpected_tool_error")
             return jsonResult({
                 ok: false,
                 error: "tool_error",
@@ -209,10 +238,14 @@ export const withWorkspaceReadResult = async (
     toolScope: ToolScopeRequirement,
 ) => {
     const context = requestContextFrom(extra.authInfo)
-    if (!context) return jsonResult({ ok: false, error: "auth_required", message: "Authentication required." })
+    if (!context) {
+        recordVisualNoteEvent({ event: "mcp.auth_required", severity: "warn", metadata: { toolName: toolScope.toolName } })
+        return jsonResult({ ok: false, error: "auth_required", message: "Authentication required." })
+    }
 
     const scopeEval = evaluateScope(context, toolScope.requiredScopes)
     if (!scopeEval.allowed) {
+        recordMcpToolEvent("mcp.scope_denied", context, toolScope, "warn", `missing_scope:${scopeEval.missingScopes.join(",")}`, scopeEval.missingScopes)
         await maybeRecordAudit(getSupabaseServiceRoleClient(), context, toolScope, false, `missing_scope:${scopeEval.missingScopes.join(",")}`)
         return scopeDeniedPayload(toolScope.toolName, toolScope.requiredScopes, scopeEval.missingScopes, context.scopes)
     }
@@ -221,6 +254,7 @@ export const withWorkspaceReadResult = async (
         const loaded = await loadWorkspace(context)
         const result = await action(loaded.workspace, context)
         if (!result.ok) {
+            recordMcpToolEvent("mcp.workspace_error", context, toolScope, "warn", `workspace_error:${result.error}`)
             await maybeRecordAudit(loaded.supabase, context, toolScope, false, `workspace_error:${result.error}`)
             return operationResult(result)
         }
@@ -230,6 +264,7 @@ export const withWorkspaceReadResult = async (
     } catch (error) {
         const supabase = getSupabaseServiceRoleClient()
         await maybeRecordAudit(supabase, context, toolScope, false, error instanceof Error ? error.message : "unexpected_tool_error")
+        recordMcpToolEvent("mcp.tool_error", context, toolScope, "error", error instanceof Error ? error.message : "unexpected_tool_error")
         return jsonResult({
             ok: false,
             error: "tool_error",
@@ -238,39 +273,3 @@ export const withWorkspaceReadResult = async (
         })
     }
 }
-
-export const requireAtLeastOne = (schema: Record<string, unknown>, fields: string[]) =>
-    z
-        .object(schema)
-        .partial()
-        .refine(value => fields.some(field => Boolean((value as Record<string, string | undefined>)[field])), {
-            message: `${fields.join(" or ")} is required.`,
-        })
-
-export const resolveNotebookInput = requireAtLeastOne({ notebookId: z.string().min(1), title: z.string().min(1) }, ["notebookId", "title"])
-export const resolvePageInput = requireAtLeastOne(
-    {
-        pageId: z.string().min(1),
-        title: z.string().min(1),
-        notebookId: z.string().min(1),
-    },
-    ["pageId", "title"],
-)
-export const resolveTopicInput = requireAtLeastOne(
-    {
-        topicId: z.string().min(1),
-        title: z.string().min(1),
-        pageId: z.string().min(1),
-    },
-    ["topicId", "title"],
-)
-export const resolveViewInput = requireAtLeastOne(
-    {
-        viewId: z.string().min(1),
-        title: z.string().min(1),
-        topicId: z.string().min(1),
-    },
-    ["viewId", "title"],
-)
-
-export { z }

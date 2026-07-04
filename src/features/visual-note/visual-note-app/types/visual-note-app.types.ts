@@ -6,6 +6,8 @@ export type VisualNoteAppProps = {
     initialNotebookId?: string
 }
 
+export type WorkspaceRecoveryStatus = "synced" | "saving" | "offline" | "conflict" | "error"
+
 export type AuthPanelProps = {
     authStatus: "ready" | "unconfigured"
     notice: string

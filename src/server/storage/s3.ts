@@ -1,4 +1,4 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3"
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3"
 import type { Readable } from "stream"
 
 export type S3ConnectionConfig = {
@@ -62,4 +62,14 @@ export const readS3Object = async ({ connection, bucketName, objectKey }: ReadS3
         contentLength: result.ContentLength,
         contentType: result.ContentType,
     }
+}
+
+export const deleteS3Object = async ({ connection, bucketName, objectKey }: ReadS3ObjectInput) => {
+    const client = createS3Client(connection)
+    await client.send(
+        new DeleteObjectCommand({
+            Bucket: bucketName,
+            Key: objectKey,
+        }),
+    )
 }

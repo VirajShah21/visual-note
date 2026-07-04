@@ -3,6 +3,7 @@ import type { ToolExtra } from "./visual-note-server-core"
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js"
 import { mcpScopeRead, mcpScopeWrite } from "./token-store"
+import { visualNoteWorkspaceToolDefinitions, visualNoteWorkspaceToolNames, type VisualNoteWorkspaceToolName } from "./visual-note-workspace-tools"
 import {
     createArticle,
     createNotebook,
@@ -23,6 +24,7 @@ export type VisualNoteToolName =
     | "replace_article_content"
     | "upsert_visual_block"
     | "remove_visual_block"
+    | VisualNoteWorkspaceToolName
 
 type VisualNoteToolDefinition = {
     name: VisualNoteToolName
@@ -42,6 +44,7 @@ export const visualNoteCoreToolNames = [
     "replace_article_content",
     "upsert_visual_block",
     "remove_visual_block",
+    ...visualNoteWorkspaceToolNames,
 ] as const satisfies readonly VisualNoteToolName[]
 
 const toolRequirements = {
@@ -193,6 +196,7 @@ export const visualNoteToolDefinitions: VisualNoteToolDefinition[] = [
                 toolRequirements.remove_visual_block,
             ),
     },
+    ...visualNoteWorkspaceToolDefinitions,
 ]
 
 export const registerVisualNoteCoreTools = (server: McpServer) => {
