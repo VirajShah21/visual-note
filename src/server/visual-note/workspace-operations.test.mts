@@ -6,7 +6,7 @@ import type { VisualNoteWorkspace } from "@lib/visual-note/types"
 import * as workspaceOperations from "./workspace-operations"
 import { visualNoteCoreToolNames, visualNoteToolDefinitions } from "@server/mcp/visual-note-tools"
 
-const { createArticle, createNotebook, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, repairWorkspaceConsistency, upsertVisualBlock } =
+const { createArticle, createNotebook, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, repairWorkspaceConsistency, snapshotWorkspace, upsertVisualBlock } =
     workspaceOperations
 
 const expectedCoreToolNames = [
@@ -129,6 +129,17 @@ test("createNotebook keeps slug unique across notebooks owned by the same user",
         result.value.workspace.notebooks.some(notebook => notebook.slug === "book-2"),
         true,
     )
+})
+
+test("creates graph-only workspace snapshots without article bodies", () => {
+    const result = snapshotWorkspace(baseWorkspace(), "user-1", { name: "Before repair" })
+
+    assert.equal(result.ok, true)
+    if (!result.ok) return
+
+    const snapshot = result.value.snapshot
+    assert.equal(snapshot.workspace.pages.some(page => "content" in page), false)
+    assert.equal(snapshot.workspace.views.every(view => view.content === ""), true)
 })
 
 test("replaces article content through structured parse and serialization", () => {

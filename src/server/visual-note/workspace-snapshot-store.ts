@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import type { VisualNoteWorkspace, WorkspaceSnapshot } from "@/lib/visual-note/types"
+import type { NotebookPage, NotebookView, VisualNoteWorkspace, WorkspaceSnapshot } from "@/lib/visual-note/types"
 
 type WorkspaceSnapshotRow = {
     id: string
@@ -11,12 +11,29 @@ type WorkspaceSnapshotRow = {
 
 const snapshotsTable = "visual_note_workspace_snapshots"
 
+type SnapshotWorkspace = Omit<VisualNoteWorkspace, "snapshots">
+
+const stripPageContent = (page: NotebookPage): NotebookPage => {
+    const next = { ...page }
+    delete next.content
+    return next
+}
+
+const stripViewContent = (view: NotebookView): NotebookView => ({ ...view, content: "" })
+
+export const sanitizeSnapshotWorkspace = (workspace: SnapshotWorkspace): SnapshotWorkspace => ({
+    notebooks: workspace.notebooks,
+    pages: workspace.pages.map(stripPageContent),
+    topics: workspace.topics,
+    views: workspace.views.map(stripViewContent),
+})
+
 const toSnapshot = (row: WorkspaceSnapshotRow): WorkspaceSnapshot => ({
     id: row.id,
     name: row.name,
     note: row.note ?? undefined,
     createdAt: row.created_at,
-    workspace: row.workspace,
+    workspace: sanitizeSnapshotWorkspace(row.workspace),
 })
 
 export const listWorkspaceSnapshotsForUser = async (supabase: SupabaseClient, userId: string): Promise<WorkspaceSnapshot[]> => {
@@ -35,7 +52,7 @@ export const upsertWorkspaceSnapshotsForUser = async (supabase: SupabaseClient, 
         name: snapshot.name,
         note: snapshot.note ?? null,
         created_at: snapshot.createdAt,
-        workspace: snapshot.workspace,
+        workspace: sanitizeSnapshotWorkspace(snapshot.workspace),
     }))
 
     const { error } = await supabase.from(snapshotsTable).upsert(rows, { onConflict: "id" })

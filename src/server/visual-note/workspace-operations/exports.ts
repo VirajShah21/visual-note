@@ -2,6 +2,7 @@ import { ensureUniqueSlug, findOwnedView, normalizeWorkspace } from "./read-mode
 import { findOwnedNotebook, findOwnedPage } from "./selectors"
 import { createId, defaultEditorSettings, invalidInput, notFound, ok, safeTrim, slugify } from "./result"
 import { createExportDocument, Notebook, NotebookEditorSettings, renderMarkdownExport, renderWebHtml, VisualNoteWorkspace } from "./types"
+import { sanitizeSnapshotWorkspace } from "@/server/visual-note/workspace-snapshot-store"
 
 export const exportNotebook = (workspace: VisualNoteWorkspace, userId: string, input: { notebookId: string; format?: "markdown" | "web" }) => {
     const context = findOwnedNotebook(workspace, userId, input.notebookId)
@@ -159,10 +160,7 @@ export const snapshotWorkspace = (workspace: VisualNoteWorkspace, userId: string
         name,
         note: safeTrim(input.note),
         createdAt: new Date().toISOString(),
-        workspace: {
-            ...normalized,
-            snapshots: [],
-        },
+        workspace: sanitizeSnapshotWorkspace(normalized),
     }
     return ok({
         workspace: {
