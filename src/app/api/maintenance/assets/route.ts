@@ -27,6 +27,19 @@ const defaultAssetCleanupDependencies: AssetCleanupDependencies = {
 
 const isIsoDateString = (value: string) => Number.isFinite(Date.parse(value))
 
+const parseCleanupRequestBody = async (request: Request): Promise<CleanupRequestBody | Response> => {
+    if (!request.body) return {}
+
+    try {
+        const parsed = await request.json()
+        if (typeof parsed === "object" && parsed !== null) return parsed as CleanupRequestBody
+
+        return {}
+    } catch {
+        return Response.json({ error: "Invalid cleanup payload." }, { status: 400 })
+    }
+}
+
 export const runAssetCleanup = async (request: Request, dependencies = defaultAssetCleanupDependencies) => {
     const expectedToken = dependencies.getMaintenanceToken()
     const token = request.headers.get("x-maintenance-token")
@@ -37,16 +50,8 @@ export const runAssetCleanup = async (request: Request, dependencies = defaultAs
     const supabase = dependencies.getSupabaseServiceRoleClient()
     if (!supabase) return Response.json({ error: "Application database access is required for asset cleanup." }, { status: 503 })
 
-    let body: CleanupRequestBody = {}
-    const hasBody = (request.headers.get("content-length") ?? "0") !== "0"
-    if (hasBody)
-        try {
-            const parsed = await request.json()
-            if (typeof parsed === "object" && parsed !== null) body = parsed as CleanupRequestBody
-            else body = {}
-        } catch {
-            return Response.json({ error: "Invalid cleanup payload." }, { status: 400 })
-        }
+    const body = await parseCleanupRequestBody(request)
+    if (body instanceof Response) return body
 
     if (body.deleteUpdatedBefore && !isIsoDateString(body.deleteUpdatedBefore)) return Response.json({ error: "deleteUpdatedBefore must be an ISO date string." }, { status: 400 })
 
