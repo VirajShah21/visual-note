@@ -5,7 +5,7 @@ import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdow
 import { deleteAssetRecord } from "@/server/storage/notebook-storage"
 import { collectPrivateAssetIdsFromValue } from "@/server/storage/notebook-asset-cleanup"
 import { listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
-import { deletePage, loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
+import { deletePage, hydrateViewsFromPageMarkdown, loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
 import { cleanupWorkspaceAssetOrphans, loadWorkspaceForUser } from "@/server/visual-note/workspace-store"
 import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 import { parsePageUpdateRequest, type PageUpdateParseResult } from "@app/api/pages/route-contract"
@@ -56,6 +56,9 @@ export const runPageGet = async (auth: Authenticated, pageId: string, dependenci
     if (!page) return Response.json({ error: "Page not found." }, { status: 404 })
     if (!(await dependencies.userOwnsNotebook(auth, page.notebook_id))) return Response.json({ error: "Page not found." }, { status: 404 })
 
+    const markdown = await dependencies.readPageMarkdown({ supabase: auth.supabase, userId: auth.userId }, page.id)
+    const views = hydrateViewsFromPageMarkdown(page.topics, page.views, markdown)
+
     return Response.json({
         page: {
             id: page.id,
@@ -65,7 +68,7 @@ export const runPageGet = async (auth: Authenticated, pageId: string, dependenci
             contentObjectKey: page.content_object_key,
         },
         topics: page.topics,
-        views: page.views,
+        views,
     })
 }
 

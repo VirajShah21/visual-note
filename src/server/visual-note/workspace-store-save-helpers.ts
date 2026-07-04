@@ -1,29 +1,30 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import { createExportDocument } from "@/lib/visual-note/export/document"
-import { renderMarkdownExport } from "@/lib/visual-note/export/markdown"
-import { resolveExportAssets } from "@/lib/visual-note/export/assets"
+import { parseArticleContent, serializeArticleContent } from "@/lib/visual-note/article-content"
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
 import { deleteNotebooksNotIn, upsertNotebooks } from "@/server/visual-note/notebook-store"
-import { deletePagesNotIn, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
+import { deletePagesNotIn, makePageObjectKey, pageTopicMarker, pageViewMarker, upsertPages } from "@/server/visual-note/page-store"
 import { savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
 import { upsertWorkspaceSnapshotsForUser } from "@/server/visual-note/workspace-snapshot-store"
-
-const pageSelection = (notebookId: string, pageId: string) => ({
-    notebookId,
-    pageId,
-    topicId: "",
-    viewId: "",
-})
 
 export const pageMarkdownFromWorkspace = async (workspace: VisualNoteWorkspace, pageId: string) => {
     const page = workspace.pages.find(item => item.id === pageId)
     if (!page) return ""
 
-    const document = createExportDocument({ scope: "page", selection: pageSelection(page.notebookId, page.id), workspace })
-    if (!document) return ""
+    const chunks = [`# ${page.title}`]
+    const topics = workspace.topics.filter(topic => topic.pageId === page.id).sort((first, second) => first.position - second.position)
 
-    const context = await resolveExportAssets(document, "ignore")
-    return renderMarkdownExport(document, { assetMode: "ignore", assetResolution: context })
+    topics.forEach(topic => {
+        chunks.push(pageTopicMarker(topic.id), `## ${topic.title}`)
+        const topicViews = workspace.views.filter(view => view.topicId === topic.id)
+
+        topicViews.forEach(view => {
+            const content = serializeArticleContent(parseArticleContent(view.content, view.displays.length).blocks)
+            chunks.push(pageViewMarker(view.id), `### ${view.title}`)
+            if (content.trim()) chunks.push(content)
+        })
+    })
+
+    return chunks.filter(chunk => chunk.trim()).join("\n\n")
 }
 
 export const throwOwnershipConflict = (resourceName: string, ids: string[]): never => {

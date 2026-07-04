@@ -83,6 +83,33 @@ test("GET returns page payload when owner exists", async () => {
     assert.equal(body.page.notebookId, "notebook-1")
 })
 
+test("GET hydrates page detail view content from stored markdown", async () => {
+    const response = await runPageGet(auth, "page-1", {
+        loadPageById: async () => ({
+            ...basePageRow,
+            topics: [{ id: "topic-1", pageId: "page-1", title: "Start", summary: "", position: 0 }],
+            views: [{ id: "view-1", topicId: "topic-1", title: "Article", mode: "article", content: "", displays: [] }],
+        }),
+        userOwnsNotebook: async () => true,
+        listNotebooksForUser: async () => [],
+        upsertNotebooks: async () => {},
+        normalizeNotebookEditorSettings: (value: Parameters<NormalizeNotebookEditorSettings>[0]) => value ?? {},
+        makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
+        readPageMarkdown: async () =>
+            ["# Welcome", "", "<!-- visual-note:topic topic-1 -->", "", "## Start", "", "<!-- visual-note:view view-1 -->", "", "### Article", "", "Hydrated body."].join("\n"),
+        savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "x" }),
+        upsertPages: async () => {},
+        savePageMarkdown: async () => "x",
+        deletePageMarkdown: async () => {},
+        deletePage: async () => {},
+        cleanupWorkspaceAssetOrphans: async () => [],
+    } as unknown as PageRouteDependencies)
+
+    assert.equal(response.status, 200)
+    const body = await readResponseBody(response)
+    assert.equal(body.views[0].content, "Hydrated body.")
+})
+
 test("GET returns 404 when page cannot be found or owned", async () => {
     const notFound = await runPageGet(auth, "page-1", {
         loadPageById: async () => null,
