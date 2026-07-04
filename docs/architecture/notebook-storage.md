@@ -6,51 +6,59 @@ Last updated: 2026-07-04
 
 1. [Purpose](#purpose)
 2. [Completeness status](#completeness-status)
-3. [Scope](#scope)
+3. [Page markdown storage migration requirements](#page-markdown-storage-migration-requirements)
+   1. [Decision](#decision)
+   2. [Target storage contract](#target-storage-contract)
+   3. [Markdown format contract](#markdown-format-contract)
+   4. [Data ownership boundaries](#data-ownership-boundaries)
+   5. [Implementation plan](#implementation-plan)
+   6. [Migration and compatibility plan](#migration-and-compatibility-plan)
+   7. [Validation and acceptance criteria](#validation-and-acceptance-criteria)
+4. [Scope](#scope)
    1. [Endpoint inventory](#endpoint-inventory)
    2. [Storage modules used for notebook/content persistence](#storage-modules-used-for-notebookcontent-persistence)
    3. [Explicit scope exclusions](#explicit-scope-exclusions)
    4. [Route auth and pre-write failure paths](#route-auth-and-pre-write-failure-paths)
-4. [Scope coverage guarantees](#scope-coverage-guarantees)
+5. [Scope coverage guarantees](#scope-coverage-guarantees)
    1. [Delete semantics and absence-based updates](#delete-semantics-and-absence-based-updates)
-5. [Storage topology](#storage-topology)
-6. [Exhaustive behavior map (storage-relevant endpoints)](#exhaustive-behavior-map-storage-relevant-endpoints)
+6. [Storage topology](#storage-topology)
+7. [Exhaustive behavior map (storage-relevant endpoints)](#exhaustive-behavior-map-storage-relevant-endpoints)
    1. [Non-notebook persistence endpoint map](#non-notebook-persistence-endpoint-map)
-7. [MCP storage matrix](#mcp-storage-matrix)
+8. [MCP storage matrix](#mcp-storage-matrix)
    1. [MCP token validation side effects](#mcp-token-validation-side-effects)
-8. [Exhaustive status outcomes and storage side effects](#exhaustive-status-outcomes-and-storage-side-effects)
-9. [Domain mapping and invariants](#domain-mapping-and-invariants)
+9. [Exhaustive status outcomes and storage side effects](#exhaustive-status-outcomes-and-storage-side-effects)
+10. [Domain mapping and invariants](#domain-mapping-and-invariants)
    1. [Persistent domain graph](#persistent-domain-graph)
    2. [Invariants enforced during save](#invariants-enforced-during-save)
-10. [Schema mapping: SQL columns and their semantic role](#schema-mapping-sql-columns-and-their-semantic-role)
-11. [Critical content model behavior](#critical-content-model-behavior)
+11. [Schema mapping: SQL columns and their semantic role](#schema-mapping-sql-columns-and-their-semantic-role)
+12. [Critical content model behavior](#critical-content-model-behavior)
     1. [Page markdown content location](#page-markdown-content-location)
     2. [Object key conventions](#object-key-conventions)
-12. [API matrix with request/response contracts](#api-matrix-with-requestresponse-contracts)
+13. [API matrix with request/response contracts](#api-matrix-with-requestresponse-contracts)
     1. [MCP token endpoint detail](#mcp-token-endpoint-detail)
-13. [Transaction and compensation model](#transaction-and-compensation-model)
+14. [Transaction and compensation model](#transaction-and-compensation-model)
     1. [Save with rollback strategy](#save-with-rollback-strategy)
     2. [Delete compensation](#delete-compensation)
-14. [Object storage and key lifecycle](#object-storage-and-key-lifecycle)
+15. [Object storage and key lifecycle](#object-storage-and-key-lifecycle)
     1. [Read/write routines](#readwrite-routines)
     2. [Asset key lifecycle](#asset-key-lifecycle)
     3. [Orphan scans and asset ID extraction](#orphan-scans-and-asset-id-extraction)
-15. [Readiness and schema validation](#readiness-and-schema-validation)
+16. [Readiness and schema validation](#readiness-and-schema-validation)
     1. [Important policy caveat](#important-policy-caveat)
-16. [Security and authorization](#security-and-authorization)
+17. [Security and authorization](#security-and-authorization)
     1. [Database client context by endpoint](#database-client-context-by-endpoint)
-17. [Environment dependency matrix](#environment-dependency-matrix)
-18. [Observability hooks](#observability-hooks)
-19. [Exact parse/error messages (implementation contract)](#exact-parseerror-messages-implementation-contract)
-20. [Cross-endpoint sequence diagrams](#cross-endpoint-sequence-diagrams)
+18. [Environment dependency matrix](#environment-dependency-matrix)
+19. [Observability hooks](#observability-hooks)
+20. [Exact parse/error messages (implementation contract)](#exact-parseerror-messages-implementation-contract)
+21. [Cross-endpoint sequence diagrams](#cross-endpoint-sequence-diagrams)
     1. [Workspace save + revision conflict path](#workspace-save--revision-conflict-path)
     2. [Image upload with DB cleanup fallback](#image-upload-with-db-cleanup-fallback)
-21. [Evidence and test coverage matrix](#evidence-and-test-coverage-matrix)
+22. [Evidence and test coverage matrix](#evidence-and-test-coverage-matrix)
     1. [Endpoint-level traceability](#endpoint-level-traceability)
     2. [MCP scope and enforcement matrix](#mcp-scope-and-enforcement-matrix)
     3. [Store-focused coverage](#store-focused-coverage)
     4. [Current gaps against full coverage](#current-gaps-against-full-coverage)
-22. [Practical checks](#practical-checks)
+23. [Practical checks](#practical-checks)
 
 ## Purpose
 
@@ -72,6 +80,163 @@ save/rollback families, MCP mutation pathways, and test coverage that drives the
 The only notable non-document caveat is that MCP transport middleware can return
 low-level protocol-level errors before route handlers are reached.
 
+## Page markdown storage migration requirements
+
+This section records the target requirements for making markdown files in MinIO/S3
+the canonical article-content storage format for notebook pages.
+
+### Decision
+
+Page article content must be stored as markdown object files, not as JSON schemas
+or serialized editor block schemas.
+
+- Canonical page content location: MinIO/S3-compatible object storage.
+- Canonical page content format: markdown text.
+- Canonical markdown renderer: the same renderer used by the Export to Markdown
+  path, specifically [`renderMarkdownExport`](../../src/lib/visual-note/export/markdown.ts).
+- Canonical export document shape: [`createExportDocument`](../../src/lib/visual-note/export/document.ts), scoped to one page when writing a page object.
+- Canonical page object writer/reader: [`page-content-store.ts`](../../src/server/visual-note/page-content-store.ts).
+- SQL page rows remain the canonical graph/index metadata store, but they must not
+  contain article body content.
+
+### Target storage contract
+
+Each persisted notebook page has one markdown object:
+
+| Concern | Requirement |
+|---|---|
+| Object key | `notebooks/${notebookId}/pages/${pageId}.md` from [`makePageObjectKey`](../../src/server/visual-note/page-store.ts) |
+| Bucket/connection | Resolved through `visual_note_notebook_storage` and `visual_note_s3_connections` |
+| Content type | `text/markdown; charset=utf-8` |
+| Body encoding | UTF-8 markdown |
+| Object metadata | At minimum `notebookid` and `pageid` |
+| SQL pointer | `visual_note_pages.content_object_key` stores the object key |
+| SQL body storage | Not allowed for article content |
+| Missing storage config | Mutation may return a warning only where the route already supports warning payloads; fully strict routes should fail with the existing MinIO configuration error |
+
+The database stores the navigable notebook graph:
+
+- notebook title, slug, summary, color, publish state, and editor settings
+- page title, page position, notebook ownership, and `content_object_key`
+- topics and views as graph/editor metadata required to rebuild the notebook UI
+- asset records, storage connection rows, workspace snapshots, and MCP token/audit rows
+
+The database must not become the source of truth for page article bodies. Any
+future JSON editor schema should be treated as transient UI state, derived cache,
+or explicit migration input, not canonical page content.
+
+### Markdown format contract
+
+The stored page markdown must match Export to Markdown output for a single-page
+export with asset handling set to `ignore`.
+
+Current renderer behavior:
+
+1. Build an export document with `scope: "page"`.
+2. Render the page title as an H1 (`# Page title`).
+3. Render each topic title as an H2 (`## Topic title`) in topic position order.
+4. Render the selected article view content below its topic heading.
+5. Choose the article view for a topic using the same rule as export:
+   - first view with `mode === "article"`
+   - otherwise the first view for the topic
+   - otherwise no body for that topic
+6. Parse and serialize article blocks through the article-content pipeline before writing markdown.
+7. Exclude image assets from the stored page markdown when using `assetMode: "ignore"`; uploaded binary assets remain separate S3 objects tracked by `visual_note_assets`.
+
+The storage writer should not invent a separate markdown dialect. If Export to
+Markdown changes heading depth, visual block serialization, list handling,
+callout syntax, code fences, or asset rendering, page storage markdown must change
+through the same shared renderer.
+
+### Data ownership boundaries
+
+This migration keeps three storage responsibilities separate:
+
+| Data class | Canonical store | Reason |
+|---|---|---|
+| Notebook/page graph | Postgres normalized rows | Fast workspace listing, ownership checks, ordering, revision calculations, and search indexing |
+| Page article content | MinIO/S3 markdown object | Human-readable content, portable export parity, lower DB row weight, and object-level rollback semantics |
+| Uploaded images/assets | MinIO/S3 binary object + `visual_note_assets` row | Private delivery, signing, cleanup, MIME validation, and orphan detection |
+
+The product model remains structured. Storing article content as markdown does not
+turn a notebook into a folder of markdown documents; notebooks, pages, topics,
+views, components, and data continue to be explicit platform concepts. Markdown is
+the persistence format for the article body inside that model.
+
+### Implementation plan
+
+1. **Lock the markdown rendering boundary**
+   - Keep one shared markdown generation path for both page storage and Export to Markdown.
+   - Use [`pageMarkdownFromWorkspace`](../../src/server/visual-note/workspace-store-save-helpers.ts) for workspace saves, because it already builds a page-scoped export document and calls `renderMarkdownExport`.
+   - Add regression coverage that compares a saved page object body to `renderMarkdownExport` output for the same page.
+
+2. **Make object storage the only article-body persistence path**
+   - Ensure `visual_note_pages` continues to store only graph fields, denormalized topic/view metadata, and `content_object_key`.
+   - Reject or ignore any future request shape that attempts to persist page article body JSON into SQL.
+   - Keep `GET /api/pages/[pageId]/content` returning `{ pageId, markdown }`.
+   - Keep `PUT /api/pages/[pageId]/content` accepting `{ markdown }`; do not introduce a JSON-schema content contract.
+
+3. **Preserve current page save semantics**
+   - `PUT /api/workspace` writes markdown per page during full workspace saves.
+   - `POST /api/notebooks` writes the optional home page markdown when a home page is created.
+   - `PUT /api/pages/[pageId]` writes markdown only when markdown is provided in the request payload.
+   - `PUT /api/pages/[pageId]/content` writes raw markdown directly to the page object.
+   - Rollbacks must restore the previous markdown object when SQL persistence fails after object upload.
+
+4. **Keep page reads markdown-first**
+   - Workspace hydration should read each page's `content_object_key` from object storage and populate in-memory page/view content from markdown only.
+   - A missing object is a content-read failure, not permission to use a JSON schema fallback.
+   - Search and orphan cleanup should continue to inspect markdown bodies loaded from object storage.
+
+5. **Normalize editor integration around markdown**
+   - Article editor save operations should serialize editor state to markdown before persistence.
+   - Editor load operations should parse markdown into the structured editing model in memory.
+   - Empty headings, lists, quotes, callouts, code blocks, and visual blocks must round-trip through markdown without falling back to raw JSON schemas.
+
+6. **Protect asset behavior**
+   - Page markdown may reference private assets through `/api/assets/{assetId}` URLs when the editor content includes asset references.
+   - Uploaded image binaries continue to be stored separately through the asset upload pipeline.
+   - Orphan scans must continue extracting asset IDs from stored markdown and from graph metadata.
+
+7. **Update contracts and tests**
+   - Add route/store tests that assert no page article body JSON is written to `visual_note_pages`.
+   - Add tests for the content route shape (`markdown` only) and for workspace-save markdown parity with Export to Markdown.
+   - Add rollback tests proving markdown objects are restored when SQL writes fail.
+   - Add migration tests or fixtures for any legacy JSON-schema page content that still exists in deployed environments.
+
+### Migration and compatibility plan
+
+The desired end state has no canonical JSON-schema page content. If a deployment
+contains legacy JSON page bodies, migrate it once into markdown objects:
+
+1. Inventory legacy rows or payloads that contain article body JSON.
+2. For each page, reconstruct the in-memory page/topic/view model.
+3. Use the shared export renderer to generate page-scoped markdown.
+4. Upload the markdown to `notebooks/${notebookId}/pages/${pageId}.md`.
+5. Set or verify `visual_note_pages.content_object_key`.
+6. Remove or ignore the legacy JSON body field after the object is verified.
+7. Re-run workspace health, page content read checks, search checks, and orphan asset cleanup.
+
+Do not keep a long-term dual-write model where JSON schemas and markdown objects
+both claim to be canonical. A temporary migration read path may be acceptable only
+if it is one-way, emits clear telemetry, writes the markdown object immediately,
+and has a planned removal.
+
+### Validation and acceptance criteria
+
+This feature is complete only when all of the following are true:
+
+- Creating a notebook with a home page creates a `.md` page object when notebook storage is configured.
+- Saving a workspace writes one markdown object per page and stores only the object key in SQL.
+- Saving page content writes `text/markdown; charset=utf-8` to MinIO/S3.
+- Reading page content returns markdown from object storage.
+- Export to Markdown and the stored page object use the same renderer and produce the same content for the same page scope.
+- No route stores page article content as a JSON schema in Postgres.
+- Missing object storage does not silently write a JSON fallback.
+- Rollback paths restore prior markdown object content after downstream SQL failures.
+- Page delete removes the page row and attempts to delete the corresponding markdown object.
+- Orphan asset cleanup still detects `/api/assets/{assetId}` references in stored markdown.
+- Tests cover markdown format parity, strict content route shape, save rollback, legacy migration fixtures, and absence of JSON body persistence.
 
 ## Scope
 
@@ -548,6 +713,8 @@ Retention logic in `upsertWorkspaceSnapshotsForUser`:
 ### Page markdown content location
 
 - Page `content` is not stored in the `visual_note_pages` row as text.
+- Page article content is not stored as a JSON schema in Postgres.
+- Markdown object files are the canonical persisted article body for pages.
 - For each page request that needs markdown, the app loads `content_object_key` and reads the object from S3-compatible storage.
 - Markdown is generated from graph data by:
   1. `createExportDocument`
