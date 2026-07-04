@@ -153,7 +153,7 @@ export const setNotebookMetadata = (
 
 export const snapshotWorkspace = (workspace: VisualNoteWorkspace, userId: string, input: { name: string; note?: string }) => {
     const normalized = normalizeWorkspace(workspace, userId)
-    const snapshots = [...(normalized.snapshots ?? []).slice(0, 29)]
+    const snapshots = [...(normalized.snapshots ?? []).slice(-29)]
     const name = safeTrim(input.name) || `Snapshot ${new Date().toISOString()}`
     const snapshot = {
         id: `snapshot-${createId()}`,
