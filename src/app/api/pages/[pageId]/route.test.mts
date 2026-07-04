@@ -330,6 +330,7 @@ test("DELETE clears page markdown and triggers workspace asset cleanup", async (
         savePageMarkdown: async () => "x",
         deletePageMarkdown: async () => {},
         deletePage: async () => {},
+        loadWorkspaceForUser: async () => ({ notebooks: [], pages: [], topics: [], views: [], snapshots: [] }),
         cleanupWorkspaceAssetOrphans: async () => {
             cleanupCalled = true
         },
