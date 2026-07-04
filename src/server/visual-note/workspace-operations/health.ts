@@ -125,7 +125,7 @@ export const workspaceHealthCheck = (workspace: VisualNoteWorkspace, userId: str
     })
 }
 
-export const analyzeOrphanedData = (workspace: VisualNoteWorkspace, _userId: string): WorkspaceOperationResult<OrphanAnalysisResult> => {
+export const analyzeOrphanedData = (workspace: VisualNoteWorkspace): WorkspaceOperationResult<OrphanAnalysisResult> => {
     const allNotebookIds = byIds(workspace.notebooks)
     const orphanPages = workspace.pages.filter(page => !allNotebookIds.has(page.notebookId)).map(page => page.id)
     const allPageIds = byIds(workspace.pages.filter(page => allNotebookIds.has(page.notebookId)))
