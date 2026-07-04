@@ -68,9 +68,16 @@ export const runContentPut = async (auth: Authenticated, request: Request, pageI
             markdown,
             objectKey,
         )
-        if (!uploadResult.saved) warnings.push(storageConfigurationError)
-        else await dependencies.touchPageRevision(auth.supabase, auth.userId, page.id)
-        if (warnings.length > 0) warnings.push(STORAGE_SETUP_HINT)
+        if (!uploadResult.saved)
+            return Response.json(
+                {
+                    error: storageConfigurationError,
+                    warnings: [STORAGE_SETUP_HINT],
+                },
+                { status: 400 },
+            )
+
+        await dependencies.touchPageRevision(auth.supabase, auth.userId, page.id)
         await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore)
 
         const response = {
