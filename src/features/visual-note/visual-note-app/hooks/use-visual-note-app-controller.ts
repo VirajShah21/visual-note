@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { ToastMessage, ToastTone } from "@/components/ui"
-import { createNotebook, createPage, createTopic, createView } from "@/lib/visual-note/factories"
+import { createPage, createTopic, createView } from "@/lib/visual-note/factories"
 import type { DisplayInstance, NotebookEditorSettings, NotebookView, SelectionState, VisualNoteWorkspace, VisualUser } from "@/lib/visual-note/types"
 import type { NotebookSearchResult } from "@/lib/visual-note/search"
 import { updateWorkspaceNotebookEditorSettings } from "@features/visual-note/visual-note-app/utils/notebook-editor-settings"
@@ -18,6 +18,7 @@ import {
 import { restoreVisualNoteSession } from "./restore-visual-note-session"
 import { registerVisualNoteAccount, signInVisualNoteUser } from "./visual-note-auth-actions"
 import { uploadImageForNotebook } from "./workspace-image-actions"
+import { createNotebookAndOpen as createNotebookAndOpenAction } from "./workspace-notebook-actions"
 import { retryWorkspaceRecovery as retryWorkspaceRecoveryAction } from "./workspace-recovery-actions"
 import { openWorkspaceForUser as openWorkspaceForUserAction, signOutOfWorkspace } from "./workspace-session-actions"
 import { useVisualNoteWorkspaceAutosave, type WorkspaceRecoveryState } from "./use-visual-note-workspace-autosave"
@@ -133,31 +134,22 @@ export const useVisualNoteAppController = (initialNotebookId: string) => {
     const notebooks = workspace && user ? workspace.notebooks.filter(item => item.userId === user.id) : []
     const sections = workspace ? workspace.pages.filter(item => item.notebookId === selected.currentSelection.notebookId).sort((a, b) => a.position - b.position) : []
     const galleryItems = workspace ? createNotebookGalleryItems(workspace, notebooks) : []
-    const addNotebook = (title: string) => {
-        const trimmedTitle = title.trim()
-        if (!user || !trimmedTitle) {
-            pushToast("Notebook title required", "Add a title before creating a notebook.", "error")
-            return null
-        }
-        let createdNotebookId = ""
-        updateWorkspace(current => {
-            const notebook = createNotebook(user.id, trimmedTitle)
-            const page = createPage(notebook.id, "Home", 0)
-            const topic = createTopic(page.id, "Start", 0)
-            const view = createView(topic.id, "Welcome")
-            createdNotebookId = notebook.id
-            setSelection({ notebookId: notebook.id, pageId: page.id, topicId: topic.id, viewId: view.id })
-            return { ...current, notebooks: [...current.notebooks, notebook], pages: [...current.pages, page], topics: [...current.topics, topic], views: [...current.views, view] }
+    const createNotebookAndOpen = (title: string) =>
+        createNotebookAndOpenAction({
+            hasActiveSaveErrorRef,
+            openNotebook: notebookId => router.push(`/notebook?id=${encodeURIComponent(notebookId)}`),
+            pushToast,
+            setNotice,
+            setSelection,
+            setWorkspace,
+            setWorkspaceRecovery,
+            setWorkspaceRevision,
+            syncedWorkspaceRef,
+            title,
+            user,
+            workspace,
+            workspaceRevision,
         })
-        pushToast("Notebook created", `${trimmedTitle} is ready with a starter section, topic, and view.`)
-        return createdNotebookId
-    }
-    const createNotebookAndOpen = (title: string) => {
-        const notebookId = addNotebook(title)
-        if (!notebookId) return false
-        router.push(`/notebook?id=${encodeURIComponent(notebookId)}`)
-        return true
-    }
     const addSection = (title: string) => {
         const trimmedTitle = title.trim()
         if (!selected.notebook || !trimmedTitle) {
