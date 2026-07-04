@@ -6,8 +6,18 @@ import type { VisualNoteWorkspace } from "@lib/visual-note/types"
 import * as workspaceOperations from "./workspace-operations"
 import { visualNoteCoreToolNames, visualNoteToolDefinitions } from "@server/mcp/visual-note-tools"
 
-const { createArticle, createNotebook, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, repairWorkspaceConsistency, snapshotWorkspace, upsertVisualBlock } =
-    workspaceOperations
+const {
+    createArticle,
+    createNotebook,
+    readArticle,
+    readNotebookTree,
+    removeVisualBlock,
+    replaceArticleContent,
+    repairWorkspaceConsistency,
+    restoreWorkspaceSnapshot,
+    snapshotWorkspace,
+    upsertVisualBlock,
+} = workspaceOperations
 
 const expectedCoreToolNames = [
     "list_notebooks",
@@ -146,6 +156,27 @@ test("creates graph-only workspace snapshots without article bodies", () => {
         snapshot.workspace.views.every(view => view.content === ""),
         true,
     )
+})
+
+test("restores graph-only snapshots while preserving current article bodies", () => {
+    const current = baseWorkspace()
+    const snapshot = snapshotWorkspace(current, "user-1", { name: "Before rename" })
+    assert.equal(snapshot.ok, true)
+    if (!snapshot.ok) return
+
+    const changed = {
+        ...current,
+        pages: current.pages.map(page => (page.id === "page-1" ? { ...page, title: "Renamed", content: "Current page markdown" } : page)),
+        views: current.views.map(view => (view.id === "view-1" ? { ...view, content: "Current body" } : view)),
+        snapshots: [snapshot.value.snapshot],
+    }
+    const restored = restoreWorkspaceSnapshot(changed, "user-1", { snapshotId: snapshot.value.snapshot.id })
+
+    assert.equal(restored.ok, true)
+    if (!restored.ok) return
+    assert.equal(restored.value.workspace.pages.find(page => page.id === "page-1")?.title, "First")
+    assert.equal(restored.value.workspace.pages.find(page => page.id === "page-1")?.content, "Current page markdown")
+    assert.equal(restored.value.workspace.views.find(view => view.id === "view-1")?.content, "Current body")
 })
 
 test("replaces article content through structured parse and serialization", () => {

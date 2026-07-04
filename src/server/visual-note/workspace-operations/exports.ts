@@ -176,16 +176,31 @@ export const listWorkspaceSnapshots = (workspace: VisualNoteWorkspace, userId: s
     return ok((workspace.snapshots ?? []).map(snapshot => ({ id: snapshot.id, name: snapshot.name, note: snapshot.note, createdAt: snapshot.createdAt })))
 }
 
+const restoreSnapshotWithCurrentContent = (snapshotWorkspace: VisualNoteWorkspace, currentWorkspace: VisualNoteWorkspace): VisualNoteWorkspace => {
+    const currentPageContentById = new Map(currentWorkspace.pages.flatMap(page => (typeof page.content === "string" ? [[page.id, page.content] as const] : [])))
+    const currentViewContentById = new Map(currentWorkspace.views.map(view => [view.id, view.content]))
+
+    return {
+        ...snapshotWorkspace,
+        pages: snapshotWorkspace.pages.map(page => {
+            const content = currentPageContentById.get(page.id)
+            return typeof content === "string" ? { ...page, content } : page
+        }),
+        views: snapshotWorkspace.views.map(view => ({ ...view, content: currentViewContentById.get(view.id) ?? view.content })),
+    }
+}
+
 export const restoreWorkspaceSnapshot = (workspace: VisualNoteWorkspace, userId: string, input: { snapshotId: string }) => {
     const normalized = normalizeWorkspace(workspace, userId)
     const snapshot = normalized.snapshots?.find(item => item.id === input.snapshotId)
     if (!snapshot) return notFound("Snapshot not found.")
+    const restoredWorkspace = restoreSnapshotWithCurrentContent(snapshot.workspace, normalized)
 
     return ok({
         workspace: {
-            ...snapshot.workspace,
+            ...restoredWorkspace,
             snapshots: normalized.snapshots,
         },
-        restoredWorkspace: snapshot.workspace,
+        restoredWorkspace,
     })
 }
