@@ -142,7 +142,7 @@ export const analyzeOrphanedData = (workspace: VisualNoteWorkspace): WorkspaceOp
 }
 
 export const repairWorkspaceConsistency = (workspace: VisualNoteWorkspace, userId: string): WorkspaceOperationResult<OrphanAnalysisResult> => {
-    const analyzed = analyzeOrphanedData(workspace, userId)
+    const analyzed = analyzeOrphanedData(workspace)
     if (!analyzed.ok) return analyzed
 
     const notebookIds = new Set(workspace.notebooks.filter(notebook => notebook.userId === userId).map(notebook => notebook.id))
