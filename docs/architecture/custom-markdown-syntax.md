@@ -8,10 +8,10 @@ Last updated: 2026-07-04
 2. [Canonical implementation](#canonical-implementation)
 3. [Supported block syntax](#supported-block-syntax)
 4. [Visual Note extensions](#visual-note-extensions)
-   1. [Subtitle containers](#subtitle-containers)
-   2. [Callout containers](#callout-containers)
-   3. [Display embeds](#display-embeds)
-   4. [Visual blocks](#visual-blocks)
+    1. [Subtitle containers](#subtitle-containers)
+    2. [Callout containers](#callout-containers)
+    3. [Display embeds](#display-embeds)
+    4. [Visual blocks](#visual-blocks)
 5. [Inline syntax](#inline-syntax)
 6. [Parser and serialization behavior](#parser-and-serialization-behavior)
 7. [Export and storage behavior](#export-and-storage-behavior)
@@ -47,20 +47,20 @@ updated.
 
 ## Supported block syntax
 
-| Block | Syntax | Notes |
-|---|---|---|
-| Heading | `#`, `##`, `###`, `####` | Only levels 1 through 4 are parsed as heading blocks. A space after the marker is required. |
-| Paragraph | Plain text separated by blank lines | Paragraph collection stops when the next non-empty line starts another recognized block. |
-| Bullet list | `- item` or `* item` | Consecutive bullet lines become one list block. Empty marker lines are accepted while editing. |
-| Ordered list | `1. item` | Consecutive numbered lines become one ordered list block. Serialized numbering is normalized to `1.`, `2.`, etc. |
-| Quote | `> quoted text` | Consecutive quote lines become one quote block. |
-| Code fence | Triple backticks with optional language | Empty language serializes as `text` through parser fallback. |
-| Divider | `---` | Must be the whole trimmed line. |
-| Markdown image | `![alt](https://example.com/image.png)` | Must occupy the full trimmed line to become an image block. |
-| Display embed | `{{display:1}}` | Visual Note extension; one-based display index in markdown, zero-based in memory. |
-| Subtitle container | `:::subtitle` ... `:::` | Visual Note extension. |
-| Callout container | `:::note`, `:::tip`, `:::warning` ... `:::` | Visual Note extension. |
-| Visual block fence | ```` ```visual:<kind> ```` ... ```` ``` ```` | Visual Note extension with a JSON5 object body. |
+| Block              | Syntax                                      | Notes                                                                                                            |
+| ------------------ | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Heading            | `#`, `##`, `###`, `####`                    | Only levels 1 through 4 are parsed as heading blocks. A space after the marker is required.                      |
+| Paragraph          | Plain text separated by blank lines         | Paragraph collection stops when the next non-empty line starts another recognized block.                         |
+| Bullet list        | `- item` or `* item`                        | Consecutive bullet lines become one list block. Empty marker lines are accepted while editing.                   |
+| Ordered list       | `1. item`                                   | Consecutive numbered lines become one ordered list block. Serialized numbering is normalized to `1.`, `2.`, etc. |
+| Quote              | `> quoted text`                             | Consecutive quote lines become one quote block.                                                                  |
+| Code fence         | Triple backticks with optional language     | Empty language serializes as `text` through parser fallback.                                                     |
+| Divider            | `---`                                       | Must be the whole trimmed line.                                                                                  |
+| Markdown image     | `![alt](https://example.com/image.png)`     | Must occupy the full trimmed line to become an image block.                                                      |
+| Display embed      | `{{display:1}}`                             | Visual Note extension; one-based display index in markdown, zero-based in memory.                                |
+| Subtitle container | `:::subtitle` ... `:::`                     | Visual Note extension.                                                                                           |
+| Callout container  | `:::note`, `:::tip`, `:::warning` ... `:::` | Visual Note extension.                                                                                           |
+| Visual block fence | ` ```visual:<kind> ` ... ` ``` `            | Visual Note extension with a JSON5 object body.                                                                  |
 
 The parser ignores a standalone `{{toc}}` line. It is accepted as a marker but
 does not currently serialize back into article content.
@@ -167,12 +167,12 @@ visual block with a parse error and preserves the raw body for serialization.
 
 The editor command menu can insert these inline markdown snippets:
 
-| Inline command | Inserted text |
-|---|---|
-| Bold | `**text**` |
-| Italic | `*text*` |
-| Inline code | `` `code` `` |
-| Link | `[text](https://example.com)` |
+| Inline command | Inserted text                 |
+| -------------- | ----------------------------- |
+| Bold           | `**text**`                    |
+| Italic         | `*text*`                      |
+| Inline code    | `` `code` ``                  |
+| Link           | `[text](https://example.com)` |
 
 Current readable inline rendering only special-cases markdown links and inline
 images matching:

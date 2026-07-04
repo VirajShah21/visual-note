@@ -39,14 +39,14 @@ flowchart LR
 
 ## Data model map
 
-| Domain | SQL table | Notes |
-|---|---|---|
-| Notebook | `visual_note_notebooks` | One row per notebook, includes slug, summary, published state, editor settings |
-| Page graph shell | `visual_note_pages` | One row per page; `topics` and `views` are serialized JSONB columns |
-| Snapshot | `visual_note_workspace_snapshots` | Keeps checkpoint copies of normalized workspace for restore/publish contexts |
-| Storage settings | `visual_note_notebook_storage` | Connects notebook to an encrypted S3 credential set |
-| S3 credentials | `visual_note_s3_connections` | Stores endpoint/region/key metadata |
-| Asset index | `visual_note_assets` | Maps uploaded media to object keys and owner scope |
+| Domain           | SQL table                         | Notes                                                                          |
+| ---------------- | --------------------------------- | ------------------------------------------------------------------------------ |
+| Notebook         | `visual_note_notebooks`           | One row per notebook, includes slug, summary, published state, editor settings |
+| Page graph shell | `visual_note_pages`               | One row per page; `topics` and `views` are serialized JSONB columns            |
+| Snapshot         | `visual_note_workspace_snapshots` | Keeps checkpoint copies of normalized workspace for restore/publish contexts   |
+| Storage settings | `visual_note_notebook_storage`    | Connects notebook to an encrypted S3 credential set                            |
+| S3 credentials   | `visual_note_s3_connections`      | Stores endpoint/region/key metadata                                            |
+| Asset index      | `visual_note_assets`              | Maps uploaded media to object keys and owner scope                             |
 
 ## Primary API touchpoints
 

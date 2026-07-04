@@ -118,9 +118,9 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
 ## Current risks (should be addressed first)
 
 1. Align route architecture around Next.js Server Actions for notebook/page/topic/view CRUD operations.
-   - HTTP API routes should no longer be the primary mutating/read/write surface for core domain objects.
-   - Keep route handlers only for flows required by MCP, and have those handlers delegate to shared Server Actions.
-   - This reduces duplication and makes `src/app/api` ownership clearer for MCP-only integration.
+    - HTTP API routes should no longer be the primary mutating/read/write surface for core domain objects.
+    - Keep route handlers only for flows required by MCP, and have those handlers delegate to shared Server Actions.
+    - This reduces duplication and makes `src/app/api` ownership clearer for MCP-only integration.
 
 ## Critical feature gaps
 

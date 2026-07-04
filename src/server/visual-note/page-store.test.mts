@@ -47,4 +47,3 @@ test("hydrateViewsFromPageMarkdown restores selected article content from topic 
     assert.equal(hydrated[0].content, "Intro\n\n## Body heading\nStill part of Start.")
     assert.equal(hydrated[1].content, "Second topic.")
 })
-
