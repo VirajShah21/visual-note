@@ -138,8 +138,14 @@ test("creates graph-only workspace snapshots without article bodies", () => {
     if (!result.ok) return
 
     const snapshot = result.value.snapshot
-    assert.equal(snapshot.workspace.pages.some(page => "content" in page), false)
-    assert.equal(snapshot.workspace.views.every(view => view.content === ""), true)
+    assert.equal(
+        snapshot.workspace.pages.some(page => "content" in page),
+        false,
+    )
+    assert.equal(
+        snapshot.workspace.views.every(view => view.content === ""),
+        true,
+    )
 })
 
 test("replaces article content through structured parse and serialization", () => {
