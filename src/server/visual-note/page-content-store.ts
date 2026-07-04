@@ -16,6 +16,13 @@ type AuthContext = {
     userId: string
 }
 
+const isMissingObjectError = (error: unknown) => {
+    if (!(error instanceof Error)) return false
+
+    const details = error as Error & { name?: string; Code?: string; code?: string; $metadata?: { httpStatusCode?: number } }
+    return details.name === "NoSuchKey" || details.Code === "NoSuchKey" || details.code === "NoSuchKey" || details.$metadata?.httpStatusCode === 404
+}
+
 export const readPageMarkdown = async (context: AuthContext, pageId: string): Promise<string | null> => {
     const page = await loadPageById(context.supabase, context.userId, pageId)
     if (!page) return null
@@ -27,7 +34,11 @@ export const readPageMarkdown = async (context: AuthContext, pageId: string): Pr
         connection: notebookStorage.connection,
         bucketName: notebookStorage.bucketName,
         objectKey: page.content_object_key,
+    }).catch(error => {
+        if (isMissingObjectError(error)) return null
+        throw error
     })
+    if (!result) return null
     if (!result.body) return null
 
     return await streamToText(result.body)

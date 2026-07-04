@@ -157,6 +157,11 @@ export const upsertPageFromWorkspace = (supabase: SupabaseClient, userId: string
     ])
 }
 
+export const touchPageRevision = async (supabase: SupabaseClient, userId: string, pageId: string) => {
+    const { error } = await supabase.from("visual_note_pages").update({ updated_at: new Date().toISOString() }).eq("id", pageId).eq("user_id", userId)
+    if (error) throw error
+}
+
 export const deletePagesNotIn = async (supabase: SupabaseClient, userId: string, allowedPageIds: Set<string>, deleteUpdatedBefore?: string) => {
     const ids = [...allowedPageIds]
     const staleBefore = deleteUpdatedBefore

@@ -1,5 +1,5 @@
 import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
-import { loadPageById, makePageObjectKey } from "@/server/visual-note/page-store"
+import { loadPageById, makePageObjectKey, touchPageRevision } from "@/server/visual-note/page-store"
 import { readPageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
 import { cleanupWorkspaceAssetOrphans } from "@/server/visual-note/workspace-store"
 import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
@@ -15,6 +15,7 @@ export type PageContentRouteDependencies = {
     readPageMarkdown: typeof readPageMarkdown
     savePageMarkdownIfConfigured: typeof savePageMarkdownIfConfigured
     makePageObjectKey: typeof makePageObjectKey
+    touchPageRevision: typeof touchPageRevision
     cleanupWorkspaceAssetOrphans: typeof cleanupWorkspaceAssetOrphans
 }
 
@@ -24,6 +25,7 @@ const defaultPageContentRouteDependencies: PageContentRouteDependencies = {
     readPageMarkdown,
     savePageMarkdownIfConfigured,
     makePageObjectKey,
+    touchPageRevision,
     cleanupWorkspaceAssetOrphans,
 }
 
@@ -67,6 +69,7 @@ export const runContentPut = async (auth: Authenticated, request: Request, pageI
             objectKey,
         )
         if (!uploadResult.saved) warnings.push(storageConfigurationError)
+        else await dependencies.touchPageRevision(auth.supabase, auth.userId, page.id)
         if (warnings.length > 0) warnings.push(STORAGE_SETUP_HINT)
         await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore)
 
