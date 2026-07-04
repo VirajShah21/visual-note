@@ -10,7 +10,6 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
     - `src/server/visual-note/workspace-store.ts`
     - `src/lib/supabase/server.ts`
     - `supabase/schema.sql`
-    - `src/server/visual-note/workspace-store.test.mts`
 2. Removed legacy workspace compatibility shape (`components`, `componentIds`, and old section aliasing).
     - `src/lib/visual-note/types.ts`
     - `src/lib/visual-note/factories.ts`
@@ -20,10 +19,8 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
     - `src/lib/visual-note/storage.ts` (deleted)
     - `src/features/visual-note/visual-note-app/hooks/restore-visual-note-session.ts`
     - `src/features/visual-note/visual-note-app/hooks/use-visual-note-app-controller.ts`
-    - `src/features/visual-note/visual-note-app/hooks/restore-visual-note-session.test.mts`
 4. Removed legacy chart-data compatibility path and migration script.
     - `src/lib/visual-note/chart-data.ts`
-    - `src/features/visual-note/visual-note-app/utils/chart-data.test.mts`
     - `scripts/migrate-visual-note-workspaces.mjs` (deleted)
 5. Removed seeded workspace defaults and narrowed save synchronization behavior.
     - `src/features/visual-note/visual-note-app/hooks/restore-visual-note-session.ts`
@@ -70,23 +67,19 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
 13. Added maintenance endpoints for periodic orphan cleanup and operational metrics readback.
     - `src/app/api/maintenance/assets/route.ts`
     - `src/app/api/observability/metrics/route.ts`
-14. Added route coverage for workspace health diagnostics and hardened asset delivery checks.
+14. Added workspace health diagnostics and hardened asset delivery checks.
     - `src/app/api/workspace/health/route.ts`
-    - `src/app/api/workspace/health/route.test.mts`
     - `src/app/api/assets/[assetId]/route.ts`
-    - `src/app/api/assets/[assetId]/route.test.mts`
     - `src/components/ui/notebook-settings-workspace.tsx`
-15. Added signed asset URL endpoint for private access and test coverage.
+15. Added signed asset URL endpoint for private access.
     - `src/app/api/assets/[assetId]/sign/route.ts`
-    - `src/app/api/assets/[assetId]/sign/route.test.mts`
-16. Added notebook publish preview/apply workflow with persistence and test coverage.
+16. Added notebook publish preview/apply workflow with persistence.
     - `src/lib/visual-note/storage-api.ts`
     - `src/features/visual-note/visual-note-app/hooks/use-visual-note-app-controller.ts`
     - `src/features/visual-note/visual-note-app/visual-note-app.tsx`
     - `src/components/ui/notebook-settings-workspace.tsx`
     - `src/app/api/notebooks/[notebookId]/publish/route.ts`
-    - `src/app/api/notebooks/[notebookId]/publish/route.test.mts`
-17. Added CI workflow for automated quality gates (format, lint, type-check, tests, build).
+17. Added CI workflow for automated quality gates (format, lint, type-check, build).
     - `.github/workflows/ci.yml`
 18. Added search result caching and offline fallback behavior for notebook discovery.
     - `src/features/visual-note/visual-note-app/visual-note-app.tsx`
@@ -100,20 +93,15 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
     - `src/server/visual-note/page-content-store.ts`
     - `src/server/visual-note/workspace-store.ts`
     - `src/lib/visual-note/storage-messages.ts`
-20. Added unified repo QA entrypoints for format/lint/type-check/test/build release automation.
+20. Added unified repo QA entrypoints for format/lint/type-check/build release automation.
     - `package.json`
-21. Added contract-level route tests for uncovered auth and MCP token endpoints.
+21. Added auth and MCP token route contracts.
     - `src/app/api/auth/logout/route.ts`
-    - `src/app/api/auth/logout/route.test.mts`
     - `src/app/api/auth/register/route.ts`
-    - `src/app/api/auth/register/route.test.mts`
     - `src/app/api/auth/session/route.ts`
-    - `src/app/api/auth/session/route.test.mts`
     - `src/app/api/mcp/tokens/[tokenId]/route.ts`
-    - `src/app/api/mcp/tokens/[tokenId]/route.test.mts`
-22. Added explicit data-model contract tests for ownership transitions and orphan repair.
-    - `src/server/visual-note/workspace-store.test.mts`
-    - `src/server/visual-note/workspace-operations.test.mts`
+22. Added explicit data-model handling for ownership transitions and orphan repair.
+    - `src/server/visual-note/workspace-operations.ts`
 
 ## Current risks (should be addressed first)
 
@@ -161,7 +149,7 @@ Remaining product hardening:
 Completed by the current roadmap cleanup:
 
 1. Added search result caching and offline fallback behavior for notebook discovery.
-2. Added notebook publish preview/apply workflow with persistence and test coverage.
+2. Added notebook publish preview/apply workflow with persistence.
 3. Added explicit setup UX copy for storage configuration and graceful degraded behavior.
 
 Remaining product roadmap:
@@ -174,20 +162,17 @@ Remaining product roadmap:
 
 Completed by the current roadmap cleanup:
 
-1. Added route tests across auth, MCP token, workspace health, asset delivery, signed assets, and publish workflow boundaries.
 2. Added structured workspace/auth/MCP event telemetry and operational metrics readback.
-3. Added CI workflow and unified repo QA entrypoints for format, lint, type-check, tests, and build.
+3. Added CI workflow and unified repo QA entrypoints for format, lint, type-check, and build.
 
 Remaining confidence roadmap:
 
-1. Add integration E2E for auth + notebook create/edit + page save + asset upload + export.
-2. Add security checks to the automated release gate once the security tooling choice is finalized.
+1. Add security checks to the automated release gate once the security tooling choice is finalized.
 
 ## Suggested next immediate actions (first 2 sprints)
 
-1. Add integration E2E coverage for auth + notebook create/edit + page save + asset upload + export.
-2. Implement server-side notebook/topic/view pagination and filtered search APIs.
-3. Add publish snapshot history and shareable notebook revision URLs.
-4. Migrate core notebook/page/topic/view CRUD from HTTP routes to Server Actions and route MCP endpoints through those actions.
-5. Choose and wire production upload scanning for private media.
-6. Add security checks to `npm run qa`/CI once the security tooling choice is finalized.
+1. Implement server-side notebook/topic/view pagination and filtered search APIs.
+2. Add publish snapshot history and shareable notebook revision URLs.
+3. Migrate core notebook/page/topic/view CRUD from HTTP routes to Server Actions and route MCP endpoints through those actions.
+4. Choose and wire production upload scanning for private media.
+5. Add security checks to `npm run qa`/CI once the security tooling choice is finalized.

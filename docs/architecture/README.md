@@ -67,11 +67,11 @@ Related route files:
 [publish](../../src/app/api/notebooks/%5BnotebookId%5D/publish/route.ts),
 [assets delivery](../../src/app/api/assets/%5BassetId%5D/route.ts).
 
-## Where to validate behavior
+## Where to inspect behavior
 
-- Use [workspace endpoint tests](../../src/app/api/workspace/route.test.mts)
-- Use [workspace save/load tests](../../src/server/visual-note/workspace-store.test.mts)
-- Use [page content tests](../../src/app/api/pages/%5BpageId%5D/content/route.test.mts)
+- Start with the [workspace route](../../src/app/api/workspace/route.ts)
+- Review the [workspace store](../../src/server/visual-note/workspace-store.ts)
+- Review the [page content route](../../src/app/api/pages/%5BpageId%5D/content/route.ts) and [page content store](../../src/server/visual-note/page-content-store.ts)
 
 ## Suggested reading order
 
