@@ -5,6 +5,7 @@ import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/s
 import { deleteNotebooksNotIn, listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
 import {
     deletePagesNotIn,
+    hydratePageRowsWithMarkdown,
     hydrateWorkspaceFromPageRows,
     listPagesForUser,
     listPagesForUserByNotebooks,
@@ -76,18 +77,19 @@ export const loadWorkspaceForUser = async (supabase: SupabaseClient, userId: str
 
     const pageRows = await listPagesForUserByNotebooks(supabase, userId)
 
-    const { pages, topics, views } = hydrateWorkspaceFromPageRows(pageRows)
+    const pageMarkdownEntries = await Promise.all(pageRows.map(async page => [page.id, await readPageMarkdown({ supabase, userId }, page.id)] as const))
+    const hydratedPageRows = hydratePageRowsWithMarkdown(pageRows, new Map(pageMarkdownEntries))
+    const { pages, topics, views } = hydrateWorkspaceFromPageRows(hydratedPageRows)
     const orderedPages = [...pages].sort((first, second) => {
         if (first.notebookId === second.notebookId) return first.position - second.position
         return first.notebookId.localeCompare(second.notebookId)
     })
 
-    const pagesWithContent = await Promise.all(
-        orderedPages.map(async page => ({
-            ...page,
-            content: (await readPageMarkdown({ supabase, userId }, page.id)) ?? undefined,
-        })),
-    )
+    const pageMarkdownById = new Map(pageMarkdownEntries)
+    const pagesWithContent = orderedPages.map(page => ({
+        ...page,
+        content: pageMarkdownById.get(page.id) ?? undefined,
+    }))
 
     return {
         notebooks,

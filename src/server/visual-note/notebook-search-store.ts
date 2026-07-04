@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { NotebookSearchResponse, NotebookSearchResult } from "@/lib/visual-note/search"
 import type { NotebookView, Topic } from "@/lib/visual-note/types"
-import { listPagesByNotebook, type PageRow } from "@/server/visual-note/page-store"
+import { readPageMarkdown } from "@/server/visual-note/page-content-store"
+import { hydratePageRowsWithMarkdown, listPagesByNotebook, type PageRow } from "@/server/visual-note/page-store"
 
 type SearchNotebookInput = {
     currentPageId?: string
@@ -84,5 +85,6 @@ export const createNotebookSearchResponse = (pageRows: PageRow[], input: SearchN
 
 export const searchNotebookForUser = async (supabase: SupabaseClient, userId: string, notebookId: string, input: SearchNotebookInput) => {
     const pages = await listPagesByNotebook(supabase, userId, notebookId)
-    return createNotebookSearchResponse(pages, input)
+    const pageMarkdownEntries = await Promise.all(pages.map(async page => [page.id, await readPageMarkdown({ supabase, userId }, page.id)] as const))
+    return createNotebookSearchResponse(hydratePageRowsWithMarkdown(pages, new Map(pageMarkdownEntries)), input)
 }

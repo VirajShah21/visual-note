@@ -1,6 +1,6 @@
 import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
 import { loadPageById, makePageObjectKey } from "@/server/visual-note/page-store"
-import { readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
+import { readPageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
 import { cleanupWorkspaceAssetOrphans } from "@/server/visual-note/workspace-store"
 import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 
@@ -12,8 +12,7 @@ export type PageContentRouteDependencies = {
     loadPageById: typeof loadPageById
     userOwnsNotebook: typeof userOwnsNotebook
     readPageMarkdown: typeof readPageMarkdown
-    savePageMarkdown: typeof savePageMarkdown
-    savePageMarkdownIfConfigured?: typeof savePageMarkdownIfConfigured
+    savePageMarkdownIfConfigured: typeof savePageMarkdownIfConfigured
     makePageObjectKey: typeof makePageObjectKey
     cleanupWorkspaceAssetOrphans: typeof cleanupWorkspaceAssetOrphans
 }
@@ -22,7 +21,6 @@ const defaultPageContentRouteDependencies: PageContentRouteDependencies = {
     loadPageById,
     userOwnsNotebook,
     readPageMarkdown,
-    savePageMarkdown,
     savePageMarkdownIfConfigured,
     makePageObjectKey,
     cleanupWorkspaceAssetOrphans,
@@ -58,17 +56,15 @@ export const runContentPut = async (auth: Authenticated, request: Request, pageI
 
     const objectKey = dependencies.makePageObjectKey(page.notebook_id, page.id)
     const cleanupUpdatedBefore = new Date().toISOString()
-    const savePageMarkdownWithFallback = dependencies.savePageMarkdownIfConfigured ?? dependencies.savePageMarkdown
     const warnings: string[] = []
 
     try {
-        const uploadResultRaw = await savePageMarkdownWithFallback(
+        const uploadResult = await dependencies.savePageMarkdownIfConfigured(
             { supabase: auth.supabase, userId: auth.userId },
             { notebookId: page.notebook_id, id: page.id },
             markdown,
             objectKey,
         )
-        const uploadResult = typeof uploadResultRaw === "string" ? { saved: true, objectKey: uploadResultRaw } : uploadResultRaw
         if (!uploadResult.saved) warnings.push(storageConfigurationError)
         if (warnings.length > 0) warnings.push(STORAGE_SETUP_HINT)
         await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore)

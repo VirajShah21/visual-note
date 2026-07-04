@@ -17,24 +17,20 @@ type AuthContext = {
 }
 
 export const readPageMarkdown = async (context: AuthContext, pageId: string): Promise<string | null> => {
-    try {
-        const page = await loadPageById(context.supabase, context.userId, pageId)
-        if (!page) return null
+    const page = await loadPageById(context.supabase, context.userId, pageId)
+    if (!page) return null
 
-        const notebookStorage = await resolveNotebookStorage(context.supabase, context.userId, page.notebook_id)
-        if (!notebookStorage) return null
+    const notebookStorage = await resolveNotebookStorage(context.supabase, context.userId, page.notebook_id)
+    if (!notebookStorage) return null
 
-        const result = await readS3Object({
-            connection: notebookStorage.connection,
-            bucketName: notebookStorage.bucketName,
-            objectKey: page.content_object_key,
-        })
-        if (!result.body) return null
+    const result = await readS3Object({
+        connection: notebookStorage.connection,
+        bucketName: notebookStorage.bucketName,
+        objectKey: page.content_object_key,
+    })
+    if (!result.body) return null
 
-        return await streamToText(result.body)
-    } catch {
-        return null
-    }
+    return await streamToText(result.body)
 }
 
 export const savePageMarkdown = async (context: AuthContext, page: { notebookId: string; id: string }, content: string, objectKeyOverride?: string) => {

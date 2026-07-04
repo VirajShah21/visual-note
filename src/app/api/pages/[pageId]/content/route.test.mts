@@ -9,7 +9,7 @@ const auth = {
 } as Authenticated
 
 const readResponseBody = async (response: Response) => response.json()
-type SavePageMarkdown = PageContentRouteDependencies["savePageMarkdown"]
+type SavePageMarkdownIfConfigured = PageContentRouteDependencies["savePageMarkdownIfConfigured"]
 
 const basePageRow = {
     id: "page-1",
@@ -28,7 +28,7 @@ test("GET returns markdown payload when page content is present", async () => {
         loadPageById: async () => basePageRow,
         userOwnsNotebook: async () => true,
         readPageMarkdown: async () => "# Welcome",
-        savePageMarkdown: async () => "x",
+        savePageMarkdownIfConfigured: async () => ({ saved: true, objectKey: "x" }),
         makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
         cleanupWorkspaceAssetOrphans: async () => [],
     } as unknown as PageContentRouteDependencies)
@@ -45,7 +45,7 @@ test("GET maps missing content to status 404", async () => {
         loadPageById: async () => basePageRow,
         userOwnsNotebook: async () => true,
         readPageMarkdown: async () => null,
-        savePageMarkdown: async () => "x",
+        savePageMarkdownIfConfigured: async () => ({ saved: true, objectKey: "x" }),
         makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
         cleanupWorkspaceAssetOrphans: async () => [],
     } as unknown as PageContentRouteDependencies)
@@ -59,7 +59,7 @@ test("GET returns 404 when notebook is not owned", async () => {
         loadPageById: async () => basePageRow,
         userOwnsNotebook: async () => false,
         readPageMarkdown: async () => "# Welcome",
-        savePageMarkdown: async () => "x",
+        savePageMarkdownIfConfigured: async () => ({ saved: true, objectKey: "x" }),
         makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
         cleanupWorkspaceAssetOrphans: async () => [],
     } as unknown as PageContentRouteDependencies)
@@ -84,13 +84,18 @@ test("PUT updates markdown and returns content key", async () => {
             loadPageById: async () => basePageRow,
             userOwnsNotebook: async () => true,
             readPageMarkdown: async () => null,
-            savePageMarkdown: async (_context: Parameters<SavePageMarkdown>[0], _page: Parameters<SavePageMarkdown>[1], markdown: string, objectKey: string) => {
+            savePageMarkdownIfConfigured: async (
+                _context: Parameters<SavePageMarkdownIfConfigured>[0],
+                _page: Parameters<SavePageMarkdownIfConfigured>[1],
+                markdown: string,
+                objectKey: string,
+            ) => {
                 received = {
                     notebookId: basePageRow.notebook_id,
                     id: basePageRow.id,
                     markdown,
                 }
-                return objectKey
+                return { saved: true, objectKey }
             },
             makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
             cleanupWorkspaceAssetOrphans: async () => {
@@ -113,7 +118,7 @@ test("PUT maps invalid payload to status 400", async () => {
         loadPageById: async () => basePageRow,
         userOwnsNotebook: async () => true,
         readPageMarkdown: async () => null,
-        savePageMarkdown: async () => "x",
+        savePageMarkdownIfConfigured: async () => ({ saved: true, objectKey: "x" }),
         makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
         cleanupWorkspaceAssetOrphans: async () => [],
     } as unknown as PageContentRouteDependencies)
@@ -135,7 +140,7 @@ test("PUT maps save failures to status 500", async () => {
             loadPageById: async () => basePageRow,
             userOwnsNotebook: async () => true,
             readPageMarkdown: async () => null,
-            savePageMarkdown: async () => {
+            savePageMarkdownIfConfigured: async () => {
                 throw new Error("save failed")
             },
             makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
@@ -160,7 +165,6 @@ test("PUT returns warning when notebook storage is not configured for content sa
             loadPageById: async () => basePageRow,
             userOwnsNotebook: async () => true,
             readPageMarkdown: async () => null,
-            savePageMarkdown: async () => "x",
             savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "notebooks/notebook-1/pages/page-1.md" }),
             makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
             cleanupWorkspaceAssetOrphans: async () => {},
@@ -186,7 +190,7 @@ test("PUT maps asset cleanup failures to status 500", async () => {
             loadPageById: async () => basePageRow,
             userOwnsNotebook: async () => true,
             readPageMarkdown: async () => null,
-            savePageMarkdown: async () => "notebooks/notebook-1/pages/page-1.md",
+            savePageMarkdownIfConfigured: async () => ({ saved: true, objectKey: "notebooks/notebook-1/pages/page-1.md" }),
             makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
             cleanupWorkspaceAssetOrphans: async () => {
                 throw new Error("cleanup failed")

@@ -32,6 +32,8 @@ const toWorkspacePage = (row: PageRow): NotebookPage => ({
 
 const normalizeArray = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : [])
 
+const stripViewContent = (view: NotebookView): NotebookView => ({ ...view, content: "" })
+
 const toPageRows = (rows: Array<Record<string, unknown>> | null): PageRow[] =>
     (rows ?? []).map(row => ({
         id: row.id as string,
@@ -124,7 +126,7 @@ export const upsertPages = async (supabase: SupabaseClient, userId: string, rows
         position: page.position,
         content_object_key: contentObjectKey,
         topics,
-        views,
+        views: views.map(stripViewContent),
         updated_at: new Date().toISOString(),
     }))
 
@@ -193,3 +195,59 @@ export const hydrateWorkspaceFromPageRows = (rows: PageRow[]) => {
         views: [...viewById.values()],
     }
 }
+
+const normalizedHeading = (value: string) => value.replace(/\s+/g, " ").trim().toLowerCase()
+
+const topicHeadingMatches = (line: string, topic: Topic) => normalizedHeading(line) === normalizedHeading(`## ${topic.title}`)
+
+const trimSectionLines = (lines: string[]) => {
+    let start = 0
+    let end = lines.length
+    while (start < end && lines[start].trim() === "") start += 1
+    while (end > start && lines[end - 1].trim() === "") end -= 1
+
+    return lines.slice(start, end).join("\n")
+}
+
+const findTopicHeadingIndex = (lines: string[], topic: Topic, startIndex: number) => {
+    for (let index = startIndex; index < lines.length; index += 1) if (topicHeadingMatches(lines[index], topic)) return index
+
+    return -1
+}
+
+export const hydrateViewsFromPageMarkdown = (topics: Topic[], views: NotebookView[], markdown: string | null | undefined): NotebookView[] => {
+    if (!markdown) return views.map(stripViewContent)
+
+    const orderedTopics = [...topics].sort((first, second) => first.position - second.position)
+    const lines = markdown.replace(/\r\n/g, "\n").split("\n")
+    const contentByTopicId = new Map<string, string>()
+    let cursor = 0
+
+    orderedTopics.forEach((topic, index) => {
+        const headingIndex = findTopicHeadingIndex(lines, topic, cursor)
+        if (headingIndex < 0) return
+
+        const nextTopic = orderedTopics[index + 1]
+        const nextHeadingIndex = nextTopic ? findTopicHeadingIndex(lines, nextTopic, headingIndex + 1) : -1
+        const endIndex = nextHeadingIndex < 0 ? lines.length : nextHeadingIndex
+        contentByTopicId.set(topic.id, trimSectionLines(lines.slice(headingIndex + 1, endIndex)))
+        cursor = endIndex
+    })
+
+    return views.map(view => {
+        const topic = orderedTopics.find(item => item.id === view.topicId)
+        if (!topic) return stripViewContent(view)
+
+        const topicViews = views.filter(item => item.topicId === topic.id)
+        const selectedView = topicViews.find(item => item.mode === "article") ?? topicViews[0] ?? null
+        if (selectedView?.id !== view.id) return stripViewContent(view)
+
+        return { ...view, content: contentByTopicId.get(topic.id) ?? "" }
+    })
+}
+
+export const hydratePageRowsWithMarkdown = (rows: PageRow[], markdownByPageId: Map<string, string | null | undefined>): PageRow[] =>
+    rows.map(row => ({
+        ...row,
+        views: hydrateViewsFromPageMarkdown(row.topics, row.views, markdownByPageId.get(row.id)),
+    }))
