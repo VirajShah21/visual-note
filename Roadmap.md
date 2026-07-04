@@ -117,7 +117,10 @@ This roadmap focuses on this repository’s Visual Note codebase and highlights 
 
 ## Current risks (should be addressed first)
 
-No risks currently listed in this section.
+1. Align route architecture around Next.js Server Actions for notebook/page/topic/view CRUD operations.
+   - HTTP API routes should no longer be the primary mutating/read/write surface for core domain objects.
+   - Keep route handlers only for flows required by MCP, and have those handlers delegate to shared Server Actions.
+   - This reduces duplication and makes `src/app/api` ownership clearer for MCP-only integration.
 
 ## Critical feature gaps
 
@@ -165,6 +168,7 @@ Remaining product roadmap:
 
 1. Implement server-side notebook/topic/view pagination and filtered search APIs.
 2. Add publish snapshot history and shareable notebook revisions.
+3. Migrate core CRUD away from Next.js HTTP routes into Server Actions, then rework MCP route handlers to call those actions and expose only MCP-required HTTP endpoints.
 
 ### Q4 (Scale and confidence)
 
@@ -184,5 +188,6 @@ Remaining confidence roadmap:
 1. Add integration E2E coverage for auth + notebook create/edit + page save + asset upload + export.
 2. Implement server-side notebook/topic/view pagination and filtered search APIs.
 3. Add publish snapshot history and shareable notebook revision URLs.
-4. Choose and wire production upload scanning for private media.
-5. Add security checks to `npm run qa`/CI once the security tooling choice is finalized.
+4. Migrate core notebook/page/topic/view CRUD from HTTP routes to Server Actions and route MCP endpoints through those actions.
+5. Choose and wire production upload scanning for private media.
+6. Add security checks to `npm run qa`/CI once the security tooling choice is finalized.
