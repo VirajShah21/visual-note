@@ -606,20 +606,24 @@ For operational validation, the behavior that most directly impacts persistence 
 
 ### `visual_note_workspace_snapshots`
 
-| Column       | Nullable | Default | Workspace field      |
-| ------------ | -------- | ------- | -------------------- |
-| `id`         | no       | —       | snapshot id          |
-| `user_id`    | no       | —       | owner                |
-| `name`       | no       | —       | `snapshot.name`      |
-| `note`       | yes      | `null`  | `snapshot.note`      |
-| `workspace`  | no       | —       | `snapshot.workspace` |
-| `created_at` | no       | `now()` | ordering/pruning     |
+| Column       | Nullable | Default | Workspace field                 |
+| ------------ | -------- | ------- | ------------------------------- |
+| `id`         | no       | —       | snapshot id                     |
+| `user_id`    | no       | —       | owner                           |
+| `name`       | no       | —       | `snapshot.name`                 |
+| `note`       | yes      | `null`  | `snapshot.note`                 |
+| `workspace`  | no       | —       | graph-only `snapshot.workspace` |
+| `created_at` | no       | `now()` | ordering/pruning                |
 
 Retention logic in `upsertWorkspaceSnapshotsForUser`:
 
 - Uses the incoming payload's `snapshots` list and writes `snapshots.slice(-30)` (max 30 rows per user save).
 - Deletes user rows whose IDs are not in that retained set.
 - If the payload is empty, the function returns immediately and skips retention deletion, so historical rows are retained.
+- Snapshot workspace payloads are sanitized through `sanitizeSnapshotWorkspace` before durable storage:
+    - `page.content` is removed.
+    - `view.content` is stored as an empty string while view metadata, mode, displays, and ordering are retained.
+    - loaded legacy snapshot rows are sanitized the same way before being returned to workspace callers.
 
 ### `visual_note_notebook_storage`
 
@@ -715,6 +719,7 @@ Retention logic in `upsertWorkspaceSnapshotsForUser`:
 
 - Page `content` is not stored in the `visual_note_pages` row as text.
 - Page article content is not stored as a JSON schema in Postgres.
+- Workspace snapshots are graph-only in Postgres and do not carry page/view article bodies.
 - Markdown object files are the canonical persisted article body for pages.
 - For each page request that needs markdown, the app loads `content_object_key` and reads the object from S3-compatible storage.
 - Markdown is generated from graph data by:
