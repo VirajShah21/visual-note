@@ -1,12 +1,6 @@
 name: ci
 
 on:
-    push:
-        branches:
-            - main
-            - "feature/*"
-            - "fix/*"
-            - "release/*"
     pull_request:
         branches:
             - main
