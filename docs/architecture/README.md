@@ -10,6 +10,7 @@ Visual Note uses a **hybrid storage model**:
 ## Core references
 
 - [Notebook, page, and content storage deep-dive](./notebook-storage.md)
+- [Custom markdown syntax](./custom-markdown-syntax.md)
 - [Workspace contracts](../../src/lib/visual-note/types.ts)
 - [Workspace route](../../src/app/api/workspace/route.ts)
 - [Workspace contract parser](../../src/app/api/workspace/route-contract.ts)
@@ -75,8 +76,9 @@ Related route files:
 ## Suggested reading order
 
 1. Start with [notebook-storage.md](./notebook-storage.md) for the end-to-end persistence model.
-2. Open [workspace route code](../../src/app/api/workspace/route.ts) and [workspace store](../../src/server/visual-note/workspace-store.ts).
-3. Inspect [object storage adapter](../../src/server/storage/notebook-storage.ts) and [S3 wrapper](../../src/server/storage/s3.ts).
+2. Read [custom-markdown-syntax.md](./custom-markdown-syntax.md) for the page article markdown contract.
+3. Open [workspace route code](../../src/app/api/workspace/route.ts) and [workspace store](../../src/server/visual-note/workspace-store.ts).
+4. Inspect [object storage adapter](../../src/server/storage/notebook-storage.ts) and [S3 wrapper](../../src/server/storage/s3.ts).
 
 ## External references
 
