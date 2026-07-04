@@ -166,6 +166,7 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
                     topics,
                     views,
                     contentObjectKey: objectKey,
+                    persistViewContent: typeof markdown === "string" && !savedContent,
                 },
             ])
         } catch (error) {

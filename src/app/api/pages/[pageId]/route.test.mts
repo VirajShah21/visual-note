@@ -216,6 +216,7 @@ test("PUT maps invalid payload to status 400", async () => {
 })
 
 test("PUT returns warnings when notebook storage is not configured for page content", async () => {
+    let upsertedPages: PageUpsertRow[] = []
     const response = await runPageSave(auth, parseContext, {
         loadPageById: async () => basePageRow,
         userOwnsNotebook: async () => true,
@@ -225,7 +226,9 @@ test("PUT returns warnings when notebook storage is not configured for page cont
         makePageObjectKey: () => "notebooks/notebook-1/pages/page-1.md",
         readPageMarkdown: async () => null,
         savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "notebooks/notebook-1/pages/page-1.md" }),
-        upsertPages: async () => {},
+        upsertPages: async (_supabase: Parameters<UpsertPages>[0], _userId: string, rows: Parameters<UpsertPages>[2]) => {
+            upsertedPages = rows
+        },
         savePageMarkdown: async () => "x",
         deletePageMarkdown: async () => {},
         deletePage: async () => {},
@@ -236,6 +239,7 @@ test("PUT returns warnings when notebook storage is not configured for page cont
     const body = await readResponseBody(response)
     assert.equal(body.page.id, "page-1")
     assert.deepEqual(body.warnings, [STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT])
+    assert.equal(upsertedPages[0].persistViewContent, true)
 })
 
 test("PUT creates missing page using existing notebook lookup", async () => {

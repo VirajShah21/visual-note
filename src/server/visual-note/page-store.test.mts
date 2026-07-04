@@ -41,6 +41,34 @@ test("upsertPages strips article body content from persisted view metadata", asy
     assert.equal(payload[0].views[1].content, "")
 })
 
+test("upsertPages can preserve article bodies when markdown storage was not written", async () => {
+    let payload: Array<{ views: typeof views }> = []
+    const supabase = {
+        from() {
+            return {
+                upsert(value: typeof payload) {
+                    payload = value
+                    return Promise.resolve({ error: null })
+                },
+            }
+        },
+    } as unknown as SupabaseClient
+
+    await upsertPages(supabase, "user-1", [
+        {
+            page: { id: "page-1", notebookId: "notebook-1", title: "Home", position: 0 },
+            notebookId: "notebook-1",
+            topics,
+            views,
+            contentObjectKey: "notebooks/notebook-1/pages/page-1.md",
+            persistViewContent: true,
+        },
+    ])
+
+    assert.equal(payload[0].views[0].content, "Stored body")
+    assert.equal(payload[0].views[1].content, "Stored body")
+})
+
 test("hydrateViewsFromPageMarkdown restores selected article content from topic sections", () => {
     const markdown = ["# Home", "", "## Start", "", "Intro", "", "## Body heading", "Still part of Start.", "", "## Details", "", "Second topic."].join("\n")
     const hydrated = hydrateViewsFromPageMarkdown(topics, views, markdown)

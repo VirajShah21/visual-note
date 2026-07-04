@@ -218,6 +218,7 @@ export const saveWorkspaceForUser = async (
                 topics: page.topics,
                 views: page.views,
                 contentObjectKey: page.contentObjectKey,
+                persistViewContent: !page.savedContent,
             })),
         )
     } catch (error) {

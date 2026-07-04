@@ -116,12 +116,13 @@ type UpsertInput = {
     topics: Topic[]
     views: NotebookView[]
     contentObjectKey: string
+    persistViewContent?: boolean
 }
 
 export const upsertPages = async (supabase: SupabaseClient, userId: string, rows: UpsertInput[]) => {
     if (rows.length === 0) return
 
-    const payload = rows.map(({ page, notebookId, topics, views, contentObjectKey }) => ({
+    const payload = rows.map(({ page, notebookId, topics, views, contentObjectKey, persistViewContent }) => ({
         id: page.id,
         user_id: userId,
         notebook_id: notebookId,
@@ -129,7 +130,7 @@ export const upsertPages = async (supabase: SupabaseClient, userId: string, rows
         position: page.position,
         content_object_key: contentObjectKey,
         topics,
-        views: views.map(stripViewContent),
+        views: persistViewContent ? views : views.map(stripViewContent),
         updated_at: new Date().toISOString(),
     }))
 
