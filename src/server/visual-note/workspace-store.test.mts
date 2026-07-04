@@ -46,13 +46,16 @@ const query = (result: QueryResult) => ({
         return this
     },
     order() {
-        return Promise.resolve(result)
+        return this
     },
     limit() {
-        return Promise.resolve(result)
+        return this
     },
     maybeSingle() {
         return Promise.resolve(result)
+    },
+    then(resolve: (value: QueryResult) => void, reject: (reason: unknown) => void) {
+        return Promise.resolve(result).then(resolve, reject)
     },
 })
 

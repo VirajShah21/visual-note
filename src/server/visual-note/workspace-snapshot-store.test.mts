@@ -45,6 +45,12 @@ test("persists workspace snapshots without nested snapshot payloads", async () =
                     payload = nextPayload
                     return Promise.resolve({ error: null })
                 },
+                select() {
+                    return this
+                },
+                eq() {
+                    return Promise.resolve({ data: [{ id: "snapshot-1" }], error: null })
+                },
             }
         },
     } as unknown as SupabaseClient

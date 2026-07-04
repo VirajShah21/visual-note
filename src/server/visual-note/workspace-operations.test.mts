@@ -204,7 +204,7 @@ test("repairs orphaned pages and views while preserving foreign-owned data", () 
 
     assert.deepEqual(result.value.orphanPages, ["orphan-page"])
     assert.deepEqual(result.value.orphanViews, ["orphan-view"])
-    assert.equal(result.value.orphanTopics, [])
+    assert.deepEqual(result.value.orphanTopics, [])
     assert.equal(result.value.repaired, true)
     const repaired = result.value.repairedWorkspace
     assert.ok(repaired)

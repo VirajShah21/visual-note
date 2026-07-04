@@ -193,6 +193,11 @@ test("verify rejects tokens with invalid stored scopes", async () => {
                                 }),
                         }),
                     }),
+                    update: () => ({
+                        eq: () => ({
+                            then: (resolve: (value: unknown) => void) => Promise.resolve({ data: null, error: null }).then(resolve),
+                        }),
+                    }),
                 }
 
             return {
@@ -231,6 +236,11 @@ test("verify accepts legacy scope value and maps to read/write", async () => {
                                     },
                                     error: null,
                                 }),
+                        }),
+                    }),
+                    update: () => ({
+                        eq: () => ({
+                            then: (resolve: (value: unknown) => void) => Promise.resolve({ data: null, error: null }).then(resolve),
                         }),
                     }),
                 }
