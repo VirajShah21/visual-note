@@ -18,7 +18,7 @@ export const pageMarkdownFromWorkspace = async (workspace: VisualNoteWorkspace, 
         const topicViews = workspace.views.filter(view => view.topicId === topic.id)
 
         topicViews.forEach(view => {
-            const content = serializeArticleContent(parseArticleContent(view.content, view.displays.length).blocks)
+            const content = view.content.trim() ? serializeArticleContent(parseArticleContent(view.content, 0).blocks) : ""
             chunks.push(pageViewMarker(view.id), `### ${view.title}`)
             if (content.trim()) chunks.push(content)
         })
