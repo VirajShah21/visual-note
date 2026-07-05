@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { NotebookPage, NotebookView, Topic, VisualNoteWorkspace } from "@/lib/visual-note/types"
+import { hydrateViewsFromPageMarkdown } from "@/server/visual-note/page-markdown-hydration"
+
+export { hydrateViewsFromPageMarkdown, pageTopicMarker, pageViewMarker } from "@/server/visual-note/page-markdown-hydration"
 
 export type PageRow = {
     id: string
@@ -31,6 +34,8 @@ const toWorkspacePage = (row: PageRow): NotebookPage => ({
 })
 
 const normalizeArray = <T>(value: unknown): T[] => (Array.isArray(value) ? (value as T[]) : [])
+
+const stripViewContent = (view: NotebookView): NotebookView => ({ ...view, content: "" })
 
 const toPageRows = (rows: Array<Record<string, unknown>> | null): PageRow[] =>
     (rows ?? []).map(row => ({
@@ -111,12 +116,13 @@ type UpsertInput = {
     topics: Topic[]
     views: NotebookView[]
     contentObjectKey: string
+    persistViewContent?: boolean
 }
 
 export const upsertPages = async (supabase: SupabaseClient, userId: string, rows: UpsertInput[]) => {
     if (rows.length === 0) return
 
-    const payload = rows.map(({ page, notebookId, topics, views, contentObjectKey }) => ({
+    const payload = rows.map(({ page, notebookId, topics, views, contentObjectKey, persistViewContent }) => ({
         id: page.id,
         user_id: userId,
         notebook_id: notebookId,
@@ -124,7 +130,7 @@ export const upsertPages = async (supabase: SupabaseClient, userId: string, rows
         position: page.position,
         content_object_key: contentObjectKey,
         topics,
-        views,
+        views: persistViewContent ? views : views.map(stripViewContent),
         updated_at: new Date().toISOString(),
     }))
 
@@ -149,6 +155,11 @@ export const upsertPageFromWorkspace = (supabase: SupabaseClient, userId: string
             contentObjectKey,
         },
     ])
+}
+
+export const touchPageRevision = async (supabase: SupabaseClient, userId: string, pageId: string) => {
+    const { error } = await supabase.from("visual_note_pages").update({ updated_at: new Date().toISOString() }).eq("id", pageId).eq("user_id", userId)
+    if (error) throw error
 }
 
 export const deletePagesNotIn = async (supabase: SupabaseClient, userId: string, allowedPageIds: Set<string>, deleteUpdatedBefore?: string) => {
@@ -193,3 +204,9 @@ export const hydrateWorkspaceFromPageRows = (rows: PageRow[]) => {
         views: [...viewById.values()],
     }
 }
+
+export const hydratePageRowsWithMarkdown = (rows: PageRow[], markdownByPageId: Map<string, string | null | undefined>): PageRow[] =>
+    rows.map(row => ({
+        ...row,
+        views: hydrateViewsFromPageMarkdown(row.topics, row.views, markdownByPageId.get(row.id)),
+    }))

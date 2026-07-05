@@ -16,25 +16,37 @@ type AuthContext = {
     userId: string
 }
 
+const isMissingObjectError = (error: unknown) => {
+    if (!(error instanceof Error)) return false
+
+    const details = error as Error & { name?: string; Code?: string; code?: string; $metadata?: { httpStatusCode?: number } }
+    return details.name === "NoSuchKey" || details.Code === "NoSuchKey" || details.code === "NoSuchKey" || details.$metadata?.httpStatusCode === 404
+}
+
+const isMissingStorageEncryptionKeyError = (error: unknown) => error instanceof Error && error.message.includes("VISUAL_NOTE_S3_ENCRYPTION_KEY")
+
 export const readPageMarkdown = async (context: AuthContext, pageId: string): Promise<string | null> => {
-    try {
-        const page = await loadPageById(context.supabase, context.userId, pageId)
-        if (!page) return null
+    const page = await loadPageById(context.supabase, context.userId, pageId)
+    if (!page) return null
 
-        const notebookStorage = await resolveNotebookStorage(context.supabase, context.userId, page.notebook_id)
-        if (!notebookStorage) return null
+    const notebookStorage = await resolveNotebookStorage(context.supabase, context.userId, page.notebook_id).catch(error => {
+        if (isMissingStorageEncryptionKeyError(error)) return null
+        throw error
+    })
+    if (!notebookStorage) return null
 
-        const result = await readS3Object({
-            connection: notebookStorage.connection,
-            bucketName: notebookStorage.bucketName,
-            objectKey: page.content_object_key,
-        })
-        if (!result.body) return null
+    const result = await readS3Object({
+        connection: notebookStorage.connection,
+        bucketName: notebookStorage.bucketName,
+        objectKey: page.content_object_key,
+    }).catch(error => {
+        if (isMissingObjectError(error)) return null
+        throw error
+    })
+    if (!result) return null
+    if (!result.body) return null
 
-        return await streamToText(result.body)
-    } catch {
-        return null
-    }
+    return await streamToText(result.body)
 }
 
 export const savePageMarkdown = async (context: AuthContext, page: { notebookId: string; id: string }, content: string, objectKeyOverride?: string) => {
@@ -47,7 +59,7 @@ export const savePageMarkdown = async (context: AuthContext, page: { notebookId:
 export const savePageMarkdownIfConfigured = async (context: AuthContext, page: { notebookId: string; id: string }, content: string, objectKeyOverride?: string) => {
     const objectKey = objectKeyOverride ?? makePageObjectKey(page.notebookId, page.id)
     const notebookStorage = await resolveNotebookStorage(context.supabase, context.userId, page.notebookId).catch(error => {
-        if (error instanceof Error && error.message.includes("VISUAL_NOTE_S3_ENCRYPTION_KEY")) return null
+        if (isMissingStorageEncryptionKeyError(error)) return null
         throw error
     })
     if (!notebookStorage) return { saved: false, objectKey }

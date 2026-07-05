@@ -23,7 +23,7 @@ export type NotebookHomeProps = {
     userLabel: string
     storageLabel: string
     notebooks: NotebookGalleryItem[]
-    onCreateNotebook: (title: string) => boolean
+    onCreateNotebook: (title: string) => boolean | Promise<boolean>
     onSignOut: () => void
 }
 

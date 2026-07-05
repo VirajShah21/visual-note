@@ -47,10 +47,13 @@ export const workspaceHealthCheck = (workspace: VisualNoteWorkspace, userId: str
     const issues: HealthCheckIssue[] = []
     const notebooks = workspace.notebooks.filter(notebook => notebook.userId === userId)
     const notebookIds = new Set(notebooks.map(notebook => notebook.id))
+    const allNotebookIds = byIds(workspace.notebooks)
     const pages = workspace.pages.filter(page => notebookIds.has(page.notebookId))
     const pageIds = byIds(pages)
+    const allPageIds = byIds(workspace.pages.filter(page => allNotebookIds.has(page.notebookId)))
     const topics = workspace.topics.filter(topic => pageIds.has(topic.pageId))
     const topicIds = byIds(topics)
+    const allTopicIds = byIds(workspace.topics.filter(topic => allPageIds.has(topic.pageId)))
     const views = workspace.views.filter(view => topicIds.has(view.topicId))
 
     for (const notebook of notebooks) {
@@ -87,7 +90,7 @@ export const workspaceHealthCheck = (workspace: VisualNoteWorkspace, userId: str
     }
 
     for (const page of workspace.pages)
-        if (!notebookIds.has(page.notebookId))
+        if (!allNotebookIds.has(page.notebookId))
             issues.push({
                 severity: "error",
                 scope: "page",
@@ -96,7 +99,7 @@ export const workspaceHealthCheck = (workspace: VisualNoteWorkspace, userId: str
             })
 
     for (const topic of workspace.topics)
-        if (!pageIds.has(topic.pageId))
+        if (!allPageIds.has(topic.pageId))
             issues.push({
                 severity: "error",
                 scope: "topic",
@@ -105,7 +108,7 @@ export const workspaceHealthCheck = (workspace: VisualNoteWorkspace, userId: str
             })
 
     for (const view of workspace.views)
-        if (!topicIds.has(view.topicId))
+        if (!allTopicIds.has(view.topicId))
             issues.push({
                 severity: "error",
                 scope: "view",
@@ -122,13 +125,13 @@ export const workspaceHealthCheck = (workspace: VisualNoteWorkspace, userId: str
     })
 }
 
-export const analyzeOrphanedData = (workspace: VisualNoteWorkspace, userId: string): WorkspaceOperationResult<OrphanAnalysisResult> => {
-    const notebookIds = byIds(workspace.notebooks.filter(notebook => notebook.userId === userId))
-    const orphanPages = workspace.pages.filter(page => !notebookIds.has(page.notebookId)).map(page => page.id)
-    const pageIds = byIds(workspace.pages.filter(page => notebookIds.has(page.notebookId)))
-    const orphanTopics = workspace.topics.filter(topic => !pageIds.has(topic.pageId)).map(topic => topic.id)
-    const topicIds = byIds(workspace.topics.filter(topic => pageIds.has(topic.pageId)))
-    const orphanViews = workspace.views.filter(view => !topicIds.has(view.topicId)).map(view => view.id)
+export const analyzeOrphanedData = (workspace: VisualNoteWorkspace): WorkspaceOperationResult<OrphanAnalysisResult> => {
+    const allNotebookIds = byIds(workspace.notebooks)
+    const orphanPages = workspace.pages.filter(page => !allNotebookIds.has(page.notebookId)).map(page => page.id)
+    const allPageIds = byIds(workspace.pages.filter(page => allNotebookIds.has(page.notebookId)))
+    const orphanTopics = workspace.topics.filter(topic => !allPageIds.has(topic.pageId)).map(topic => topic.id)
+    const allTopicIds = byIds(workspace.topics.filter(topic => allPageIds.has(topic.pageId)))
+    const orphanViews = workspace.views.filter(view => !allTopicIds.has(view.topicId)).map(view => view.id)
 
     return ok({
         orphanPages,
@@ -139,11 +142,14 @@ export const analyzeOrphanedData = (workspace: VisualNoteWorkspace, userId: stri
 }
 
 export const repairWorkspaceConsistency = (workspace: VisualNoteWorkspace, userId: string): WorkspaceOperationResult<OrphanAnalysisResult> => {
-    const analyzed = analyzeOrphanedData(workspace, userId)
+    const analyzed = analyzeOrphanedData(workspace)
     if (!analyzed.ok) return analyzed
 
     const notebookIds = new Set(workspace.notebooks.filter(notebook => notebook.userId === userId).map(notebook => notebook.id))
-    const pages = byPosition(workspace.pages.filter(page => notebookIds.has(page.notebookId)).map((page, index) => ({ ...page, position: index })))
+    const allNotebookIds = byIds(workspace.notebooks)
+    const ownedPages = workspace.pages.filter(page => notebookIds.has(page.notebookId)).map((page, index) => ({ ...page, position: index }))
+    const foreignPages = workspace.pages.filter(page => !notebookIds.has(page.notebookId) && allNotebookIds.has(page.notebookId))
+    const pages = byPosition([...ownedPages, ...foreignPages])
     const pageIds = byIds(pages)
     const topics = byPosition(workspace.topics.filter(topic => pageIds.has(topic.pageId)).map((topic, index) => ({ ...topic, position: index })))
     const topicIds = byIds(topics)

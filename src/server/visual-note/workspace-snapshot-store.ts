@@ -11,12 +11,21 @@ type WorkspaceSnapshotRow = {
 
 const snapshotsTable = "visual_note_workspace_snapshots"
 
+type SnapshotWorkspace = Omit<VisualNoteWorkspace, "snapshots">
+
+export const sanitizeSnapshotWorkspace = (workspace: SnapshotWorkspace): SnapshotWorkspace => ({
+    notebooks: workspace.notebooks,
+    pages: workspace.pages,
+    topics: workspace.topics,
+    views: workspace.views,
+})
+
 const toSnapshot = (row: WorkspaceSnapshotRow): WorkspaceSnapshot => ({
     id: row.id,
     name: row.name,
     note: row.note ?? undefined,
     createdAt: row.created_at,
-    workspace: row.workspace,
+    workspace: sanitizeSnapshotWorkspace(row.workspace),
 })
 
 export const listWorkspaceSnapshotsForUser = async (supabase: SupabaseClient, userId: string): Promise<WorkspaceSnapshot[]> => {
@@ -35,7 +44,7 @@ export const upsertWorkspaceSnapshotsForUser = async (supabase: SupabaseClient, 
         name: snapshot.name,
         note: snapshot.note ?? null,
         created_at: snapshot.createdAt,
-        workspace: snapshot.workspace,
+        workspace: sanitizeSnapshotWorkspace(snapshot.workspace),
     }))
 
     const { error } = await supabase.from(snapshotsTable).upsert(rows, { onConflict: "id" })

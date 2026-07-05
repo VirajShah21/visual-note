@@ -5,14 +5,17 @@ import { deletePageMarkdown, readPageMarkdown, savePageMarkdown, savePageMarkdow
 import { deleteAssetRecord } from "@/server/storage/notebook-storage"
 import { collectPrivateAssetIdsFromValue } from "@/server/storage/notebook-asset-cleanup"
 import { listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
-import { deletePage, loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
+import { deletePage, hydrateViewsFromPageMarkdown, loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
+import { pageMarkdownHasAllViewMarkers } from "@/server/visual-note/page-markdown-hydration"
 import { cleanupWorkspaceAssetOrphans, loadWorkspaceForUser } from "@/server/visual-note/workspace-store"
+import { pageMarkdownFromWorkspace } from "@/server/visual-note/workspace-store-save-helpers"
 import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 import { parsePageUpdateRequest, type PageUpdateParseResult } from "@app/api/pages/route-contract"
 
 export const runtime = "nodejs"
 
 type Authenticated = { supabase: Parameters<typeof loadPageById>[0]; userId: string }
+type PageRouteContext = { params: Promise<{ pageId: string }> }
 
 export type PageRouteDependencies = {
     loadPageById: typeof loadPageById
@@ -30,6 +33,7 @@ export type PageRouteDependencies = {
     loadWorkspaceForUser?: typeof loadWorkspaceForUser
     deleteAssetRecord?: typeof deleteAssetRecord
     cleanupWorkspaceAssetOrphans: typeof cleanupWorkspaceAssetOrphans
+    pageMarkdownFromWorkspace: typeof pageMarkdownFromWorkspace
 }
 
 const defaultPageRouteDependencies: PageRouteDependencies = {
@@ -48,12 +52,16 @@ const defaultPageRouteDependencies: PageRouteDependencies = {
     loadWorkspaceForUser,
     deleteAssetRecord,
     cleanupWorkspaceAssetOrphans,
+    pageMarkdownFromWorkspace,
 }
 
 export const runPageGet = async (auth: Authenticated, pageId: string, dependencies = defaultPageRouteDependencies) => {
     const page = await dependencies.loadPageById(auth.supabase, auth.userId, pageId)
     if (!page) return Response.json({ error: "Page not found." }, { status: 404 })
     if (!(await dependencies.userOwnsNotebook(auth, page.notebook_id))) return Response.json({ error: "Page not found." }, { status: 404 })
+
+    const markdown = await dependencies.readPageMarkdown({ supabase: auth.supabase, userId: auth.userId }, page.id)
+    const views = hydrateViewsFromPageMarkdown(page.topics, page.views, markdown)
 
     return Response.json({
         page: {
@@ -64,7 +72,7 @@ export const runPageGet = async (auth: Authenticated, pageId: string, dependenci
             contentObjectKey: page.content_object_key,
         },
         topics: page.topics,
-        views: page.views,
+        views,
     })
 }
 
@@ -141,19 +149,21 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
 
         const objectKey = dependencies.makePageObjectKey(page.notebookId, page.id)
         const cleanupUpdatedBefore = new Date().toISOString()
-        const previousContent = typeof markdown === "string" ? await dependencies.readPageMarkdown({ supabase: auth.supabase, userId: auth.userId }, page.id) : null
+        const markdownToSave =
+            typeof markdown === "string" && pageMarkdownHasAllViewMarkers(markdown, topics, views)
+                ? markdown
+                : await dependencies.pageMarkdownFromWorkspace({ notebooks: [], pages: [page], topics, views }, page.id)
+        const previousContent = await dependencies.readPageMarkdown({ supabase: auth.supabase, userId: auth.userId }, page.id)
         let savedContent = false
 
         try {
-            if (typeof markdown === "string") {
-                const uploadResult = await dependencies.savePageMarkdownIfConfigured(
-                    { supabase: auth.supabase, userId: auth.userId },
-                    { notebookId: page.notebookId, id: page.id },
-                    markdown,
-                    objectKey,
-                )
-                savedContent = uploadResult.saved
-            }
+            const uploadResult = await dependencies.savePageMarkdownIfConfigured(
+                { supabase: auth.supabase, userId: auth.userId },
+                { notebookId: page.notebookId, id: page.id },
+                markdownToSave,
+                objectKey,
+            )
+            savedContent = uploadResult.saved
 
             await dependencies.upsertPages(auth.supabase, auth.userId, [
                 {
@@ -162,6 +172,7 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
                     topics,
                     views,
                     contentObjectKey: objectKey,
+                    persistViewContent: !savedContent,
                 },
             ])
         } catch (error) {
@@ -187,7 +198,7 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
             },
         }
 
-        if (typeof markdown === "string" && !savedContent) response.warnings = [STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT]
+        if (!savedContent) response.warnings = [STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT]
 
         return Response.json(response)
     } catch (error) {
@@ -195,7 +206,7 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
     }
 }
 
-export async function GET(request: Request, context: RouteContext<"/api/pages/[pageId]">) {
+export async function GET(request: Request, context: PageRouteContext) {
     const auth = await authenticateSupabaseRequest(request)
     if (auth instanceof Response) return auth
 
@@ -203,7 +214,7 @@ export async function GET(request: Request, context: RouteContext<"/api/pages/[p
     return runPageGet(auth, pageId)
 }
 
-export async function DELETE(request: Request, context: RouteContext<"/api/pages/[pageId]">) {
+export async function DELETE(request: Request, context: PageRouteContext) {
     const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 
@@ -211,7 +222,7 @@ export async function DELETE(request: Request, context: RouteContext<"/api/pages
     return runPageDelete(auth, pageId)
 }
 
-export async function PUT(request: Request, context: RouteContext<"/api/pages/[pageId]">) {
+export async function PUT(request: Request, context: PageRouteContext) {
     const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 

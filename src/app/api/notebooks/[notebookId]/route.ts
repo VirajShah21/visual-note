@@ -24,6 +24,7 @@ const notebookUpdateSchema = z.object({
 export const runtime = "nodejs"
 
 type Authenticated = { supabase: Parameters<typeof loadWorkspaceForUser>[0]; userId: string }
+type NotebookRouteContext = { params: Promise<{ notebookId: string }> }
 
 export type NotebookRouteDependencies = {
     authenticateSupabaseMutationRequest: typeof authenticateSupabaseMutationRequest
@@ -43,7 +44,7 @@ const defaultNotebookRouteDependencies: NotebookRouteDependencies = {
     upsertNotebooks,
 }
 
-const sortByPosition = <T extends { position: number }>(rows: T[]) => [...rows].sort((a, b) => a.position - b.position)
+const sortByPosition = <T extends { position?: number }>(rows: T[]) => [...rows].sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
 
 export const runNotebookGet = async (auth: Authenticated, notebookId: string, dependencies = defaultNotebookRouteDependencies) => {
     try {
@@ -60,7 +61,9 @@ export const runNotebookGet = async (auth: Authenticated, notebookId: string, de
                 .filter(page => page.notebookId === notebookId)
                 .map(page => {
                     const topics = sortByPosition(workspace.topics.filter(topic => topic.pageId === page.id))
-                    return { ...page, topics }
+                    const topicIds = new Set(topics.map(topic => topic.id))
+                    const views = sortByPosition(workspace.views.filter(view => topicIds.has(view.topicId)))
+                    return { ...page, topics, views }
                 }),
         )
 
@@ -112,7 +115,7 @@ export const runNotebookPut = async (auth: Authenticated, request: Request, note
     }
 }
 
-export async function GET(request: Request, context: RouteContext<"/api/notebooks/[notebookId]">) {
+export async function GET(request: Request, context: NotebookRouteContext) {
     const auth = await authenticateSupabaseRequest(request)
     if (auth instanceof Response) return auth
 
@@ -120,7 +123,7 @@ export async function GET(request: Request, context: RouteContext<"/api/notebook
     return runNotebookGet(auth, notebookId)
 }
 
-export async function PUT(request: Request, context: RouteContext<"/api/notebooks/[notebookId]">) {
+export async function PUT(request: Request, context: NotebookRouteContext) {
     const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 

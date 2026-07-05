@@ -1,10 +1,13 @@
 import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
-import { loadPageById, makePageObjectKey } from "@/server/visual-note/page-store"
-import { readPageMarkdown, savePageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
+import { loadPageById, makePageObjectKey, touchPageRevision } from "@/server/visual-note/page-store"
+import { readPageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
+import { mergePlainPageMarkdownIntoViews, pageMarkdownHasAllViewMarkers } from "@/server/visual-note/page-markdown-hydration"
+import { pageMarkdownFromWorkspace } from "@/server/visual-note/workspace-store-save-helpers"
 import { cleanupWorkspaceAssetOrphans } from "@/server/visual-note/workspace-store"
 import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 
 export type Authenticated = { supabase: Parameters<typeof readPageMarkdown>[0]["supabase"]; userId: string }
+type PageContentRouteContext = { params: Promise<{ pageId: string }> }
 
 const storageConfigurationError = STORAGE_CONTENT_WARNING
 
@@ -12,9 +15,10 @@ export type PageContentRouteDependencies = {
     loadPageById: typeof loadPageById
     userOwnsNotebook: typeof userOwnsNotebook
     readPageMarkdown: typeof readPageMarkdown
-    savePageMarkdown: typeof savePageMarkdown
-    savePageMarkdownIfConfigured?: typeof savePageMarkdownIfConfigured
+    savePageMarkdownIfConfigured: typeof savePageMarkdownIfConfigured
     makePageObjectKey: typeof makePageObjectKey
+    pageMarkdownFromWorkspace: typeof pageMarkdownFromWorkspace
+    touchPageRevision: typeof touchPageRevision
     cleanupWorkspaceAssetOrphans: typeof cleanupWorkspaceAssetOrphans
 }
 
@@ -22,9 +26,10 @@ const defaultPageContentRouteDependencies: PageContentRouteDependencies = {
     loadPageById,
     userOwnsNotebook,
     readPageMarkdown,
-    savePageMarkdown,
     savePageMarkdownIfConfigured,
     makePageObjectKey,
+    pageMarkdownFromWorkspace,
+    touchPageRevision,
     cleanupWorkspaceAssetOrphans,
 }
 
@@ -57,20 +62,38 @@ export const runContentPut = async (auth: Authenticated, request: Request, pageI
     if (markdown === null) return Response.json({ error: "Invalid content payload." }, { status: 400 })
 
     const objectKey = dependencies.makePageObjectKey(page.notebook_id, page.id)
+    const views = pageMarkdownHasAllViewMarkers(markdown, page.topics, page.views) ? page.views : mergePlainPageMarkdownIntoViews(page.topics, page.views, markdown)
+    const markdownToSave = pageMarkdownHasAllViewMarkers(markdown, page.topics, page.views)
+        ? markdown
+        : await dependencies.pageMarkdownFromWorkspace(
+              {
+                  notebooks: [],
+                  pages: [{ id: page.id, notebookId: page.notebook_id, title: page.title, position: page.position }],
+                  topics: page.topics,
+                  views,
+              },
+              page.id,
+          )
     const cleanupUpdatedBefore = new Date().toISOString()
-    const savePageMarkdownWithFallback = dependencies.savePageMarkdownIfConfigured ?? dependencies.savePageMarkdown
     const warnings: string[] = []
 
     try {
-        const uploadResultRaw = await savePageMarkdownWithFallback(
+        const uploadResult = await dependencies.savePageMarkdownIfConfigured(
             { supabase: auth.supabase, userId: auth.userId },
             { notebookId: page.notebook_id, id: page.id },
-            markdown,
+            markdownToSave,
             objectKey,
         )
-        const uploadResult = typeof uploadResultRaw === "string" ? { saved: true, objectKey: uploadResultRaw } : uploadResultRaw
-        if (!uploadResult.saved) warnings.push(storageConfigurationError)
-        if (warnings.length > 0) warnings.push(STORAGE_SETUP_HINT)
+        if (!uploadResult.saved)
+            return Response.json(
+                {
+                    error: storageConfigurationError,
+                    warnings: [STORAGE_SETUP_HINT],
+                },
+                { status: 400 },
+            )
+
+        await dependencies.touchPageRevision(auth.supabase, auth.userId, page.id)
         await dependencies.cleanupWorkspaceAssetOrphans(auth.supabase, auth.userId, undefined, cleanupUpdatedBefore)
 
         const response = {
@@ -85,7 +108,7 @@ export const runContentPut = async (auth: Authenticated, request: Request, pageI
     }
 }
 
-export async function GET(request: Request, context: RouteContext<"/api/pages/[pageId]/content">) {
+export async function GET(request: Request, context: PageContentRouteContext) {
     const auth = await authenticateSupabaseRequest(request)
     if (auth instanceof Response) return auth
 
@@ -93,7 +116,7 @@ export async function GET(request: Request, context: RouteContext<"/api/pages/[p
     return runContentGet(auth, pageId)
 }
 
-export async function PUT(request: Request, context: RouteContext<"/api/pages/[pageId]/content">) {
+export async function PUT(request: Request, context: PageContentRouteContext) {
     const auth = await authenticateSupabaseMutationRequest(request)
     if (auth instanceof Response) return auth
 

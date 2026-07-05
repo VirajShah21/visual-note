@@ -1,7 +1,7 @@
 "use client"
 
 import { Plus } from "lucide-react"
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Stack } from "@ui/primitives"
 import { Button } from "@ui/button"
 import { ModalDialog } from "@ui/overlays"
@@ -11,8 +11,10 @@ import type { NotebookHomeProps, NotebookHomeView } from "./types/notebook-home.
 export function NotebookHome({ mcpTokensEnabled, userLabel, storageLabel, notebooks, onCreateNotebook, onSignOut }: NotebookHomeProps) {
     const [query, setQuery] = useState("")
     const [isCreateOpen, setIsCreateOpen] = useState(false)
+    const [isCreating, setIsCreating] = useState(false)
     const [title, setTitle] = useState("New web notebook")
     const [activeView, setActiveView] = useState<NotebookHomeView>("notebooks")
+    const createRef = useRef({ onCreateNotebook, title })
 
     const filteredNotebooks = useMemo(() => {
         const normalizedQuery = query.trim().toLowerCase()
@@ -23,12 +25,24 @@ export function NotebookHome({ mcpTokensEnabled, userLabel, storageLabel, notebo
         )
     }, [notebooks, query])
 
-    const createNotebook = useCallback(() => {
-        if (!onCreateNotebook(title)) return
-
-        setTitle("New web notebook")
-        setIsCreateOpen(false)
+    useEffect(() => {
+        createRef.current = { onCreateNotebook, title }
     }, [onCreateNotebook, title])
+
+    const createNotebook = useCallback(async () => {
+        if (isCreating) return
+
+        setIsCreating(true)
+        try {
+            const current = createRef.current
+            if (!(await current.onCreateNotebook(current.title))) return
+
+            setTitle("New web notebook")
+            setIsCreateOpen(false)
+        } finally {
+            setIsCreating(false)
+        }
+    }, [isCreating])
     const openCreateDialog = useCallback(() => setIsCreateOpen(true), [])
 
     return (
@@ -47,8 +61,8 @@ export function NotebookHome({ mcpTokensEnabled, userLabel, storageLabel, notebo
             <ModalDialog open={isCreateOpen} title="Create notebook" description="Start a structured notebook website." onOpenChange={setIsCreateOpen}>
                 <Stack gap="md">
                     <NotebookTitleField value={title} onChange={setTitle} />
-                    <Button icon={<Plus size={15} />} variant="primary" onClick={createNotebook} fullWidth>
-                        Create notebook
+                    <Button icon={<Plus size={15} />} variant="primary" disabled={isCreating} onClick={createNotebook} fullWidth>
+                        {isCreating ? "Creating notebook" : "Create notebook"}
                     </Button>
                 </Stack>
             </ModalDialog>
