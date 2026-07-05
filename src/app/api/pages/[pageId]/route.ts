@@ -6,6 +6,7 @@ import { deleteAssetRecord } from "@/server/storage/notebook-storage"
 import { collectPrivateAssetIdsFromValue } from "@/server/storage/notebook-asset-cleanup"
 import { listNotebooksForUser, upsertNotebooks } from "@/server/visual-note/notebook-store"
 import { deletePage, hydrateViewsFromPageMarkdown, loadPageById, makePageObjectKey, upsertPages } from "@/server/visual-note/page-store"
+import { pageMarkdownHasAllViewMarkers } from "@/server/visual-note/page-markdown-hydration"
 import { cleanupWorkspaceAssetOrphans, loadWorkspaceForUser } from "@/server/visual-note/workspace-store"
 import { pageMarkdownFromWorkspace } from "@/server/visual-note/workspace-store-save-helpers"
 import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
@@ -148,7 +149,10 @@ export const runPageSave = async (auth: Authenticated, parsed: PageUpdateParseRe
 
         const objectKey = dependencies.makePageObjectKey(page.notebookId, page.id)
         const cleanupUpdatedBefore = new Date().toISOString()
-        const markdownToSave = typeof markdown === "string" ? markdown : await dependencies.pageMarkdownFromWorkspace({ notebooks: [], pages: [page], topics, views }, page.id)
+        const markdownToSave =
+            typeof markdown === "string" && pageMarkdownHasAllViewMarkers(markdown, topics, views)
+                ? markdown
+                : await dependencies.pageMarkdownFromWorkspace({ notebooks: [], pages: [page], topics, views }, page.id)
         const previousContent = await dependencies.readPageMarkdown({ supabase: auth.supabase, userId: auth.userId }, page.id)
         let savedContent = false
 

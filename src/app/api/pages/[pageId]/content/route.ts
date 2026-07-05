@@ -1,6 +1,8 @@
 import { authenticateSupabaseMutationRequest, authenticateSupabaseRequest, userOwnsNotebook } from "@/lib/supabase/server"
 import { loadPageById, makePageObjectKey, touchPageRevision } from "@/server/visual-note/page-store"
 import { readPageMarkdown, savePageMarkdownIfConfigured } from "@/server/visual-note/page-content-store"
+import { mergePlainPageMarkdownIntoViews, pageMarkdownHasAllViewMarkers } from "@/server/visual-note/page-markdown-hydration"
+import { pageMarkdownFromWorkspace } from "@/server/visual-note/workspace-store-save-helpers"
 import { cleanupWorkspaceAssetOrphans } from "@/server/visual-note/workspace-store"
 import { STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT } from "@/lib/visual-note/storage-messages"
 
@@ -15,6 +17,7 @@ export type PageContentRouteDependencies = {
     readPageMarkdown: typeof readPageMarkdown
     savePageMarkdownIfConfigured: typeof savePageMarkdownIfConfigured
     makePageObjectKey: typeof makePageObjectKey
+    pageMarkdownFromWorkspace: typeof pageMarkdownFromWorkspace
     touchPageRevision: typeof touchPageRevision
     cleanupWorkspaceAssetOrphans: typeof cleanupWorkspaceAssetOrphans
 }
@@ -25,6 +28,7 @@ const defaultPageContentRouteDependencies: PageContentRouteDependencies = {
     readPageMarkdown,
     savePageMarkdownIfConfigured,
     makePageObjectKey,
+    pageMarkdownFromWorkspace,
     touchPageRevision,
     cleanupWorkspaceAssetOrphans,
 }
@@ -58,6 +62,18 @@ export const runContentPut = async (auth: Authenticated, request: Request, pageI
     if (markdown === null) return Response.json({ error: "Invalid content payload." }, { status: 400 })
 
     const objectKey = dependencies.makePageObjectKey(page.notebook_id, page.id)
+    const views = pageMarkdownHasAllViewMarkers(markdown, page.topics, page.views) ? page.views : mergePlainPageMarkdownIntoViews(page.topics, page.views, markdown)
+    const markdownToSave = pageMarkdownHasAllViewMarkers(markdown, page.topics, page.views)
+        ? markdown
+        : await dependencies.pageMarkdownFromWorkspace(
+              {
+                  notebooks: [],
+                  pages: [{ id: page.id, notebookId: page.notebook_id, title: page.title, position: page.position }],
+                  topics: page.topics,
+                  views,
+              },
+              page.id,
+          )
     const cleanupUpdatedBefore = new Date().toISOString()
     const warnings: string[] = []
 
@@ -65,7 +81,7 @@ export const runContentPut = async (auth: Authenticated, request: Request, pageI
         const uploadResult = await dependencies.savePageMarkdownIfConfigured(
             { supabase: auth.supabase, userId: auth.userId },
             { notebookId: page.notebook_id, id: page.id },
-            markdown,
+            markdownToSave,
             objectKey,
         )
         if (!uploadResult.saved)
