@@ -74,24 +74,30 @@ const logMcpRequestFailure = async (request: Request, response: Response, depend
     return response
 }
 
-const mcpHandler = createMcpHandler(
-    server => {
-        registerVisualNoteMcpTools(server)
-    },
-    {
-        serverInfo: {
-            name: "visual-note",
-            version: "0.1.0",
-        },
-    },
-    {
-        basePath: "/api",
-        disableSse: true,
-        maxDuration: 60,
-    },
-)
+let mcpHandler: ((request: Request) => Promise<Response>) | null = null
 
-const authenticatedHandler = withMcpAuth(async request => mcpHandler(request), verifyVisualNoteMcpToken, { required: true })
+const getMcpHandler = () => {
+    mcpHandler ??= createMcpHandler(
+        server => {
+            registerVisualNoteMcpTools(server)
+        },
+        {
+            serverInfo: {
+                name: "visual-note",
+                version: "0.1.0",
+            },
+        },
+        {
+            basePath: "/api",
+            disableSse: true,
+            maxDuration: 60,
+        },
+    )
+
+    return mcpHandler
+}
+
+const authenticatedHandler = withMcpAuth(async request => getMcpHandler()(request), verifyVisualNoteMcpToken, { required: true })
 
 const handler = async (request: Request, dependencies = defaultMcpRouteDependencies) => {
     const originError = rejectInvalidOrigin(request)
