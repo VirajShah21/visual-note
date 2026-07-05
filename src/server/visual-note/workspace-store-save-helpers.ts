@@ -77,6 +77,7 @@ export const restorePreviousWorkspace = async (supabase: SupabaseClient, userId:
                 topics,
                 views,
                 contentObjectKey: makePageObjectKey(page.notebookId, page.id),
+                persistViewContent: typeof page.content !== "string",
             }
         }),
     )

@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { VisualNoteWorkspace } from "@/lib/visual-note/types"
-import { pageMarkdownFromWorkspace } from "./workspace-store-save-helpers"
+import { pageMarkdownFromWorkspace, restorePreviousWorkspace } from "./workspace-store-save-helpers"
 import { loadWorkspaceForUser, saveWorkspaceForUser } from "./workspace-store"
 
 const workspace: VisualNoteWorkspace = {
@@ -43,6 +43,45 @@ test("page markdown serialization preserves intentionally empty view bodies", as
     assert.equal(markdown.includes("Start by adding content in this article."), false)
     assert.equal(markdown.includes("Use {{display:1}}"), false)
     assert.match(markdown, /### Article/)
+})
+
+test("rollback restores SQL-backed view content when page markdown is unavailable", async () => {
+    let pagePayload: Array<{ persistViewContent?: boolean; views: VisualNoteWorkspace["views"] }> = []
+    const supabase = {
+        from(table: string) {
+            return {
+                delete() {
+                    return this
+                },
+                eq() {
+                    return this
+                },
+                in() {
+                    return Promise.resolve({ data: [], error: null })
+                },
+                lte() {
+                    return this
+                },
+                not() {
+                    return this
+                },
+                select() {
+                    return this
+                },
+                upsert(payload: unknown) {
+                    if (table === "visual_note_pages") pagePayload = payload as typeof pagePayload
+                    return Promise.resolve({ error: null })
+                },
+                then(resolve: (value: QueryResult) => void, reject?: (reason: unknown) => void) {
+                    return Promise.resolve({ data: [], error: null }).then(resolve, reject)
+                },
+            }
+        },
+    } as unknown as SupabaseClient
+
+    await restorePreviousWorkspace(supabase, "user-1", "2026-01-01T00:00:00.000Z", workspace)
+
+    assert.equal(pagePayload[0]?.views[0]?.content, "# Article")
 })
 
 type QueryResult = {
