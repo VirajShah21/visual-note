@@ -79,7 +79,10 @@ test("rollback restores SQL-backed view content when page markdown is unavailabl
         },
     } as unknown as SupabaseClient
 
-    await restorePreviousWorkspace(supabase, "user-1", "2026-01-01T00:00:00.000Z", workspace)
+    await restorePreviousWorkspace(supabase, "user-1", "2026-01-01T00:00:00.000Z", {
+        ...workspace,
+        pages: [{ ...workspace.pages[0], content: "# Page markdown" }],
+    })
 
     assert.equal(pagePayload[0]?.views[0]?.content, "# Article")
 })

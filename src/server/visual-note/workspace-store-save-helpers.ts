@@ -61,8 +61,20 @@ export const restorePreviousWorkspace = async (supabase: SupabaseClient, userId:
     const snapshotNotebookIds = new Set(userNotebooks.map(notebook => notebook.id))
     const snapshotPages = snapshot.pages.filter(page => snapshotNotebookIds.has(page.notebookId))
     const snapshotPageIds = new Set(snapshotPages.map(page => page.id))
+    const restoredMarkdownPageIds = new Set<string>()
 
     await upsertNotebooks(supabase, userId, userNotebooks)
+
+    await Promise.allSettled(
+        snapshotPages.map(async page => {
+            if (typeof page.content !== "string") return
+
+            const objectKey = makePageObjectKey(page.notebookId, page.id)
+            const result = await savePageMarkdownIfConfigured({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, page.content, objectKey)
+            if (result.saved) restoredMarkdownPageIds.add(page.id)
+        }),
+    )
+
     await upsertPages(
         supabase,
         userId,
@@ -77,18 +89,8 @@ export const restorePreviousWorkspace = async (supabase: SupabaseClient, userId:
                 topics,
                 views,
                 contentObjectKey: makePageObjectKey(page.notebookId, page.id),
-                persistViewContent: typeof page.content !== "string",
+                persistViewContent: !restoredMarkdownPageIds.has(page.id),
             }
-        }),
-    )
-
-    await Promise.allSettled(
-        snapshotPages.map(async page => {
-            if (typeof page.content !== "string") return
-
-            const objectKey = makePageObjectKey(page.notebookId, page.id)
-            const result = await savePageMarkdownIfConfigured({ supabase, userId }, { notebookId: page.notebookId, id: page.id }, page.content, objectKey)
-            if (!result.saved) return
         }),
     )
 
