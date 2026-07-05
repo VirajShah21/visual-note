@@ -1,6 +1,6 @@
 # Notebook, Page, and Content Storage
 
-Last updated: 2026-07-04
+Last updated: 2026-07-05
 
 ## Table of contents
 
@@ -89,12 +89,13 @@ or serialized editor block schemas.
 
 - Canonical page content location: MinIO/S3-compatible object storage.
 - Canonical page content format: markdown text.
-- Canonical markdown renderer: the same renderer used by the Export to Markdown
-  path, specifically [`renderMarkdownExport`](../../src/lib/visual-note/export/markdown.ts).
-- Canonical export document shape: [`createExportDocument`](../../src/lib/visual-note/export/document.ts), scoped to one page when writing a page object.
+- Canonical page storage serializer: [`pageMarkdownFromWorkspace`](../../src/server/visual-note/workspace-store-save-helpers.ts), which emits page-scoped markdown with stable topic/view markers.
+- Canonical export renderer: [`renderMarkdownExport`](../../src/lib/visual-note/export/markdown.ts), used for user-facing export and preview flows, not as the general page-object serializer.
 - Canonical page object writer/reader: [`page-content-store.ts`](../../src/server/visual-note/page-content-store.ts).
-- SQL page rows remain the canonical graph/index metadata store, but they must not
-  contain article body content.
+- SQL page rows remain the canonical graph/index metadata store. When markdown
+  object storage succeeds, `visual_note_pages.views` must not contain article body
+  content; when storage is not configured, routes that continue with warnings
+  preserve view content in SQL as a temporary availability fallback.
 
 ### Target storage contract
 
@@ -108,7 +109,7 @@ Each persisted notebook page has one markdown object:
 | Body encoding          | UTF-8 markdown                                                                                                                                                    |
 | Object metadata        | At minimum `notebookid` and `pageid`                                                                                                                              |
 | SQL pointer            | `visual_note_pages.content_object_key` stores the object key                                                                                                      |
-| SQL body storage       | Not allowed for article content                                                                                                                                   |
+| SQL body storage       | Not normal canonical storage; only storage-unavailable warning paths may preserve view content as fallback                                                        |
 | Missing storage config | Mutation may return a warning only where the route already supports warning payloads; fully strict routes should fail with the existing MinIO configuration error |
 
 The database stores the navigable notebook graph:
@@ -118,42 +119,44 @@ The database stores the navigable notebook graph:
 - topics and views as graph/editor metadata required to rebuild the notebook UI
 - asset records, storage connection rows, workspace snapshots, and MCP token/audit rows
 
-The database must not become the source of truth for page article bodies. Any
-future JSON editor schema should be treated as transient UI state, derived cache,
-or explicit migration input, not canonical page content.
+The database must not become the intended source of truth for page article
+bodies. SQL view-content preservation exists only for storage-unavailable warning
+paths so the app does not discard user content before object storage is set up.
+Any future JSON editor schema should be treated as transient UI state, derived
+cache, explicit migration input, or an explicitly temporary fallback, not the
+normal canonical page content.
 
 ### Markdown format contract
 
-The stored page markdown must match Export to Markdown output for a single-page
-export with asset handling set to `ignore`.
+The stored page markdown is page-scoped markdown for persistence, not the same
+document as user-facing Export to Markdown. It must keep enough structure to
+hydrate the notebook graph back into all topic/view article bodies.
 
-Current renderer behavior:
+Current page storage serialization behavior:
 
-1. Build an export document with `scope: "page"`.
+1. Use `pageMarkdownFromWorkspace(workspace, pageId)`.
 2. Render the page title as an H1 (`# Page title`).
-3. Render each topic title as an H2 (`## Topic title`) in topic position order.
-4. Render the selected article view content below its topic heading.
-5. Choose the article view for a topic using the same rule as export:
-    - first view with `mode === "article"`
-    - otherwise the first view for the topic
-    - otherwise no body for that topic
-6. Parse and serialize article blocks through the article-content pipeline before writing markdown.
-7. Exclude image assets from the stored page markdown when using `assetMode: "ignore"`; uploaded binary assets remain separate S3 objects tracked by `visual_note_assets`.
+3. For each topic in position order, write `<!-- visual-note:topic {topicId} -->` followed by `## Topic title`.
+4. For each view in that topic, write `<!-- visual-note:view {viewId} -->` followed by `### View title`.
+5. For each non-empty view body, parse and serialize through the article-content pipeline before writing markdown.
+6. Preserve intentionally empty view bodies by still writing the view marker and `### View title`; do not inject editor helper text into storage.
+7. Uploaded binary assets remain separate S3 objects tracked by `visual_note_assets`; page markdown may contain asset references that orphan cleanup can inspect.
 
-The storage writer should not invent a separate markdown dialect. If Export to
-Markdown changes heading depth, visual block serialization, list handling,
-callout syntax, code fences, or asset rendering, page storage markdown must change
-through the same shared renderer.
+Export to Markdown is separate. Export uses `createExportDocument` and
+`renderMarkdownExport`, selects one display view per topic (`mode === "article"`,
+then first view, then no body), and omits the storage-only topic/view markers.
+The shared boundary between page storage and export is article block
+parse/serialize behavior, not an identical whole-page renderer.
 
 ### Data ownership boundaries
 
 This migration keeps three storage responsibilities separate:
 
-| Data class             | Canonical store                                   | Reason                                                                                                   |
-| ---------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Notebook/page graph    | Postgres normalized rows                          | Fast workspace listing, ownership checks, ordering, revision calculations, and search indexing           |
-| Page article content   | MinIO/S3 markdown object                          | Human-readable content, portable export parity, lower DB row weight, and object-level rollback semantics |
-| Uploaded images/assets | MinIO/S3 binary object + `visual_note_assets` row | Private delivery, signing, cleanup, MIME validation, and orphan detection                                |
+| Data class             | Canonical store                                   | Reason                                                                                                      |
+| ---------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Notebook/page graph    | Postgres normalized rows                          | Fast workspace listing, ownership checks, ordering, revision calculations, and search indexing              |
+| Page article content   | MinIO/S3 markdown object                          | Human-readable content, full topic/view hydration, lower DB row weight, and object-level rollback semantics |
+| Uploaded images/assets | MinIO/S3 binary object + `visual_note_assets` row | Private delivery, signing, cleanup, MIME validation, and orphan detection                                   |
 
 The product model remains structured. Storing article content as markdown does not
 turn a notebook into a folder of markdown documents; notebooks, pages, topics,
@@ -162,31 +165,32 @@ the persistence format for the article body inside that model.
 
 ### Implementation plan
 
-1. **Lock the markdown rendering boundary**
-    - Keep one shared markdown generation path for both page storage and Export to Markdown.
-    - Use [`pageMarkdownFromWorkspace`](../../src/server/visual-note/workspace-store-save-helpers.ts) for workspace saves, because it already builds a page-scoped export document and calls `renderMarkdownExport`.
-    - Verify saved page object bodies against `renderMarkdownExport` output for the same page when changing this path.
+1. **Lock the page storage serialization boundary**
+    - Use [`pageMarkdownFromWorkspace`](../../src/server/visual-note/workspace-store-save-helpers.ts) for workspace saves and page-save derived markdown.
+    - Keep storage markers generated by `pageTopicMarker` and `pageViewMarker` stable enough for [`hydrateViewsFromPageMarkdown`](../../src/server/visual-note/page-markdown-hydration.ts).
+    - Verify saved page object bodies preserve every topic/view article body when changing this path.
 
 2. **Make object storage the only article-body persistence path**
-    - Ensure `visual_note_pages` continues to store only graph fields, denormalized topic/view metadata, and `content_object_key`.
-    - Reject or ignore any future request shape that attempts to persist page article body JSON into SQL.
+    - Ensure `visual_note_pages` normally stores graph fields, denormalized topic/view metadata with stripped `content`, and `content_object_key`.
+    - Preserve SQL view content only on the existing storage-unavailable fallback paths where `savePageMarkdownIfConfigured` returns `{ saved: false }`.
+    - Reject or ignore any future request shape that attempts to make page article body JSON the normal SQL source of truth.
     - Keep `GET /api/pages/[pageId]/content` returning `{ pageId, markdown }`.
     - Keep `PUT /api/pages/[pageId]/content` accepting `{ markdown }`; do not introduce a JSON-schema content contract.
 
 3. **Preserve current page save semantics**
     - `PUT /api/workspace` writes markdown per page during full workspace saves.
     - `POST /api/notebooks` writes the optional home page markdown when a home page is created.
-    - `PUT /api/pages/[pageId]` writes markdown only when markdown is provided in the request payload.
+    - `PUT /api/pages/[pageId]` writes provided `markdown` when present; otherwise it derives page markdown from the submitted page/topics/views graph.
     - `PUT /api/pages/[pageId]/content` writes raw markdown directly to the page object.
     - Rollbacks must restore the previous markdown object when SQL persistence fails after object upload.
 
 4. **Keep page reads markdown-first**
     - Workspace hydration should read each page's `content_object_key` from object storage and populate in-memory page/view content from markdown only.
-    - A missing object is a content-read failure, not permission to use a JSON schema fallback.
+    - A missing object returns `null` from `readPageMarkdown`. If SQL view content was preserved by a storage-unavailable fallback path, hydration keeps those existing view bodies; otherwise content reads such as `GET /api/pages/[pageId]/content` return 404.
     - Search and orphan cleanup should continue to inspect markdown bodies loaded from object storage.
 
 5. **Normalize editor integration around markdown**
-    - Article editor save operations should serialize editor state to markdown before persistence.
+    - Article editor save operations should serialize editor state to markdown before object persistence.
     - Editor load operations should parse markdown into the structured editing model in memory.
     - Empty headings, lists, quotes, callouts, code blocks, and visual blocks must round-trip through markdown without falling back to raw JSON schemas.
 
@@ -197,7 +201,7 @@ the persistence format for the article body inside that model.
 
 7. **Update contracts and acceptance checks**
     - Keep route/store contracts explicit that no page article body JSON is written to `visual_note_pages`.
-    - Verify the content route shape remains `markdown` only and workspace-save markdown stays aligned with Export to Markdown.
+    - Verify the content route shape remains `markdown` only and workspace-save markdown preserves all topic/view content through storage markers.
     - Verify rollback behavior restores markdown objects when SQL writes fail.
     - Include migration fixtures or manual acceptance checks for any legacy JSON-schema page content that still exists in deployed environments.
 
@@ -208,7 +212,7 @@ contains legacy JSON page bodies, migrate it once into markdown objects:
 
 1. Inventory legacy rows or payloads that contain article body JSON.
 2. For each page, reconstruct the in-memory page/topic/view model.
-3. Use the shared export renderer to generate page-scoped markdown.
+3. Use the page storage serializer to generate marked page-scoped markdown.
 4. Upload the markdown to `notebooks/${notebookId}/pages/${pageId}.md`.
 5. Set or verify `visual_note_pages.content_object_key`.
 6. Remove or ignore the legacy JSON body field after the object is verified.
@@ -224,16 +228,17 @@ and has a planned removal.
 This feature is complete only when all of the following are true:
 
 - Creating a notebook with a home page creates a `.md` page object when notebook storage is configured.
-- Saving a workspace writes one markdown object per page and stores only the object key in SQL.
+- Saving a workspace with configured object storage writes one markdown object per page and stores only graph metadata plus the object key in SQL.
 - Saving page content writes `text/markdown; charset=utf-8` to MinIO/S3.
 - Reading page content returns markdown from object storage.
-- Export to Markdown and the stored page object use the same renderer and produce the same content for the same page scope.
+- Export to Markdown and page storage share article block parse/serialize semantics, while page storage preserves all topic/view bodies through markers.
 - No route stores page article content as a JSON schema in Postgres.
+- Storage-unavailable warning paths may preserve view content in SQL, and those paths must remain explicitly treated as fallback behavior.
 - Missing object storage does not silently write a JSON fallback.
 - Rollback paths restore prior markdown object content after downstream SQL failures.
 - Page delete removes the page row and attempts to delete the corresponding markdown object.
 - Orphan asset cleanup still detects `/api/assets/{assetId}` references in stored markdown.
-- Tests cover markdown format parity, strict content route shape, save rollback, legacy migration fixtures, and absence of JSON body persistence.
+- Tests cover marked page markdown round trips, strict content route shape, save rollback, legacy migration fixtures, and normal absence of SQL body persistence after successful object writes.
 
 ## Scope
 
@@ -433,30 +438,30 @@ The graph is normalized in SQL for discoverability and authorization checks, whi
 
 This table captures every storage-affecting endpoint in this scope and the exact side effects.
 
-| Endpoint                                           | Storage operations                                                        | Read dependencies                                                                                                                                   | Write operations                                                                                                                | Failure mode class                                                              | Route event emissions                                                                                                                                                     |
-| -------------------------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/workspace`                               | none                                                                      | `loadWorkspaceForUserWithRevision`, `loadWorkspaceForUser`, `resolveWorkspaceRevision`                                                              | none                                                                                                                            | `500` only from `loadWorkspaceForUser` failures                                 | `workspace.load_success`, `workspace.load_failed`                                                                                                                         |
-| `PUT /api/workspace`                               | full graph write, markdown writes for each page, optional snapshot writes | `loadWorkspaceForUser`, `resolveWorkspaceRevision`, `readPageMarkdown`, `listNotebooksForUser`, `listPagesForUser`, `listWorkspaceSnapshotsForUser` | `upsertNotebooks`, `upsertPages`, `deletePagesNotIn`, `deleteNotebooksNotIn`, snapshot upsert, markdown object writes/rollbacks | `400` parse/integrity, `409` conflict/merge, `500` unknown + compensation paths | `workspace.save_request_invalid`, `workspace.save_payload_invalid`, `workspace.save_success`, `workspace.save_conflict`, `workspace.save_failed`, `workspace.auth_failed` |
-| `GET /api/workspace/health`                        | none                                                                      | `loadWorkspaceForUser`, `workspaceHealthCheck`                                                                                                      | none unless `repairWorkspaceConsistency` returns workspace to persist in POST path                                              | `500` (get) / `400` (post validation) / `500` (save failure)                    | `workspace.health_failed`, `workspace.repair_failed`                                                                                                                      |
-| `POST /api/workspace/health`                       | optional full workspace rewrite and snapshot restore                      | same as GET + `repairWorkspaceConsistency`                                                                                                          | `saveWorkspaceForUser` when repaired                                                                                            | `400`/`500`                                                                     | `workspace.repair_failed`                                                                                                                                                 |
-| `GET /api/notebooks`                               | none                                                                      | `loadWorkspaceForUser` (hydrates page markdown)                                                                                                     | none                                                                                                                            | `500`                                                                           | none                                                                                                                                                                      |
-| `POST /api/notebooks`                              | notebook row + default page/topic/view rows, optional home markdown       | `loadWorkspaceForUser`                                                                                                                              | `upsertNotebooks`, `upsertPages`, markdown write                                                                                | `400` validation, `500` create failure                                          | none                                                                                                                                                                      |
-| `GET /api/notebooks/[notebookId]`                  | none                                                                      | `loadWorkspaceForUser`                                                                                                                              | none                                                                                                                            | `404`/`500`                                                                     | none                                                                                                                                                                      |
-| `PUT /api/notebooks/[notebookId]`                  | notebook row overwrite                                                    | `loadWorkspaceForUser`                                                                                                                              | `upsertNotebooks`                                                                                                               | `400`/`404`/`500`                                                               | none                                                                                                                                                                      |
-| `GET /api/notebooks/[notebookId]/search`           | none                                                                      | `searchNotebookForUser`                                                                                                                             | none                                                                                                                            | `400` parser/invalid input, `500` search runtime                                | none                                                                                                                                                                      |
-| `GET /api/notebooks/[notebookId]/storage-settings` | none (read path only)                                                     | `loadNotebookStorageSettings`                                                                                                                       | none                                                                                                                            | `404`/`500`/`503`                                                               | none                                                                                                                                                                      |
-| `PUT /api/notebooks/[notebookId]/storage-settings` | `visual_note_s3_connections`, `visual_note_notebook_storage` upsert       | `loadExistingEncryptedSecret` (read path)                                                                                                           | upsert connection + upsert mapping                                                                                              | `400`/`409`/`500`/`503`                                                         | none                                                                                                                                                                      |
-| `POST /api/notebooks/[notebookId]/assets`          | `visual_note_assets` insert + S3 upload                                   | `resolveNotebookStorage`, `parseAssetUploadRequest`                                                                                                 | `createAssetRecord`, `uploadS3Object`                                                                                           | `400`/`413`/`415`/`500` + cleanup delete on DB failure                          | `asset.upload_rejected`, `asset.upload_failed`                                                                                                                            |
-| `POST /api/notebooks/[notebookId]/publish`         | conditional workspace rewrite                                             | `loadWorkspaceForUser`, `publishNotebook`                                                                                                           | `saveWorkspaceForUser` for publish/unpublish                                                                                    | `400` parser/validation/preview-not-found, `404`, `409`, `500`                  | none                                                                                                                                                                      |
-| `GET /api/pages/[pageId]`                          | none                                                                      | `loadPageById`                                                                                                                                      | none                                                                                                                            | `404`/`500`                                                                     | none                                                                                                                                                                      |
-| `PUT /api/pages/[pageId]`                          | optional markdown write + page/topic/view upsert + deletes for stale rows | `loadPageById`, `listNotebooksForUser`, `readPageMarkdown`, `userOwnsNotebook`                                                                      | `upsertNotebooks`, `upsertPages`, delete page rows, markdown writes, asset orphan cleanup, stale page cleanup                   | `400`/`404`/`500` + rollback writeback                                          | none                                                                                                                                                                      |
-| `DELETE /api/pages/[pageId]`                       | optional markdown deletion + asset cleanup                                | `loadPageById`, `readPageMarkdown`, `loadWorkspaceForUser`                                                                                          | `deletePage`, `deletePageMarkdown`, `cleanupWorkspaceAssetOrphans`, best-effort `deleteAssetRecord`                             | `404`/`500`                                                                     | none                                                                                                                                                                      |
-| `GET /api/pages/[pageId]/content`                  | none                                                                      | `loadPageById`, `readPageMarkdown`                                                                                                                  | none                                                                                                                            | `404`/`500` mapping                                                             | none                                                                                                                                                                      |
-| `PUT /api/pages/[pageId]/content`                  | markdown write + orphan cleanup                                           | `loadPageById`, `readPageMarkdown`(only for fallback logic in function path)                                                                        | `savePageMarkdown` or fallback path, `cleanupWorkspaceAssetOrphans`                                                             | `400`/`404`/`500`                                                               | none                                                                                                                                                                      |
-| `GET /api/assets/[assetId]`                        | none                                                                      | `loadAssetStorage` / `loadSignedAssetStorage`, `readS3Object`                                                                                       | none                                                                                                                            | `403`/`404`/`415`/`500`/`503`                                                   | `asset.read_blocked`, `asset.read_failed`                                                                                                                                 |
-| `DELETE /api/assets/[assetId]`                     | object delete (best effort after row delete)                              | `loadAssetStorage`                                                                                                                                  | `visual_note_assets` delete + optional `deleteS3Object`                                                                         | `404`/`500`                                                                     | `asset.delete_record_failed`, `asset.delete_object_failed`                                                                                                                |
-| `GET /api/assets/[assetId]/sign`                   | none                                                                      | `loadAssetStorage`                                                                                                                                  | none (URL signing only)                                                                                                         | `401`/`404`/`503`                                                               | none                                                                                                                                                                      |
-| `POST /api/maintenance/assets`                     | full-scan asset deletions + object deletions                              | `cleanupWorkspaceAssetOrphans` / `cleanupWorkspaceAssetOrphansForAllUsers`                                                                          | deleted asset rows + object deletes                                                                                             | `400`/`401`/`503`/`500`                                                         | `assets.cleanup_executed`, `assets.cleanup_failed`                                                                                                                        |
+| Endpoint                                           | Storage operations                                                             | Read dependencies                                                                                                                                   | Write operations                                                                                                                | Failure mode class                                                              | Route event emissions                                                                                                                                                     |
+| -------------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/workspace`                               | none                                                                           | `loadWorkspaceForUserWithRevision`, `loadWorkspaceForUser`, `resolveWorkspaceRevision`                                                              | none                                                                                                                            | `500` only from `loadWorkspaceForUser` failures                                 | `workspace.load_success`, `workspace.load_failed`                                                                                                                         |
+| `PUT /api/workspace`                               | full graph write, markdown writes for each page, optional snapshot writes      | `loadWorkspaceForUser`, `resolveWorkspaceRevision`, `readPageMarkdown`, `listNotebooksForUser`, `listPagesForUser`, `listWorkspaceSnapshotsForUser` | `upsertNotebooks`, `upsertPages`, `deletePagesNotIn`, `deleteNotebooksNotIn`, snapshot upsert, markdown object writes/rollbacks | `400` parse/integrity, `409` conflict/merge, `500` unknown + compensation paths | `workspace.save_request_invalid`, `workspace.save_payload_invalid`, `workspace.save_success`, `workspace.save_conflict`, `workspace.save_failed`, `workspace.auth_failed` |
+| `GET /api/workspace/health`                        | none                                                                           | `loadWorkspaceForUser`, `workspaceHealthCheck`                                                                                                      | none unless `repairWorkspaceConsistency` returns workspace to persist in POST path                                              | `500` (get) / `400` (post validation) / `500` (save failure)                    | `workspace.health_failed`, `workspace.repair_failed`                                                                                                                      |
+| `POST /api/workspace/health`                       | optional full workspace rewrite and snapshot restore                           | same as GET + `repairWorkspaceConsistency`                                                                                                          | `saveWorkspaceForUser` when repaired                                                                                            | `400`/`500`                                                                     | `workspace.repair_failed`                                                                                                                                                 |
+| `GET /api/notebooks`                               | none                                                                           | `loadWorkspaceForUser` (hydrates page markdown)                                                                                                     | none                                                                                                                            | `500`                                                                           | none                                                                                                                                                                      |
+| `POST /api/notebooks`                              | notebook row + default page/topic/view rows, optional home markdown            | `loadWorkspaceForUser`                                                                                                                              | `upsertNotebooks`, `upsertPages`, markdown write                                                                                | `400` validation, `500` create failure                                          | none                                                                                                                                                                      |
+| `GET /api/notebooks/[notebookId]`                  | none                                                                           | `loadWorkspaceForUser`                                                                                                                              | none                                                                                                                            | `404`/`500`                                                                     | none                                                                                                                                                                      |
+| `PUT /api/notebooks/[notebookId]`                  | notebook row overwrite                                                         | `loadWorkspaceForUser`                                                                                                                              | `upsertNotebooks`                                                                                                               | `400`/`404`/`500`                                                               | none                                                                                                                                                                      |
+| `GET /api/notebooks/[notebookId]/search`           | none                                                                           | `searchNotebookForUser`                                                                                                                             | none                                                                                                                            | `400` parser/invalid input, `500` search runtime                                | none                                                                                                                                                                      |
+| `GET /api/notebooks/[notebookId]/storage-settings` | none (read path only)                                                          | `loadNotebookStorageSettings`                                                                                                                       | none                                                                                                                            | `404`/`500`/`503`                                                               | none                                                                                                                                                                      |
+| `PUT /api/notebooks/[notebookId]/storage-settings` | `visual_note_s3_connections`, `visual_note_notebook_storage` upsert            | `loadExistingEncryptedSecret` (read path)                                                                                                           | upsert connection + upsert mapping                                                                                              | `400`/`409`/`500`/`503`                                                         | none                                                                                                                                                                      |
+| `POST /api/notebooks/[notebookId]/assets`          | `visual_note_assets` insert + S3 upload                                        | `resolveNotebookStorage`, `parseAssetUploadRequest`                                                                                                 | `createAssetRecord`, `uploadS3Object`                                                                                           | `400`/`413`/`415`/`500` + cleanup delete on DB failure                          | `asset.upload_rejected`, `asset.upload_failed`                                                                                                                            |
+| `POST /api/notebooks/[notebookId]/publish`         | conditional workspace rewrite                                                  | `loadWorkspaceForUser`, `publishNotebook`                                                                                                           | `saveWorkspaceForUser` for publish/unpublish                                                                                    | `400` parser/validation/preview-not-found, `404`, `409`, `500`                  | none                                                                                                                                                                      |
+| `GET /api/pages/[pageId]`                          | none                                                                           | `loadPageById`                                                                                                                                      | none                                                                                                                            | `404`/`500`                                                                     | none                                                                                                                                                                      |
+| `PUT /api/pages/[pageId]`                          | markdown write from provided or derived page markdown + page/topic/view upsert | `loadPageById`, `listNotebooksForUser`, `readPageMarkdown`, `userOwnsNotebook`                                                                      | `upsertNotebooks`, `upsertPages`, markdown writes, asset orphan cleanup                                                         | `400`/`404`/`500` + rollback writeback                                          | none                                                                                                                                                                      |
+| `DELETE /api/pages/[pageId]`                       | optional markdown deletion + asset cleanup                                     | `loadPageById`, `readPageMarkdown`, `loadWorkspaceForUser`                                                                                          | `deletePage`, `deletePageMarkdown`, `cleanupWorkspaceAssetOrphans`, best-effort `deleteAssetRecord`                             | `404`/`500`                                                                     | none                                                                                                                                                                      |
+| `GET /api/pages/[pageId]/content`                  | none                                                                           | `loadPageById`, `readPageMarkdown`                                                                                                                  | none                                                                                                                            | `404`/`500` mapping                                                             | none                                                                                                                                                                      |
+| `PUT /api/pages/[pageId]/content`                  | raw markdown object write + orphan cleanup                                     | `loadPageById`                                                                                                                                      | `savePageMarkdownIfConfigured`, `touchPageRevision`, `cleanupWorkspaceAssetOrphans`                                             | `400`/`404`/`500`; storage-unconfigured returns `400`                           | none                                                                                                                                                                      |
+| `GET /api/assets/[assetId]`                        | none                                                                           | `loadAssetStorage` / `loadSignedAssetStorage`, `readS3Object`                                                                                       | none                                                                                                                            | `403`/`404`/`415`/`500`/`503`                                                   | `asset.read_blocked`, `asset.read_failed`                                                                                                                                 |
+| `DELETE /api/assets/[assetId]`                     | object delete (best effort after row delete)                                   | `loadAssetStorage`                                                                                                                                  | `visual_note_assets` delete + optional `deleteS3Object`                                                                         | `404`/`500`                                                                     | `asset.delete_record_failed`, `asset.delete_object_failed`                                                                                                                |
+| `GET /api/assets/[assetId]/sign`                   | none                                                                           | `loadAssetStorage`                                                                                                                                  | none (URL signing only)                                                                                                         | `401`/`404`/`503`                                                               | none                                                                                                                                                                      |
+| `POST /api/maintenance/assets`                     | full-scan asset deletions + object deletions                                   | `cleanupWorkspaceAssetOrphans` / `cleanupWorkspaceAssetOrphansForAllUsers`                                                                          | deleted asset rows + object deletes                                                                                             | `400`/`401`/`503`/`500`                                                         | `assets.cleanup_executed`, `assets.cleanup_failed`                                                                                                                        |
 
 ### Non-notebook persistence endpoint map
 
@@ -719,12 +724,14 @@ Retention logic in `upsertWorkspaceSnapshotsForUser`:
 - Workspace snapshots are graph-only in Postgres and do not carry page/view article bodies.
 - Markdown object files are the canonical persisted article body for pages.
 - For each page request that needs markdown, the app loads `content_object_key` and reads the object from S3-compatible storage.
-- Markdown is generated from graph data by:
-    1. `createExportDocument`
-    2. `resolveExportAssets(..., "ignore")`
-    3. `renderMarkdownExport`
+- Markdown is generated from graph data by `pageMarkdownFromWorkspace`, which writes:
+    1. the page H1
+    2. topic marker comments plus `##` topic headings
+    3. view marker comments plus `###` view headings
+    4. serialized article block content for each non-empty view
 - Write path for generated markdown uses `savePageMarkdownIfConfigured` and writes `text/markdown; charset=utf-8`.
-- If notebook storage is not configured, saving markdown returns `{ saved: false }` and request continues with storage warning payload.
+- If notebook storage is not configured, `savePageMarkdownIfConfigured` returns `{ saved: false }`.
+  Workspace, notebook-create, and page graph-save routes continue with warning payloads and preserve SQL view content; the raw page content route returns `400`.
 
 ### Object key conventions
 
@@ -1208,7 +1215,8 @@ Retention logic in `upsertWorkspaceSnapshotsForUser`:
 - `readPageMarkdown`:
     - load page row
     - resolve notebook storage
-    - return null on any resolution/read error
+    - return null when storage is not configured, when the encryption key is missing, when the page row is missing, when the object is missing, or when the object body is missing
+    - throw for other storage resolution or S3 read failures
 - `savePageMarkdown`:
     - writes markdown and throws if storage is not configured
 - `savePageMarkdownIfConfigured`:
@@ -1454,8 +1462,8 @@ sequenceDiagram
     Store->>DB: resolveWorkspaceRevision
     Store->>Store: throw workspace_conflict (no base) or merge path
   end
-  Store->>DB: upsertNotebooks/upsertPages/deletePagesNotIn/deleteNotebooksNotIn
   Store->>S3: save page markdown per page
+  Store->>DB: upsertNotebooks/upsertPages/deletePagesNotIn/deleteNotebooksNotIn
   alt SQL upsert failure
     Store->>S3: rollback written markdown
     Store->>DB: restorePreviousWorkspace
