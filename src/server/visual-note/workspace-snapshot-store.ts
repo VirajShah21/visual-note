@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
-import type { NotebookPage, NotebookView, VisualNoteWorkspace, WorkspaceSnapshot } from "@/lib/visual-note/types"
+import type { VisualNoteWorkspace, WorkspaceSnapshot } from "@/lib/visual-note/types"
 
 type WorkspaceSnapshotRow = {
     id: string
@@ -13,19 +13,11 @@ const snapshotsTable = "visual_note_workspace_snapshots"
 
 type SnapshotWorkspace = Omit<VisualNoteWorkspace, "snapshots">
 
-const stripPageContent = (page: NotebookPage): NotebookPage => {
-    const next = { ...page }
-    delete next.content
-    return next
-}
-
-const stripViewContent = (view: NotebookView): NotebookView => ({ ...view, content: "" })
-
 export const sanitizeSnapshotWorkspace = (workspace: SnapshotWorkspace): SnapshotWorkspace => ({
     notebooks: workspace.notebooks,
-    pages: workspace.pages.map(stripPageContent),
+    pages: workspace.pages,
     topics: workspace.topics,
-    views: workspace.views.map(stripViewContent),
+    views: workspace.views,
 })
 
 const toSnapshot = (row: WorkspaceSnapshotRow): WorkspaceSnapshot => ({

@@ -6,8 +6,18 @@ import type { VisualNoteWorkspace } from "@lib/visual-note/types"
 import * as workspaceOperations from "./workspace-operations"
 import { visualNoteCoreToolNames, visualNoteToolDefinitions } from "@server/mcp/visual-note-tools"
 
-const { createArticle, createNotebook, readArticle, readNotebookTree, removeVisualBlock, replaceArticleContent, repairWorkspaceConsistency, upsertVisualBlock } =
-    workspaceOperations
+const {
+    createArticle,
+    createNotebook,
+    readArticle,
+    readNotebookTree,
+    removeVisualBlock,
+    replaceArticleContent,
+    repairWorkspaceConsistency,
+    restoreWorkspaceSnapshot,
+    snapshotWorkspace,
+    upsertVisualBlock,
+} = workspaceOperations
 
 const expectedCoreToolNames = [
     "list_notebooks",
@@ -143,6 +153,24 @@ test("replaces article content through structured parse and serialization", () =
         parsed.blocks.map(block => block.kind),
         ["heading", "bulletList", "callout", "code", "visual"],
     )
+})
+
+test("restores snapshot article content instead of keeping current edits", () => {
+    const snapshotResult = snapshotWorkspace(baseWorkspace(), "user-1", { name: "Before edit" })
+
+    assert.equal(snapshotResult.ok, true)
+    if (!snapshotResult.ok) return
+
+    const editedWorkspace: VisualNoteWorkspace = {
+        ...snapshotResult.value.workspace,
+        views: snapshotResult.value.workspace.views.map(view => (view.id === "view-1" ? { ...view, content: "Changed after snapshot" } : view)),
+    }
+    const restoreResult = restoreWorkspaceSnapshot(editedWorkspace, "user-1", { snapshotId: snapshotResult.value.snapshot.id })
+
+    assert.equal(restoreResult.ok, true)
+    if (!restoreResult.ok) return
+
+    assert.equal(restoreResult.value.workspace.views.find(view => view.id === "view-1")?.content, "# Alpha\n\nIntro")
 })
 
 test("inserts, updates, and removes visual blocks", () => {

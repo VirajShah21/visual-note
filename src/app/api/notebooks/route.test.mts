@@ -17,6 +17,7 @@ const emptyWorkspace: VisualNoteWorkspace = {
 }
 
 const readResponseBody = async (response: Response) => response.json()
+type PageUpsertRow = Parameters<NotebooksRouteDependencies["upsertPages"]>[2][number]
 
 const makeDependencies = (overrides: Partial<NotebooksRouteDependencies> = {}): NotebooksRouteDependencies => ({
     authenticateSupabaseMutationRequest: async () => authContext as never,
@@ -164,6 +165,7 @@ test("POST creates notebook without homepage when createHomePage is false", asyn
 test("POST creates homepage content when storage is configured", async () => {
     let pagesUpserted = 0
     let pageSaved = false
+    const upsertedPages: PageUpsertRow[] = []
 
     const response = await runNotebooksPost(
         authContext,
@@ -173,8 +175,9 @@ test("POST creates homepage content when storage is configured", async () => {
             headers: { "content-type": "application/json" },
         }),
         makeDependencies({
-            upsertPages: async () => {
+            upsertPages: async (_supabase, _userId, rows) => {
                 pagesUpserted += 1
+                upsertedPages.push(...rows)
             },
             savePageMarkdownIfConfigured: async () => {
                 pageSaved = true
@@ -227,12 +230,15 @@ test("POST creates homepage content when storage is configured", async () => {
 
     assert.equal(response.status, 200)
     const body = await readResponseBody(response)
-    assert.equal(pagesUpserted, 1)
+    assert.equal(pagesUpserted, 2)
     assert.equal(pageSaved, true)
+    assert.equal(upsertedPages[0]?.persistViewContent, true)
+    assert.equal(upsertedPages[1]?.persistViewContent, false)
     assert.equal(body.notebook.title, "With Home")
 })
 
 test("POST returns warning when storage is not configured for homepage markdown", async () => {
+    const upsertedPages: PageUpsertRow[] = []
     const response = await runNotebooksPost(
         authContext,
         new Request("https://visual-note.test/api/notebooks", {
@@ -242,13 +248,42 @@ test("POST returns warning when storage is not configured for homepage markdown"
         }),
         makeDependencies({
             savePageMarkdownIfConfigured: async () => ({ saved: false, objectKey: "notebooks/notebook-1/pages/page-1.md" }),
+            upsertPages: async (_supabase, _userId, rows) => {
+                upsertedPages.push(...rows)
+            },
         }),
     )
 
     assert.equal(response.status, 200)
     const body = await readResponseBody(response)
     assert.equal(body.notebook.title, "Needs Storage")
+    assert.equal(upsertedPages[0]?.persistViewContent, true)
     assert.deepEqual(body.warnings, [STORAGE_CONTENT_WARNING, STORAGE_SETUP_HINT])
+})
+
+test("POST keeps homepage content when markdown upload fails", async () => {
+    const upsertedPages: PageUpsertRow[] = []
+    const response = await runNotebooksPost(
+        authContext,
+        new Request("https://visual-note.test/api/notebooks", {
+            method: "POST",
+            body: JSON.stringify({ title: "Upload Failure" }),
+            headers: { "content-type": "application/json" },
+        }),
+        makeDependencies({
+            savePageMarkdownIfConfigured: async () => {
+                throw new Error("storage down")
+            },
+            upsertPages: async (_supabase, _userId, rows) => {
+                upsertedPages.push(...rows)
+            },
+        }),
+    )
+
+    assert.equal(response.status, 500)
+    assert.equal((await readResponseBody(response)).error, "storage down")
+    assert.equal(upsertedPages.length, 1)
+    assert.equal(upsertedPages[0]?.persistViewContent, true)
 })
 
 test("POST maps upsert failures to 500", async () => {

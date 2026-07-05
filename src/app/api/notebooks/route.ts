@@ -123,6 +123,7 @@ export const runNotebooksPost = async (auth: Authenticated, request: Request, de
                     topics: [topic],
                     views: [view],
                     contentObjectKey: dependencies.makePageObjectKey(createdNotebook.id, page.id),
+                    persistViewContent: true,
                 },
             ])
 
@@ -147,6 +148,18 @@ export const runNotebooksPost = async (auth: Authenticated, request: Request, de
                 warnings.push(STORAGE_CONTENT_WARNING)
                 warnings.push(STORAGE_SETUP_HINT)
             }
+
+            if (uploadResult.saved)
+                await dependencies.upsertPages(auth.supabase, auth.userId, [
+                    {
+                        page,
+                        notebookId: createdNotebook.id,
+                        topics: [topic],
+                        views: [view],
+                        contentObjectKey: dependencies.makePageObjectKey(createdNotebook.id, page.id),
+                        persistViewContent: false,
+                    },
+                ])
         }
 
         const detail = await dependencies.loadWorkspaceForUser(auth.supabase, auth.userId)
