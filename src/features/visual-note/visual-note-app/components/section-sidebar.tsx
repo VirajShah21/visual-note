@@ -1,8 +1,8 @@
 "use client"
 
-import { PanelLeft, Pencil, Plus, Trash2 } from "lucide-react"
+import { Pencil, Plus, Trash2 } from "lucide-react"
 import { useCallback, useMemo, useState } from "react"
-import { Button, ContextActions, Heading, InfoPopover, Pill, ScrollArea, Stack } from "@/components/ui"
+import { Button, ContextActions, Heading, ScrollArea, Stack } from "@/components/ui"
 import type { SectionSidebarProps } from "@features/visual-note/visual-note-app/types/visual-note-app.types"
 import styles from "../../visual-note-app.module.css"
 import { SectionDialogs } from "./section-sidebar-dialogs"
@@ -79,13 +79,7 @@ export function SectionSidebar({
         <ScrollArea className={styles.sidebar}>
             <Stack gap="lg">
                 <Stack gap="xs">
-                    <Pill>
-                        <PanelLeft size={14} />
-                        Sections
-                        <InfoPopover title="Sections" label="Section details">
-                            Topics are section-specific items in the notebook sidebar.
-                        </InfoPopover>
-                    </Pill>
+                    <Heading size="md">Sections</Heading>
                 </Stack>
                 <Stack gap="sm">
                     {sections.map(section => (
@@ -170,7 +164,7 @@ function SectionGroup({
     const handleOpenTopicCreator = useCallback(() => onOpenTopicCreator(section.id), [onOpenTopicCreator, section.id])
 
     return (
-        <Stack className={styles.sectionGroup} gap="sm">
+        <Stack className={styles.sectionGroup} gap="none">
             <ContextActions className={styles.sectionHeaderTrigger} items={sectionItems}>
                 <Stack className={styles.sectionHeaderRow} direction="horizontal" gap="xs">
                     <Heading className={`${styles.sectionTitle} ${section.id === activeSectionId ? styles.activeSectionTitle : ""}`} size="sm" onClick={handleSelectSection}>
