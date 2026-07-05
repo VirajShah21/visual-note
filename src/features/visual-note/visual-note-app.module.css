@@ -56,6 +56,21 @@
     width: 100%;
 }
 
+.sectionHeaderRow {
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+    width: 100%;
+}
+
+.sectionAddButton {
+    opacity: 0.8;
+}
+
+.sectionAddButton:hover {
+    opacity: 1;
+}
+
 .sectionTitle {
     color: var(--ink);
     text-transform: none;

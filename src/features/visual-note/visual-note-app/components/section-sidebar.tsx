@@ -172,9 +172,19 @@ function SectionGroup({
     return (
         <Stack className={styles.sectionGroup} gap="sm">
             <ContextActions className={styles.sectionHeaderTrigger} items={sectionItems}>
-                <Heading className={`${styles.sectionTitle} ${section.id === activeSectionId ? styles.activeSectionTitle : ""}`} size="sm" onClick={handleSelectSection}>
-                    {section.title}
-                </Heading>
+                <Stack className={styles.sectionHeaderRow} direction="horizontal" gap="xs">
+                    <Heading className={`${styles.sectionTitle} ${section.id === activeSectionId ? styles.activeSectionTitle : ""}`} size="sm" onClick={handleSelectSection}>
+                        {section.title}
+                    </Heading>
+                    <Button
+                        aria-label="Add item to section"
+                        className={styles.sectionAddButton}
+                        icon={<Plus size={14} />}
+                        iconOnly
+                        onClick={handleOpenTopicCreator}
+                        variant="ghost"
+                    />
+                </Stack>
             </ContextActions>
             <Stack className={styles.sectionPageList} gap="xs">
                 {topics.map(topic => (
@@ -187,9 +197,6 @@ function SectionGroup({
                         onSelectTopic={onSelectTopic}
                     />
                 ))}
-                <Button icon={<Plus size={15} />} onClick={handleOpenTopicCreator} fullWidth>
-                    New item
-                </Button>
             </Stack>
         </Stack>
     )
