@@ -120,6 +120,7 @@
 }
 
 .blockInputParagraph {
+    font-weight: 400;
     line-height: 1.72;
 }
 
@@ -150,6 +151,7 @@
 }
 
 .readerParagraph {
+    font-weight: 400;
     max-width: 72ch;
 }
 
