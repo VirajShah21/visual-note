@@ -45,7 +45,6 @@
 
 .sidebar {
     border-right: 1px solid var(--border);
-    padding: 16px;
 }
 
 .sectionGroup {
@@ -53,6 +52,7 @@
 }
 
 .sectionHeaderTrigger {
+    padding-inline: 24px;
     width: 100%;
 }
 
@@ -112,7 +112,6 @@
 }
 
 .activeNavButton {
-    border-color: var(--accent-soft);
     background: var(--accent-wash);
     color: var(--accent-strong);
 }
@@ -127,6 +126,9 @@
 }
 
 .topicSelectButton {
+    padding-inline: 24px;
+    border-radius: 0;
+    border: none;
     flex: 1 1 auto;
     min-width: 0;
 }
