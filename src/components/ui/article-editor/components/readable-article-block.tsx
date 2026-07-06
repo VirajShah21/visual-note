@@ -56,7 +56,7 @@ export function ReadableArticleBlock({ block, blockIndex, displays, handlers, re
                 {block.items.map((item, itemIndex) => (
                     <Stack key={`${blockIndex}-${itemIndex}`} className={styles.listRow} direction="horizontal" gap="sm">
                         <Text size="small">{block.kind === "bulletList" ? "•" : `${itemIndex + 1}.`}</Text>
-                        <Text className={styles.readerText} tone="strong">
+                        <Text className={styles.readerText}>
                             <ReadableInlineContent text={item} />
                         </Text>
                     </Stack>
@@ -87,7 +87,7 @@ export function ReadableArticleBlock({ block, blockIndex, displays, handlers, re
     return null
 }
 
-function ReaderText({ text, className, tone = "strong" }: { text: string; className?: string; tone?: "muted" | "strong" }) {
+function ReaderText({ text, className, tone = "muted" }: { text: string; className?: string; tone?: "muted" | "strong" }) {
     return (
         <Stack gap="xs" className={styles.articleBlock}>
             <Text className={cx(styles.readerText, className)} tone={tone}>
