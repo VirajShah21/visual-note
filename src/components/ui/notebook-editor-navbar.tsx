@@ -2,24 +2,14 @@
 
 import { Button as BaseButton } from "@base-ui/react/button"
 import { Input } from "@base-ui/react/input"
-import { Popover } from "@base-ui/react/popover"
-import { BookOpen, BookOpenText, Braces, Download, Eye, FileCode2, Home, Info, ListTree, PanelLeftClose, PanelLeftOpen, PencilLine, Search, Settings } from "lucide-react"
-import { useCallback, useMemo, useState, type ChangeEventHandler, type MouseEventHandler } from "react"
+import { BookOpen, Braces, Download, Eye, FileCode2, Info, ListTree, PanelLeftClose, PanelLeftOpen, PencilLine, Search, Settings } from "lucide-react"
+import { useCallback, type ChangeEventHandler, type MouseEventHandler } from "react"
 import type { ArticleBlockInfoMode, ArticleContentsMode, ArticleEditorMode, NotebookEditorSettings } from "@/lib/visual-note/types"
 import type { NotebookSearchResult } from "@/lib/visual-note/search"
 import { Button } from "./button"
 import { cx } from "./class-name"
 import styles from "./notebook-editor-navbar.module.css"
 import { ToolbarMenu, type ToolbarMenuGroup } from "./toolbar-menu"
-
-export type NotebookEditorRecentNotebook = {
-    id: string
-    title: string
-    summary: string
-    color: string
-    updatedLabel: string
-    createdAt?: string
-}
 
 export type NotebookEditorNavbarProps = {
     searchQuery: string
@@ -29,18 +19,13 @@ export type NotebookEditorNavbarProps = {
     searchError: boolean
     sidebarOpen: boolean
     editorSettings: NotebookEditorSettings
-    currentNotebookId?: string
-    notebookTitle?: string
     onExport: () => void
-    onHomeSelect: () => void
-    onNotebookSelect: (notebookId: string) => void
     onSearchLoadMore: () => void
     onSearchChange: (query: string) => void
     onSearchResultSelect: (result: NotebookSearchResult) => void
     onMoreSettings: () => void
     onSettingsChange: (settings: Partial<NotebookEditorSettings>) => void
     onToggleSidebar: () => void
-    recentNotebooks?: NotebookEditorRecentNotebook[]
 }
 
 export function NotebookEditorNavbar({
@@ -51,20 +36,14 @@ export function NotebookEditorNavbar({
     searchError,
     sidebarOpen,
     editorSettings,
-    currentNotebookId = "",
-    notebookTitle = "Visual Note",
     onExport,
-    onHomeSelect,
-    onNotebookSelect,
     onSearchChange,
     onSearchLoadMore,
     onSearchResultSelect,
     onMoreSettings,
     onSettingsChange,
     onToggleSidebar,
-    recentNotebooks = [],
 }: NotebookEditorNavbarProps) {
-    const [isNotebookSwitcherOpen, setIsNotebookSwitcherOpen] = useState(false)
     const handleSearchChange: ChangeEventHandler<HTMLInputElement> = useCallback(event => onSearchChange(event.target.value), [onSearchChange])
     const handleSearchLoadMore: MouseEventHandler<HTMLButtonElement> = useCallback(
         event => {
@@ -74,25 +53,6 @@ export function NotebookEditorNavbar({
         [onSearchLoadMore],
     )
     const hasQuery = searchQuery.trim().length > 0
-    const switcherNotebooks = useMemo(
-        () =>
-            [...recentNotebooks]
-                .filter(notebook => notebook.id !== currentNotebookId)
-                .sort((first, second) => Date.parse(second.createdAt ?? "") - Date.parse(first.createdAt ?? ""))
-                .slice(0, 3),
-        [currentNotebookId, recentNotebooks],
-    )
-    const selectHome = useCallback(() => {
-        setIsNotebookSwitcherOpen(false)
-        onHomeSelect()
-    }, [onHomeSelect])
-    const selectNotebook = useCallback(
-        (notebookId: string) => {
-            setIsNotebookSwitcherOpen(false)
-            onNotebookSelect(notebookId)
-        },
-        [onNotebookSelect],
-    )
     const settingsGroups: ToolbarMenuGroup[] = [
         {
             id: "block-info",
@@ -150,36 +110,6 @@ export function NotebookEditorNavbar({
                     variant="ghost"
                     onClick={onToggleSidebar}
                 />
-                <Popover.Root open={isNotebookSwitcherOpen} onOpenChange={setIsNotebookSwitcherOpen}>
-                    <Popover.Trigger className={styles.brandButton} aria-label="Switch notebook">
-                        <span className={styles.brandMark}>
-                            <BookOpenText size={17} />
-                        </span>
-                        <span className={styles.brandText}>
-                            <span className={styles.brandName}>Visual Note</span>
-                            <span className={styles.notebookTitle}>{notebookTitle}</span>
-                        </span>
-                    </Popover.Trigger>
-                    <Popover.Portal>
-                        <Popover.Positioner className={styles.switcherPositioner} side="bottom" align="start" sideOffset={8} collisionPadding={12}>
-                            <Popover.Popup className={styles.switcherPopup}>
-                                <Popover.Title className={styles.switcherTitle}>Switch notebook</Popover.Title>
-                                <BaseButton className={styles.switcherItem} onClick={selectHome}>
-                                    <span className={styles.switcherIcon}>
-                                        <Home size={15} />
-                                    </span>
-                                    <span className={styles.switcherText}>
-                                        <span className={styles.switcherName}>Home</span>
-                                        <span className={styles.switcherMeta}>All notebooks</span>
-                                    </span>
-                                </BaseButton>
-                                {switcherNotebooks.map(notebook => (
-                                    <NotebookSwitcherItem key={notebook.id} notebook={notebook} onSelectNotebook={selectNotebook} />
-                                ))}
-                            </Popover.Popup>
-                        </Popover.Positioner>
-                    </Popover.Portal>
-                </Popover.Root>
             </div>
             <div className={styles.searchWrap}>
                 <Search className={styles.searchIcon} size={16} />
@@ -211,20 +141,6 @@ export function NotebookEditorNavbar({
                 </Button>
             </div>
         </div>
-    )
-}
-
-function NotebookSwitcherItem({ notebook, onSelectNotebook }: { notebook: NotebookEditorRecentNotebook; onSelectNotebook: (notebookId: string) => void }) {
-    const handleSelect = useCallback(() => onSelectNotebook(notebook.id), [notebook.id, onSelectNotebook])
-
-    return (
-        <BaseButton className={styles.switcherItem} onClick={handleSelect}>
-            <span className={styles.notebookSwatch} style={{ backgroundColor: notebook.color }} />
-            <span className={styles.switcherText}>
-                <span className={styles.switcherName}>{notebook.title}</span>
-                <span className={styles.switcherMeta}>{notebook.updatedLabel}</span>
-            </span>
-        </BaseButton>
     )
 }
 

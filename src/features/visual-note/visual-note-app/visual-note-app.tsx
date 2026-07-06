@@ -106,9 +106,6 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
         <Stack className={styles.app} gap="none">
             <Grid className={styles.workspace} gap="none">
                 <NotebookEditorNavbar
-                    currentNotebookId={selected.currentSelection.notebookId}
-                    notebookTitle={selected.notebook?.title}
-                    recentNotebooks={galleryItems}
                     searchQuery={searchQuery}
                     searchResults={searchResults}
                     searchHasMore={searchHasMore}
@@ -117,8 +114,6 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                     sidebarOpen={isSidebarOpen}
                     editorSettings={editorSettings}
                     onExport={openExportDialog}
-                    onHomeSelect={actions.openHome}
-                    onNotebookSelect={selectNotebook}
                     onSearchChange={setSearchQuery}
                     onSearchLoadMore={loadMoreSearchResults}
                     onSearchResultSelect={selectSearchResult}
@@ -137,12 +132,17 @@ export function VisualNoteApp({ mode = "home", initialNotebookId = "" }: VisualN
                             topics={workspace.topics}
                             activeSectionId={selected.currentSelection.pageId}
                             activeTopicId={selected.currentSelection.topicId}
+                            currentNotebookId={selected.currentSelection.notebookId}
+                            notebookTitle={selected.notebook?.title}
+                            recentNotebooks={galleryItems}
                             onCreateSection={actions.addSection}
                             onRenameSection={actions.renameSection}
                             onDeleteSection={actions.deleteSection}
                             onCreateTopic={actions.addTopic}
                             onRenameTopic={actions.renameTopic}
                             onDeleteTopic={actions.deleteTopic}
+                            onHomeSelect={actions.openHome}
+                            onNotebookSelect={selectNotebook}
                             onSelectSection={selectSection}
                             onSelectTopic={selectTopic}
                         />

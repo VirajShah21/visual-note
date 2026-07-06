@@ -45,7 +45,6 @@
 
 .sidebar {
     border-right: 1px solid var(--border);
-    padding: 16px;
 }
 
 .sectionGroup {
@@ -53,7 +52,23 @@
 }
 
 .sectionHeaderTrigger {
+    padding-inline: 24px;
     width: 100%;
+}
+
+.sectionHeaderRow {
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+    width: 100%;
+}
+
+.sectionAddButton {
+    opacity: 0.8;
+}
+
+.sectionAddButton:hover {
+    opacity: 1;
 }
 
 .sectionTitle {
@@ -68,8 +83,6 @@
 }
 
 .sectionPageList {
-    border-top: 1px solid rgba(220, 228, 235, 0.9);
-    padding-top: 8px;
 }
 
 .content {
@@ -99,7 +112,6 @@
 }
 
 .activeNavButton {
-    border-color: var(--accent-soft);
     background: var(--accent-wash);
     color: var(--accent-strong);
 }
@@ -114,6 +126,9 @@
 }
 
 .topicSelectButton {
+    padding-inline: 24px;
+    border-radius: 0;
+    border: none;
     flex: 1 1 auto;
     min-width: 0;
 }

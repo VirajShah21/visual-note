@@ -1,8 +1,8 @@
 "use client"
 
-import { PanelLeft, Pencil, Plus, Trash2 } from "lucide-react"
+import { Pencil, Plus, Trash2 } from "lucide-react"
 import { useCallback, useMemo, useState } from "react"
-import { Button, ContextActions, Heading, InfoPopover, Pill, ScrollArea, Stack } from "@/components/ui"
+import { Button, ContextActions, Heading, NotebookSwitcher, ScrollArea, Stack } from "@/components/ui"
 import type { SectionSidebarProps } from "@features/visual-note/visual-note-app/types/visual-note-app.types"
 import styles from "../../visual-note-app.module.css"
 import { SectionDialogs } from "./section-sidebar-dialogs"
@@ -12,12 +12,17 @@ export function SectionSidebar({
     topics,
     activeSectionId,
     activeTopicId,
+    currentNotebookId,
+    notebookTitle,
+    recentNotebooks,
     onCreateSection,
     onRenameSection,
     onDeleteSection,
     onCreateTopic,
     onRenameTopic,
     onDeleteTopic,
+    onHomeSelect,
+    onNotebookSelect,
     onSelectTopic,
     onSelectSection,
 }: SectionSidebarProps) {
@@ -78,15 +83,13 @@ export function SectionSidebar({
     return (
         <ScrollArea className={styles.sidebar}>
             <Stack gap="lg">
-                <Stack gap="xs">
-                    <Pill>
-                        <PanelLeft size={14} />
-                        Sections
-                        <InfoPopover title="Sections" label="Section details">
-                            Topics are section-specific items in the notebook sidebar.
-                        </InfoPopover>
-                    </Pill>
-                </Stack>
+                <NotebookSwitcher
+                    currentNotebookId={currentNotebookId}
+                    notebookTitle={notebookTitle}
+                    recentNotebooks={recentNotebooks}
+                    onHomeSelect={onHomeSelect}
+                    onNotebookSelect={onNotebookSelect}
+                />
                 <Stack gap="sm">
                     {sections.map(section => (
                         <SectionGroup
@@ -105,7 +108,7 @@ export function SectionSidebar({
                         />
                     ))}
                 </Stack>
-                <Button icon={<Plus size={15} />} onClick={openCreateDialog} fullWidth>
+                <Button icon={<Plus size={15} />} onClick={openCreateDialog} fullWidth variant="ghost">
                     New section
                 </Button>
             </Stack>
@@ -170,11 +173,21 @@ function SectionGroup({
     const handleOpenTopicCreator = useCallback(() => onOpenTopicCreator(section.id), [onOpenTopicCreator, section.id])
 
     return (
-        <Stack className={styles.sectionGroup} gap="sm">
+        <Stack className={styles.sectionGroup} gap="none">
             <ContextActions className={styles.sectionHeaderTrigger} items={sectionItems}>
-                <Heading className={`${styles.sectionTitle} ${section.id === activeSectionId ? styles.activeSectionTitle : ""}`} size="sm" onClick={handleSelectSection}>
-                    {section.title}
-                </Heading>
+                <Stack className={styles.sectionHeaderRow} direction="horizontal" gap="xs">
+                    <Heading className={`${styles.sectionTitle} ${section.id === activeSectionId ? styles.activeSectionTitle : ""}`} size="sm" onClick={handleSelectSection}>
+                        {section.title}
+                    </Heading>
+                    <Button
+                        aria-label="Add item to section"
+                        className={styles.sectionAddButton}
+                        icon={<Plus size={14} />}
+                        iconOnly
+                        onClick={handleOpenTopicCreator}
+                        variant="ghost"
+                    />
+                </Stack>
             </ContextActions>
             <Stack className={styles.sectionPageList} gap="xs">
                 {topics.map(topic => (
@@ -187,9 +200,6 @@ function SectionGroup({
                         onSelectTopic={onSelectTopic}
                     />
                 ))}
-                <Button icon={<Plus size={15} />} onClick={handleOpenTopicCreator} fullWidth>
-                    New item
-                </Button>
             </Stack>
         </Stack>
     )
@@ -211,7 +221,12 @@ function SectionTopicItem({ topic, activeTopicId, onDeleteTopic, onOpenEditTopic
 
     return (
         <ContextActions className={styles.topicContextTrigger} items={items}>
-            <Button className={`${styles.navButton} ${styles.topicSelectButton} ${topic.id === activeTopicId ? styles.activeNavButton : ""}`} onClick={handleSelect} fullWidth>
+            <Button
+                className={`${styles.navButton} ${styles.topicSelectButton} ${topic.id === activeTopicId ? styles.activeNavButton : ""}`}
+                onClick={handleSelect}
+                fullWidth
+                variant="ghost"
+            >
                 {topic.title}
             </Button>
         </ContextActions>
